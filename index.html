@@ -308,6 +308,15 @@
       <div id="adminMemberTable"></div>
     </div>
     <div class="admin-block">
+      <h4>미투표 통계 제외 주간</h4>
+      <div class="admin-feed-status">시험운영 기간처럼, 투표를 안 했어도 "미투표자 순위"에 영향이 가면 안 되는 주간을 지정합니다.<br>날짜를 하나 고르면 그 날짜가 속한 주(일~토) 전체가 미투표 통계에서 제외됩니다. (참석/불참 순위에는 영향 없습니다.)</div>
+      <div class="admin-row">
+        <input type="date" id="excludeWeekDateInput">
+        <button id="addExcludeWeekBtn">이 주간 제외</button>
+      </div>
+      <div class="guest-chip-list" id="excludeWeekList"></div>
+    </div>
+    <div class="admin-block">
       <h4>투표 초기화</h4>
       <div class="admin-row">
         <button id="resetDateVotesBtn">선택 주간 투표 초기화</button>
