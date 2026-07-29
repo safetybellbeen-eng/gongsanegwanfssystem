@@ -585,7 +585,7 @@ const SUPABASE_KEY = 'sb_publishable_GY9qgB0wVnh2YmYWO9qrTA_OK-chx5W';
 const supabaseClient = (typeof supabase !== 'undefined') ? supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
 const SUPABASE_ROW_ID = 1; // app_state 테이블의 고정 행(row) id — 팀 전체가 공유하는 데이터 한 덩어리
 
-function emptyAppData(){ return { venues:{}, votedDates:[], votes:{}, members:{}, weekAvailability:{}, weekAbsence:{}, weekOverride:{}, actualAttendance:{}, matchGuests:{}, matchTimeWindow:{startHour:19,endHour:21}, kakaoJsKey:'', notice:{title:'',body:'',updatedAt:null}, kmaApiKey:'' }; }
+function emptyAppData(){ return { venues:{}, votedDates:[], votes:{}, members:{}, weekAvailability:{}, weekAbsence:{}, weekOverride:{}, actualAttendance:{}, matchGuests:{}, excludedWeeks:[], matchTimeWindow:{startHour:19,endHour:21}, kakaoJsKey:'', notice:{title:'',body:'',updatedAt:null}, kmaApiKey:'' }; }
 let appData = emptyAppData();
 
 async function remoteLoad(){
@@ -610,6 +610,7 @@ async function remoteLoad(){
       notice: record.notice || {title:'',body:'',updatedAt:null},
       kmaApiKey: record.kmaApiKey || '',
       matchGuests: record.matchGuests || {},
+      excludedWeeks: record.excludedWeeks || [],
       matchTimeWindow: record.matchTimeWindow||{startHour:19,endHour:21},
       kakaoJsKey: record.kakaoJsKey || ''
     };
@@ -1174,6 +1175,7 @@ function computeAttendanceStats(){
   const stats = {};
   validDateKeys.forEach(date=>{
     getEffectiveVotesForDate(date).forEach(v=>{
+      if(v.name === ADMIN_NAME) return; // 관리자는 선수가 아니라 운영 계정이므로 모든 순위 통계에서 제외합니다.
       if(!stats[v.name]) stats[v.name] = {yes:0, no:0, total:0};
       stats[v.name].total++;
       if(v.choice==='yes') stats[v.name].yes++; else stats[v.name].no++;
@@ -1181,7 +1183,9 @@ function computeAttendanceStats(){
   });
 
   // 투표 미실시 횟수: 열렸던 전체 주(week) 중, 명시적으로 "불참 선언"도 하지 않고 날짜도 하나도 고르지 않은 횟수
-  const weekKeys = Object.keys(appData.weekAvailability||{});
+  // (단, 관리자가 "미투표 통계 제외 주간"으로 지정한 주는 시험운영 등으로 집계에서 건너뜁니다)
+  const excludedWeeks = new Set(appData.excludedWeeks || []);
+  const weekKeys = Object.keys(appData.weekAvailability||{}).filter(wk=>!excludedWeeks.has(wk));
   const approvedNames = getApprovedNonAdminNames();
   const missCounts = {};
   approvedNames.forEach(n=>missCounts[n]=0);
@@ -1279,6 +1283,7 @@ function updateAdminVisibility(){
     renderMatchVenueConfirmedHint();
     const kmaInput = $('#kmaApiKeyInput');
     if(kmaInput) kmaInput.value = appData.kmaApiKey || '';
+    renderExcludeWeekList();
   }
 }
 function populateMatchWindowSelects(){
@@ -1838,6 +1843,50 @@ function addPendingMatchGuest(){
 $('#addMatchVenueGuestBtn').addEventListener('click', addPendingMatchGuest);
 $('#matchVenueGuestNameInput').addEventListener('keydown', (e)=>{
   if(e.key==='Enter'){ e.preventDefault(); addPendingMatchGuest(); }
+});
+
+/* ---------- 미투표 통계 제외 주간 (시험운영 기간 등) ---------- */
+function renderExcludeWeekList(){
+  const el = $('#excludeWeekList');
+  if(!el) return;
+  const weeks = [...(appData.excludedWeeks || [])].sort();
+  if(!weeks.length){
+    el.innerHTML = '<span class="empty-hint">제외된 주간이 없습니다.</span>';
+    return;
+  }
+  el.innerHTML = weeks.map(wk=>{
+    const dates = getWeekDates(wk);
+    const s = parseYMD(dates[0]), e = parseYMD(dates[6]);
+    const label = `${s.getMonth()+1}.${s.getDate()} ~ ${e.getMonth()+1}.${e.getDate()}`;
+    return `<span class="guest-chip">${escapeHtml(label)}<button type="button" data-week="${wk}" title="제외 해제">✕</button></span>`;
+  }).join('');
+  el.querySelectorAll('button[data-week]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const wk = btn.dataset.week;
+      await mutateAppData(data=>{
+        data.excludedWeeks = (data.excludedWeeks || []).filter(w=>w!==wk);
+      });
+      renderExcludeWeekList();
+      computeAttendanceStats();
+      toast('제외 해제했습니다. 다시 미투표 통계에 포함됩니다.');
+    });
+  });
+}
+$('#addExcludeWeekBtn').addEventListener('click', async ()=>{
+  if(!requireAdmin()) return;
+  const dateInput = $('#excludeWeekDateInput');
+  const dateVal = dateInput.value;
+  if(!dateVal){ toast('날짜를 선택해 주시기 바랍니다.'); return; }
+  const weekKey = getWeekStart(dateVal);
+  if((appData.excludedWeeks||[]).includes(weekKey)){ toast('이미 제외된 주간입니다.'); return; }
+  await mutateAppData(data=>{
+    if(!data.excludedWeeks) data.excludedWeeks = [];
+    data.excludedWeeks.push(weekKey);
+  });
+  dateInput.value = '';
+  renderExcludeWeekList();
+  computeAttendanceStats();
+  toast('해당 주간을 미투표 통계에서 제외했습니다.');
 });
 
 function loadMatchVenueTimeEditorForDate(dateStr){
