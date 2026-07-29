@@ -233,8 +233,8 @@
   <div class="eyebrow admin-only" id="adminSectionEyebrow" style="display:none;"><span class="num">06</span><h2>관리자 도구</h2><div class="line"></div></div>
   <div class="weather-card admin-only" id="adminPanel" style="display:none;">
     <div class="admin-block">
-      <h4>경기장·시간·링크 등록</h4>
-      <div class="admin-feed-status">확정된 경기 날짜에 경기장, 경기 시간, 경기 신청/안내 링크를 입력하면 홈 화면 "다음 경기" 카드에 그대로 표시됩니다.<br>링크를 입력하면 "경기 링크" 버튼이 함께 표시되어, 눌렀을 때 해당 주소로 이동합니다.</div>
+      <h4>경기장·시간·링크·용병 등록</h4>
+      <div class="admin-feed-status">확정된 경기 날짜에 경기장, 경기 시간, 경기 신청/안내 링크, 용병(게스트)을 입력하면 홈 화면 "다음 경기" 카드에 그대로 표시됩니다.<br>링크를 입력하면 "경기 링크" 버튼이 함께 표시되어, 눌렀을 때 해당 주소로 이동합니다.<br>용병은 팀원이 아니라 그 경기에 일회성으로 참여하는 인원을 이름으로 등록하는 용도입니다.</div>
       <div class="admin-feed-status" id="matchVenueConfirmedHint" style="color:var(--pitch);font-weight:600;"></div>
       <div class="admin-row">
         <input type="date" id="matchVenueDateInput">
@@ -250,6 +250,11 @@
       <div class="admin-row">
         <input type="text" id="matchVenueLinkInput" placeholder="경기 링크 (예: https://www.plabfootball.com/match/123456)">
       </div>
+      <div class="admin-row">
+        <input type="text" id="matchVenueGuestNameInput" placeholder="용병(게스트) 이름 입력 후 추가">
+        <button id="addMatchVenueGuestBtn">추가</button>
+      </div>
+      <div class="guest-chip-list" id="matchVenueGuestList"></div>
       <div class="admin-row">
         <button id="saveMatchVenueTimeBtn">저장</button>
         <span class="admin-feed-status" id="matchVenueTimeStatus"></span>
