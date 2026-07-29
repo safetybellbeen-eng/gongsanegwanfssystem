@@ -585,7 +585,7 @@ const SUPABASE_KEY = 'sb_publishable_GY9qgB0wVnh2YmYWO9qrTA_OK-chx5W';
 const supabaseClient = (typeof supabase !== 'undefined') ? supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
 const SUPABASE_ROW_ID = 1; // app_state 테이블의 고정 행(row) id — 팀 전체가 공유하는 데이터 한 덩어리
 
-function emptyAppData(){ return { venues:{}, votedDates:[], votes:{}, members:{}, weekAvailability:{}, weekAbsence:{}, weekOverride:{}, actualAttendance:{}, matchTimeWindow:{startHour:19,endHour:21}, kakaoJsKey:'', notice:{title:'',body:'',updatedAt:null}, kmaApiKey:'' }; }
+function emptyAppData(){ return { venues:{}, votedDates:[], votes:{}, members:{}, weekAvailability:{}, weekAbsence:{}, weekOverride:{}, actualAttendance:{}, matchGuests:{}, matchTimeWindow:{startHour:19,endHour:21}, kakaoJsKey:'', notice:{title:'',body:'',updatedAt:null}, kmaApiKey:'' }; }
 let appData = emptyAppData();
 
 async function remoteLoad(){
@@ -609,6 +609,7 @@ async function remoteLoad(){
       actualAttendance: record.actualAttendance||{},
       notice: record.notice || {title:'',body:'',updatedAt:null},
       kmaApiKey: record.kmaApiKey || '',
+      matchGuests: record.matchGuests || {},
       matchTimeWindow: record.matchTimeWindow||{startHour:19,endHour:21},
       kakaoJsKey: record.kakaoJsKey || ''
     };
@@ -818,7 +819,7 @@ let lastVotesJson = null;
 function getEffectiveVotesForDate(date){
   const actual = appData.actualAttendance && appData.actualAttendance[date];
   if(actual && actual.finalized){
-    const approvedNames = Object.keys(appData.members||{}).filter(n=>appData.members[n].approved);
+    const approvedNames = getApprovedNonAdminNames();
     const attendSet = new Set(actual.attendees||[]);
     return approvedNames.map(name=>({ name, choice: attendSet.has(name) ? 'yes' : 'no' }));
   }
@@ -833,7 +834,7 @@ function computeNoShowSummary(date){
   const noShow = votes.filter(v=>v.choice==='yes' && !attendSet.has(v.name)).map(v=>v.name);
   const votedNames = votes.map(v=>v.name);
   const suddenFromNo = votes.filter(v=>v.choice==='no' && attendSet.has(v.name)).map(v=>v.name);
-  const approvedNames = Object.keys(appData.members||{}).filter(n=>appData.members[n].approved);
+  const approvedNames = getApprovedNonAdminNames();
   const suddenFromNonVoter = approvedNames.filter(n=>!votedNames.includes(n) && attendSet.has(n));
   return { noShow, suddenAttend: [...suddenFromNo, ...suddenFromNonVoter], guests: actual.guests||[] };
 }
@@ -847,7 +848,7 @@ async function renderMatchPanel(){
   const { dates, avail, counts, max, topDates, isTie, manual, confirmedDates } = info;
   lastVotesJson = JSON.stringify(avail);
 
-  const approvedNames = Object.keys(appData.members||{}).filter(n=>appData.members[n].approved);
+  const approvedNames = getApprovedNonAdminNames();
   const absenceMap = (appData.weekAbsence && appData.weekAbsence[weekKey]) || {};
   const absentNames = approvedNames.filter(n=>absenceMap[n]);
   const availableNames = approvedNames.filter(n=>!absenceMap[n] && (avail[n]||[]).length>0);
@@ -996,7 +997,7 @@ async function renderMatchPanel(){
       const editVotes = appData.votes[editDate] || [];
       const existingActual = appData.actualAttendance && appData.actualAttendance[editDate];
       const attendSet = new Set(existingActual ? existingActual.attendees : editVotes.filter(v=>v.choice==='yes').map(v=>v.name));
-      const approvedNamesForEdit = Object.keys(appData.members||{}).filter(n=>appData.members[n].approved);
+      const approvedNamesForEdit = getApprovedNonAdminNames();
       const eObj = parseYMD(editDate);
       const checklistHtml = approvedNamesForEdit.map(n=>`
         <label class="actual-check-row">
@@ -1004,7 +1005,9 @@ async function renderMatchPanel(){
           <span>${escapeHtml(n)}</span>
         </label>
       `).join('');
-      const guestListStr = existingActual && existingActual.guests ? existingActual.guests.join(', ') : '';
+      const guestListStr = existingActual && existingActual.guests
+        ? existingActual.guests.join(', ')
+        : ((appData.matchGuests && appData.matchGuests[editDate]) || []).join(', ');
       adminHtml += `
         <div class="actual-attend-editor">
           <div class="label">실제 참석 체크 — ${eObj.getMonth()+1}.${eObj.getDate()}(${weekdayKR[eObj.getDay()]})</div>
@@ -1179,7 +1182,7 @@ function computeAttendanceStats(){
 
   // 투표 미실시 횟수: 열렸던 전체 주(week) 중, 명시적으로 "불참 선언"도 하지 않고 날짜도 하나도 고르지 않은 횟수
   const weekKeys = Object.keys(appData.weekAvailability||{});
-  const approvedNames = Object.keys(appData.members||{}).filter(n=>appData.members[n].approved);
+  const approvedNames = getApprovedNonAdminNames();
   const missCounts = {};
   approvedNames.forEach(n=>missCounts[n]=0);
   weekKeys.forEach(wk=>{
@@ -1232,6 +1235,10 @@ function computeAttendanceStats(){
 }
 // TODO: 정식 배포 전 Supabase Auth 및 서버 측 권한 검증으로 이전 필요 (관리자 계정/생일이 하드코딩됨)
 const ADMIN_NAME = '관리자';
+/* 투표/출석 관련 통계에서는 관리자 계정을 인원수에서 제외합니다 (관리자는 선수가 아니라 운영 계정이므로). */
+function getApprovedNonAdminNames(){
+  return Object.keys(appData.members||{}).filter(n=>appData.members[n].approved && n!==ADMIN_NAME);
+}
 const ADMIN_BIRTH = '260402';
 function isAdminUser(){ return myName===ADMIN_NAME && myBirth===ADMIN_BIRTH; }
 function isAdmin(){ return isAdminUser(); } // 하위 호환용 별칭
@@ -1560,8 +1567,10 @@ function renderHeroMatch(){
   const ddayLabel = diffDays===0 ? 'D-DAY' : `D-${diffDays}`;
   const votes = appData.votes[date] || [];
   const yesList = votes.filter(v=>v.choice==='yes');
+  const guestNames = (appData.matchGuests && appData.matchGuests[date]) || [];
   const venue = getVenueInfo(date);
-  const approvedTotal = Object.keys(appData.members||{}).filter(n=>appData.members[n].approved).length;
+  const approvedTotal = getApprovedNonAdminNames().length;
+  const totalAttending = yesList.length + guestNames.length;
 
   const avatarPalette = ['#3ddc84','#6db8ff','#ffd76b','#ff8fa3','#c9a0ff','#ff9d5c'];
   const avatarColor = (name)=>{
@@ -1569,9 +1578,13 @@ function renderHeroMatch(){
     return avatarPalette[h];
   };
   const maxShow = 5;
-  const shown = yesList.slice(0, maxShow);
-  const overflow = yesList.length - shown.length;
-  const avatarsHtml = shown.map(v=>`<div class="avatar-circle" style="background:${avatarColor(v.name)};" title="${escapeHtml(v.name)}">${escapeHtml(v.name.charAt(0))}</div>`).join('')
+  const attendeeChips = [
+    ...yesList.map(v=>({ name:v.name, isGuest:false })),
+    ...guestNames.map(n=>({ name:n, isGuest:true }))
+  ];
+  const shown = attendeeChips.slice(0, maxShow);
+  const overflow = attendeeChips.length - shown.length;
+  const avatarsHtml = shown.map(p=>`<div class="avatar-circle ${p.isGuest?'guest':''}" style="background:${avatarColor(p.name)};" title="${escapeHtml(p.name)}${p.isGuest?' (용병)':''}">${escapeHtml(p.name.charAt(0))}</div>`).join('')
     + (overflow>0 ? `<div class="avatar-circle more">+${overflow}</div>` : '');
 
   el.className = 'hero-match-card';
@@ -1588,11 +1601,11 @@ function renderHeroMatch(){
       </div>
       <div class="hero-right">
         <div class="hero-count-label">참석 현황</div>
-        <div class="hero-count-big">${yesList.length}<span class="of">/${approvedTotal}명</span></div>
+        <div class="hero-count-big">${totalAttending}<span class="of">/${approvedTotal}명</span></div>
         <div class="hero-avatars">${avatarsHtml}</div>
       </div>
     </div>
-    <div class="hero-attendee-list">${yesList.length? yesList.map(v=>`<span class="nv-chip">${escapeHtml(v.name)}</span>`).join('') : '<span class="nv-empty">아직 참석자가 없습니다</span>'}</div>
+    <div class="hero-attendee-list">${attendeeChips.length? attendeeChips.map(p=>`<span class="nv-chip">${escapeHtml(p.name)}${p.isGuest?' <span class="guest-tag">용병</span>':''}</span>`).join('') : '<span class="nv-empty">아직 참석자가 없습니다</span>'}</div>
     ${venue && venue.link ? `<button class="hero-link-btn" id="heroLinkBtn" data-link="${escapeHtml(venue.link)}">🔗 경기 링크</button>` : ''}
   `;
   const linkBtn = $('#heroLinkBtn');
@@ -1793,6 +1806,40 @@ function findNearestUpcomingConfirmedDate(){
     .sort();
   return confirmedDates[0] || todayS;
 }
+let pendingMatchGuests = []; // 현재 편집 중인 날짜의 용병 명단 (저장 버튼을 눌러야 실제로 반영됨)
+function renderMatchVenueGuestList(){
+  const el = $('#matchVenueGuestList');
+  if(!el) return;
+  if(!pendingMatchGuests.length){
+    el.innerHTML = '<span class="empty-hint">등록된 용병이 없습니다.</span>';
+    return;
+  }
+  el.innerHTML = pendingMatchGuests.map((name, i)=>
+    `<span class="guest-chip">${escapeHtml(name)}<button type="button" data-idx="${i}" title="삭제">✕</button></span>`
+  ).join('');
+  el.querySelectorAll('button[data-idx]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      pendingMatchGuests.splice(parseInt(btn.dataset.idx,10), 1);
+      renderMatchVenueGuestList();
+    });
+  });
+}
+function addPendingMatchGuest(){
+  const input = $('#matchVenueGuestNameInput');
+  if(!input) return;
+  const name = input.value.trim();
+  if(!name){ toast('용병 이름을 입력해 주시기 바랍니다.'); return; }
+  if(pendingMatchGuests.includes(name)){ toast('이미 추가된 이름입니다.'); return; }
+  pendingMatchGuests.push(name);
+  input.value = '';
+  renderMatchVenueGuestList();
+  input.focus();
+}
+$('#addMatchVenueGuestBtn').addEventListener('click', addPendingMatchGuest);
+$('#matchVenueGuestNameInput').addEventListener('keydown', (e)=>{
+  if(e.key==='Enter'){ e.preventDefault(); addPendingMatchGuest(); }
+});
+
 function loadMatchVenueTimeEditorForDate(dateStr){
   const info = getVenueInfo(dateStr);
   const sel = $('#matchVenuePresetSelect');
@@ -1801,6 +1848,8 @@ function loadMatchVenueTimeEditorForDate(dateStr){
   if(timeInput) timeInput.value = info && info.time ? info.time : '';
   const linkInput = $('#matchVenueLinkInput');
   if(linkInput) linkInput.value = info && info.link ? info.link : '';
+  pendingMatchGuests = [...((appData.matchGuests && appData.matchGuests[dateStr]) || [])];
+  renderMatchVenueGuestList();
 }
 /* 관리자가 입력한 링크를 정리합니다. http(s):// 로 시작하지 않으면 https:// 를 붙여 정상적인 링크로 저장합니다. */
 function normalizeMatchLink(raw){
@@ -1826,10 +1875,14 @@ $('#saveMatchVenueTimeBtn').addEventListener('click', async ()=>{
     link = normalizeMatchLink(linkRaw);
     try{ new URL(link); }catch(e){ statusEl.textContent = '경기 링크 형식이 올바르지 않습니다.'; statusEl.style.color='var(--danger)'; return; }
   }
+  const guests = [...pendingMatchGuests];
   const preset = findVenuePreset(venueName);
   const isActuallyConfirmed = !!(appData.votes[dateStr] && appData.votes[dateStr].length>0);
   await mutateAppData(data=>{
     data.venues[dateStr] = { name: venueName, address: preset ? preset.address : '', time: timeStr, link };
+    if(!data.matchGuests) data.matchGuests = {};
+    if(guests.length) data.matchGuests[dateStr] = guests;
+    else delete data.matchGuests[dateStr];
   });
   renderCalendar();
   renderMatchStats();
@@ -1841,7 +1894,7 @@ $('#saveMatchVenueTimeBtn').addEventListener('click', async ()=>{
     statusEl.style.color = 'var(--pitch)';
     statusEl.textContent = '저장했습니다.';
   }
-  toast('경기장/시간/링크 정보를 저장했습니다.');
+  toast('경기장/시간/링크/용병 정보를 저장했습니다.');
 });
 
 
