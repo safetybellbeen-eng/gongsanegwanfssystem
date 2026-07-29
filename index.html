@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>공차는인생 공생관 — 팀 대시보드</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./css/style.css">
+
+<!-- PWA: 홈 화면 추가(설치) 및 아이콘 -->
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#11161b">
+<link rel="icon" type="image/png" sizes="192x192" href="./assets/icon-192.png">
+<link rel="apple-touch-icon" href="./assets/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="공생관">
+</head>
+<body>
+
+
+<div id="loginOverlay">
+  <div class="login-card">
+    <div class="crest"><img class="club-emblem-img" alt="구단 엠블럼"></div>
+    <h2>공차는인생 공생관</h2>
+    <div class="sub">팀 대시보드에 입장하기</div>
+
+    <div class="dribble-strip">
+      <div class="dribbler p1"><span class="body">🏃</span><span class="ball">⚽</span></div>
+      <div class="dribbler p2"><span class="body">🏃‍♂️</span><span class="ball">⚽</span></div>
+      <div class="dribbler p3"><span class="body">🏃‍♀️</span><span class="ball">⚽</span></div>
+      <div class="dribbler p4"><span class="body">🏃</span><span class="ball">⚽</span></div>
+      <div class="dribbler p5"><span class="body">🏃‍♂️</span><span class="ball">⚽</span></div>
+    </div>
+
+    <form id="loginForm">
+      <div class="field-box">
+        <div class="field-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg></div>
+        <div class="field-body">
+          <label>아이디 (이름)</label>
+          <input type="text" id="loginId" placeholder="예: 홍길동" autocomplete="off">
+        </div>
+      </div>
+      <div class="field-box">
+        <div class="field-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div>
+        <div class="field-body">
+          <label>비밀번호 (생일 6자리, 숫자만)</label>
+          <input type="password" id="loginPw" placeholder="예: 990101" autocomplete="off" maxlength="6" inputmode="numeric" pattern="[0-9]*">
+        </div>
+      </div>
+      <div class="field-box">
+        <div class="field-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6l7-3z"/></svg></div>
+        <div class="field-body">
+          <label>참석코드</label>
+          <input type="password" id="loginAccessCode" placeholder="팀에서 안내받은 참석코드" autocomplete="off">
+        </div>
+      </div>
+      <div class="login-error" id="loginError"></div>
+      <label class="remember-row"><input type="checkbox" id="rememberIdChk" checked> 아이디 및 참석코드 저장</label>
+      <button type="submit">입장하기 <span class="arrow">→</span></button>
+    </form>
+    <div class="login-note">최초 가입 시 관리자 승인이 필요합니다.<br>이름과 생일은 그 이름의 고유 비밀번호로 저장되며, 이후 로그인 시에는 생일이 일치해야 합니다.</div>
+
+    <div class="sponsor-row">
+      <div class="sponsor-label">후원사</div>
+      <div class="sponsor-slots">
+        <div class="sponsor-slot"></div>
+        <div class="sponsor-slot"></div>
+        <div class="sponsor-slot"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<header>
+  <div class="brand">
+    <div class="brand-mark"><img class="club-emblem-img" alt="구단 엠블럼"></div>
+    <div><h1>공차는인생 공생관</h1><span>팀 대시보드 · 서울</span></div>
+  </div>
+  <div class="user-box">
+    <div class="info">
+      <div class="who"><span id="nameTag"></span><span class="birth" id="birthTag"></span><span class="admin-badge" id="adminBadge" style="display:none;">관리자</span></div>
+      <div class="my-rate-row">
+        <div class="mini-pie" id="myRatePie"></div>
+        <div class="my-rate" id="myRateTag"></div>
+      </div>
+    </div>
+    <button class="logout-btn" id="logoutBtn">로그아웃</button>
+  </div>
+</header>
+<div class="quote-bar" id="quoteBar"></div>
+
+<div class="wrap">
+
+  <div class="member-strip-wrap">
+    <span class="member-strip-label">팀 멤버</span>
+    <div class="member-strip" id="memberStrip"></div>
+  </div>
+
+  <section class="app-section" id="sectionHome">
+  <div class="notify-banner" id="notifyBanner" style="display:none;">
+    <span>🔔 경기 확정·투표 마감 알림을 받아보시겠어요?</span>
+    <div class="notify-banner-btns">
+      <button id="notifyEnableBtn">알림 허용</button>
+      <button id="notifyDismissBtn" class="ghost">나중에</button>
+    </div>
+  </div>
+  <div class="hero-match-card" id="heroMatchCard"></div>
+  <div class="notice-card" id="noticeCard" style="display:none;"></div>
+
+  <div class="mobile-only-widgets">
+    <div class="eyebrow"><span class="num"></span><h2>주간 투표 현황</h2><div class="line"></div></div>
+    <div class="weather-card" id="homeVoteCard"></div>
+
+    <div class="home-mini-grid">
+      <div class="weather-card home-mini" id="homeWeatherMini"></div>
+      <div class="weather-card home-mini" id="homeBdayMini"></div>
+    </div>
+
+    <div class="eyebrow"><span class="num"></span><h2>최근 경기 기록</h2><div class="line"></div></div>
+    <div class="weather-card" id="homeRecentCard"></div>
+  </div>
+  </section>
+
+  <section class="app-section" id="sectionWeather">
+  <div class="eyebrow"><span class="num">01</span><h2>서울 날씨</h2><span class="weather-badge" id="weatherBadge">LOADING</span><div class="line"></div>
+    <button class="refresh-btn" id="weatherRefresh"><span class="ic">⟳</span>새로고침</button>
+  </div>
+  <div class="weather-card">
+    <div class="week-tabs">
+      <button class="week-tab active" id="tabThis">이번 주</button>
+      <button class="week-tab" id="tabNext">다음 주</button>
+    </div>
+    <div class="week-strip" id="weekStrip"></div>
+    <div class="day-verdict" id="dayVerdict" style="display:none;"></div>
+    <div class="hourly-title">오늘 시간별 강수 확률 · 강수량</div>
+    <div class="hourly-row" id="hourlyRow"></div>
+    <a class="plab-link" href="https://www.weather.go.kr/w/image/vshrt/rain.do" target="_blank" rel="noopener">🌧️ 기상청 초단기강수예측 바로가기 ↗</a>
+    <div class="weather-status" id="weatherStatus">날씨 데이터를 불러오는 중...</div>
+  </div>
+  </section>
+
+  <section class="app-section" id="sectionCalendar">
+  <div class="eyebrow"><span class="num">02</span><h2>경기 캘린더 &amp; 참석 투표</h2><div class="line"></div>
+    <div class="date-nav-mini">
+      <button id="dateNavPrev" title="이전 날짜">‹</button>
+      <button id="dateNavToday" title="오늘">오늘</button>
+      <button id="dateNavNext" title="다음 날짜">›</button>
+    </div>
+    <button class="refresh-btn" id="calRefresh"><span class="ic">⟳</span>새로고침</button>
+  </div>
+  <div class="cal-layout">
+    <div class="cal-card">
+      <div class="cal-nav">
+        <button id="prevMonth">‹</button>
+        <div class="month" id="monthLabel"></div>
+        <button id="nextMonth">›</button>
+      </div>
+      <div class="cal-grid" id="calGrid"></div>
+    </div>
+    <div class="match-panel" id="matchPanel">
+      <div class="match-empty">날짜를 선택하면<br>참석 투표 현황을 확인할 수 있습니다.</div>
+    </div>
+  </div>
+  </section>
+
+  <section class="app-section" id="sectionMap">
+  <div class="eyebrow"><span class="num">03</span><h2>경기장 지도 (카카오맵)</h2><div class="line"></div></div>
+  <div class="map-card">
+    <div class="venue-row">
+      <select id="venuePresetSelect" style="background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:10px 8px;color:var(--text);font-size:12px;max-width:150px;">
+        <option value="">목록에서 선택</option>
+      </select>
+      <input type="text" id="venueInput" placeholder="경기장 이름 검색">
+      <button id="lookupVenueBtn">조회</button>
+    </div>
+    <div class="venue-hint">경기장을 목록에서 고르거나 이름을 입력하고 "조회"를 누르면 위치를 확인할 수 있습니다.<br>(경기에 확정 반영되는 공식 경기장은 관리자가 관리자 도구에서 지정합니다)</div>
+    <div class="venue-address-row" id="venueAddressRow" style="display:none;">
+      <span id="venueAddressText"></span>
+      <button id="copyVenueAddressBtn">주소 복사</button>
+    </div>
+    <a class="plab-link" href="https://www.plabfootball.com/" target="_blank" rel="noopener">⚽ 플랩풋볼에서 서울 지역 경기 찾아보기 ↗</a>
+    <div id="mapWrap">
+      <div class="map-empty" id="mapEmpty">경기장을 선택하거나 검색하면 지도에 핀이 표시됩니다.</div>
+      <div id="map" style="display:none;"></div>
+      <button id="mapFullscreenBtn" style="display:none;">⤢ 전체화면</button>
+    </div>
+    <div class="map-hint">목록에 있는 경기장은 정확한 주소로, 그 외에는 입력한 이름으로 지도에서 검색해 표시됩니다.</div>
+    <div class="map-config" id="mapConfigBox" style="display:none;">
+      <div class="t">카카오맵을 불러오지 못했습니다</div>
+      <div class="d" id="mapErrorHint">
+        이 JavaScript 키는 카카오 개발자 사이트의 "플랫폼 &gt; Web" 설정에 등록된 사이트 도메인에서 열었을 때만 지도가 표시됩니다.<br>
+        지금 이 파일을 다른 방식(로컬 더블클릭, 등록하지 않은 도메인)으로 열었다면 그것이 원인입니다.<br>
+        해결하려면: <b>developers.kakao.com</b> → 내 애플리케이션 → 해당 앱 선택 → 플랫폼 → Web 플랫폼에 실제로 사용하실 주소를 사이트 도메인으로 등록해 주시기 바랍니다.
+      </div>
+    </div>
+  </div>
+  </section>
+
+  <section class="app-section" id="sectionRecords">
+  <div class="eyebrow"><span class="num">04</span><h2>팀 순위</h2><div class="line"></div>
+    <button class="refresh-btn" id="rankRefresh"><span class="ic">⟳</span>새로고침</button>
+  </div>
+  <div class="weather-card" id="rankCard">
+    <div class="rank-cols">
+      <div class="rank-col">
+        <div class="rank-col-title">4-1. 참석 순위</div>
+        <div class="rank-empty" id="rankEmptyAttend">아직 기록이 없습니다.</div>
+        <div class="podium mini" id="podiumAttend"></div>
+        <div id="rankListAttend"></div>
+      </div>
+      <div class="rank-col">
+        <div class="rank-col-title">4-2. 미투표자 순위</div>
+        <div class="rank-empty" id="rankEmptyMiss">아직 기록이 없습니다.</div>
+        <div class="podium mini" id="podiumMiss"></div>
+        <div id="rankListMiss"></div>
+      </div>
+      <div class="rank-col">
+        <div class="rank-col-title">4-3. 불참 순위</div>
+        <div class="rank-empty" id="rankEmptyNoShow">아직 기록이 없습니다.</div>
+        <div class="podium mini" id="podiumNoShow"></div>
+        <div id="rankListNoShow"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="eyebrow"><span class="num">05</span><h2>경기 진행 기록</h2><div class="line"></div></div>
+  <div class="weather-card" id="matchStatsCard"></div>
+  </section>
+
+  <section class="app-section admin-only-section" id="sectionAdmin">
+  <div class="eyebrow admin-only" id="adminSectionEyebrow" style="display:none;"><span class="num">06</span><h2>관리자 도구</h2><div class="line"></div></div>
+  <div class="weather-card admin-only" id="adminPanel" style="display:none;">
+    <div class="admin-block">
+      <h4>경기장·시간·링크 등록</h4>
+      <div class="admin-feed-status">확정된 경기 날짜에 경기장, 경기 시간, 경기 신청/안내 링크를 입력하면 홈 화면 "다음 경기" 카드에 그대로 표시됩니다.<br>링크를 입력하면 "경기 링크" 버튼이 함께 표시되어, 눌렀을 때 해당 주소로 이동합니다.</div>
+      <div class="admin-feed-status" id="matchVenueConfirmedHint" style="color:var(--pitch);font-weight:600;"></div>
+      <div class="admin-row">
+        <input type="date" id="matchVenueDateInput">
+      </div>
+      <div class="admin-row">
+        <select id="matchVenuePresetSelect" style="background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:9px 10px;color:var(--text);font-size:13px;flex:1;">
+          <option value="">경기장 목록에서 선택</option>
+        </select>
+      </div>
+      <div class="admin-row">
+        <input type="text" id="matchVenueTimeInput" placeholder="경기 시간 (예: 20:00~22:00)">
+      </div>
+      <div class="admin-row">
+        <input type="text" id="matchVenueLinkInput" placeholder="경기 링크 (예: https://www.plabfootball.com/match/123456)">
+      </div>
+      <div class="admin-row">
+        <button id="saveMatchVenueTimeBtn">저장</button>
+        <span class="admin-feed-status" id="matchVenueTimeStatus"></span>
+      </div>
+    </div>
+    <div class="admin-block">
+      <h4>공지사항 관리</h4>
+      <div class="admin-row">
+        <input type="text" id="noticeTitleInput" placeholder="공지 제목" style="width:100%;">
+      </div>
+      <div class="admin-row">
+        <textarea id="noticeBodyInput" placeholder="공지 내용" rows="3" style="width:100%;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:10px 12px;color:var(--text);font-size:13px;resize:vertical;"></textarea>
+      </div>
+      <div class="admin-row">
+        <button id="saveNoticeBtn">공지 저장</button>
+        <button id="clearNoticeBtn" class="danger">공지 삭제</button>
+      </div>
+    </div>
+    <div class="admin-block">
+      <h4>기상청 API 키 설정</h4>
+      <div class="admin-feed-status">
+        지금까지 날씨는 Open-Meteo(해외 예보 모델)를 사용해서 실제 기상청 수치와 다를 수 있습니다.<br>아래에 기상청 API 키를 등록하면 오늘~모레 예보는 실제 기상청 단기예보 데이터로 표시됩니다(그 이후 날짜는 아직 Open-Meteo로 보완됩니다).<br>
+        키 발급: <a href="https://www.data.go.kr/data/15084084/openapi.do" target="_blank" rel="noopener">data.go.kr "기상청_단기예보 조회서비스"</a>에서 무료 활용신청 → "일반 인증키(Decoding)"를 그대로 복사하여 붙여넣으시기 바랍니다.
+      </div>
+      <div class="admin-row">
+        <input type="text" id="kmaApiKeyInput" placeholder="기상청 API 일반 인증키(Decoding)" style="width:100%;">
+      </div>
+      <div class="admin-row">
+        <button id="saveKmaKeyBtn">저장</button>
+        <button id="clearKmaKeyBtn" class="danger">삭제</button>
+        <span class="admin-feed-status" id="kmaKeyStatus"></span>
+      </div>
+    </div>
+    <div class="admin-block">
+      <h4>날씨 확인 시간 설정</h4>
+      <div class="admin-feed-status">날씨 탭에서 "경기 가능 여부"를 판정할 때 하루 전체가 아니라 이 시간대의 강수·강설만 확인합니다.</div>
+      <div class="admin-row">
+        <select id="matchStartHour" style="background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:9px 10px;color:var(--text);font-size:13px;"></select>
+        <span style="color:var(--muted);">시 ~</span>
+        <select id="matchEndHour" style="background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:9px 10px;color:var(--text);font-size:13px;"></select>
+        <span style="color:var(--muted);">시</span>
+        <button id="saveMatchWindowBtn">저장</button>
+      </div>
+    </div>
+    <div class="admin-block">
+      <h4>가입 승인 대기 <span class="pending-count" id="pendingCount"></span></h4>
+      <div id="adminPendingTable"></div>
+    </div>
+    <div class="admin-block">
+      <h4>회원 관리</h4>
+      <div id="adminMemberTable"></div>
+    </div>
+    <div class="admin-block">
+      <h4>투표 초기화</h4>
+      <div class="admin-row">
+        <button id="resetDateVotesBtn">선택 주간 투표 초기화</button>
+        <button id="resetAllVotesBtn" class="danger">전체 투표 초기화</button>
+      </div>
+    </div>
+  </div>
+  </section>
+
+</div>
+
+<nav class="mobile-tabbar" id="mobileTabbar">
+  <button class="tab-btn active" data-tab="home"><span class="tab-ic">🏠</span><span class="tab-lb">홈</span></button>
+  <button class="tab-btn" data-tab="weather"><span class="tab-ic">☀️</span><span class="tab-lb">날씨</span></button>
+  <button class="tab-btn" data-tab="calendar"><span class="tab-ic">🗓️</span><span class="tab-lb">캘린더</span></button>
+  <button class="tab-btn" data-tab="map"><span class="tab-ic">📍</span><span class="tab-lb">지도</span></button>
+  <button class="tab-btn" data-tab="records"><span class="tab-ic">🏆</span><span class="tab-lb">기록</span></button>
+  <button class="tab-btn admin-only" id="adminTabBtn" data-tab="admin" style="display:none;"><span class="tab-ic">⚙️</span><span class="tab-lb">관리자</span></button>
+</nav>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+<script src="./js/app.js" defer></script>
+</body>
+</html>
