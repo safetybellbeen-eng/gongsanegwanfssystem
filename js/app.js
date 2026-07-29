@@ -1185,8 +1185,12 @@ function computeAttendanceStats(){
   });
 
   // 투표 미실시 횟수: 열렸던 전체 주(week) 중, 명시적으로 "불참 선언"도 하지 않고 날짜도 하나도 고르지 않은 횟수
-  // (단, 관리자가 "미투표 통계 제외 주간"으로 지정한 주는 시험운영 등으로 팀 순위 전체(참석·미투표·불참) 집계에서 건너뜁니다)
-  const weekKeys = Object.keys(appData.weekAvailability||{}).filter(wk=>!excludedWeeks.has(wk));
+  // - 아직 오지 않은 미래 주(예: 다음 주 이후)는 투표 기간이 끝나지 않았으므로 "미투표"로 판단하지 않고,
+  //   오늘이 속한 주까지만(과거~이번 주) 집계합니다.
+  // - 관리자가 "미투표 통계 제외 주간"으로 지정한 주는 시험운영 등으로 팀 순위 전체(참석·미투표·불참) 집계에서 건너뜁니다.
+  const currentWeekKey = getWeekStart(todayStr());
+  const weekKeys = Object.keys(appData.weekAvailability||{})
+    .filter(wk=>wk<=currentWeekKey && !excludedWeeks.has(wk));
   const approvedNames = getApprovedNonAdminNames();
   const missCounts = {};
   approvedNames.forEach(n=>missCounts[n]=0);
