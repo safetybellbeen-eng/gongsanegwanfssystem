@@ -1171,7 +1171,9 @@ $('#calRefresh').addEventListener('click', async ()=>{
 
 /* ---------- 참석률 순위 ---------- */
 function computeAttendanceStats(){
-  const validDateKeys = Object.keys(appData.votes).filter(k=>/^\d{4}-\d{2}-\d{2}$/.test(k));
+  const excludedWeeks = new Set(appData.excludedWeeks || []);
+  const validDateKeys = Object.keys(appData.votes)
+    .filter(k=>/^\d{4}-\d{2}-\d{2}$/.test(k) && !excludedWeeks.has(getWeekStart(k)));
   const stats = {};
   validDateKeys.forEach(date=>{
     getEffectiveVotesForDate(date).forEach(v=>{
@@ -1183,8 +1185,7 @@ function computeAttendanceStats(){
   });
 
   // 투표 미실시 횟수: 열렸던 전체 주(week) 중, 명시적으로 "불참 선언"도 하지 않고 날짜도 하나도 고르지 않은 횟수
-  // (단, 관리자가 "미투표 통계 제외 주간"으로 지정한 주는 시험운영 등으로 집계에서 건너뜁니다)
-  const excludedWeeks = new Set(appData.excludedWeeks || []);
+  // (단, 관리자가 "미투표 통계 제외 주간"으로 지정한 주는 시험운영 등으로 팀 순위 전체(참석·미투표·불참) 집계에서 건너뜁니다)
   const weekKeys = Object.keys(appData.weekAvailability||{}).filter(wk=>!excludedWeeks.has(wk));
   const approvedNames = getApprovedNonAdminNames();
   const missCounts = {};
@@ -1868,7 +1869,7 @@ function renderExcludeWeekList(){
       });
       renderExcludeWeekList();
       computeAttendanceStats();
-      toast('제외 해제했습니다. 다시 미투표 통계에 포함됩니다.');
+      toast('제외 해제했습니다. 다시 팀 순위 통계에 포함됩니다.');
     });
   });
 }
@@ -1886,7 +1887,7 @@ $('#addExcludeWeekBtn').addEventListener('click', async ()=>{
   dateInput.value = '';
   renderExcludeWeekList();
   computeAttendanceStats();
-  toast('해당 주간을 미투표 통계에서 제외했습니다.');
+  toast('해당 주간을 팀 순위 통계에서 제외했습니다.');
 });
 
 function loadMatchVenueTimeEditorForDate(dateStr){
