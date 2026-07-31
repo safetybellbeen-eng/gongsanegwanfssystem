@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>공차는인생 공생관 — 팀 대시보드</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
@@ -96,6 +96,20 @@
   <div class="member-strip-wrap">
     <span class="member-strip-label">팀 멤버</span>
     <div class="member-strip" id="memberStrip"></div>
+    <button class="my-injury-toggle-btn" id="myInjuryToggleBtn">내 부상 설정</button>
+  </div>
+  <div class="weather-card my-injury-panel" id="myInjuryPanel" style="display:none;">
+    <div class="admin-feed-status">부상으로 설정한 기간 동안에는 투표(가능일 선택·불참 선언)를 할 수 없고, 팀 순위(참석·미투표·불참) 집계에서도 그 기간이 제외됩니다.</div>
+    <div class="admin-feed-status" id="myInjuryStatusText" style="color:var(--pitch);font-weight:600;"></div>
+    <div class="admin-row">
+      <input type="date" id="myInjuryStartInput">
+      <span>~</span>
+      <input type="date" id="myInjuryEndInput">
+    </div>
+    <div class="admin-row">
+      <button id="myInjurySaveBtn">부상 등록</button>
+      <button id="myInjuryClearBtn" class="danger">부상 해제</button>
+    </div>
   </div>
 
   <section class="app-section" id="sectionHome">
@@ -175,7 +189,7 @@
       <input type="text" id="venueInput" placeholder="경기장 이름 검색">
       <button id="lookupVenueBtn">조회</button>
     </div>
-    <div class="venue-hint">경기장을 목록에서 고르거나 이름을 입력하고 "조회"를 누르면 위치를 확인할 수 있습니다.<br>(경기에 확정 반영되는 공식 경기장은 관리자가 관리자 도구에서 지정합니다)</div>
+    <div class="venue-hint">가장 가까운 확정 경기의 경기장을 기본으로 보여줍니다. 다른 경기장을 보고 싶으면 목록에서 고르거나 이름을 입력하고 "조회"를 눌러주세요.<br>(경기에 확정 반영되는 공식 경기장은 관리자가 관리자 도구에서 지정합니다)</div>
     <div class="venue-address-row" id="venueAddressRow" style="display:none;">
       <span id="venueAddressText"></span>
       <button id="copyVenueAddressBtn">주소 복사</button>
@@ -232,6 +246,14 @@
   <section class="app-section admin-only-section" id="sectionAdmin">
   <div class="eyebrow admin-only" id="adminSectionEyebrow" style="display:none;"><span class="num">06</span><h2>관리자 도구</h2><div class="line"></div></div>
   <div class="weather-card admin-only" id="adminPanel" style="display:none;">
+    <div class="admin-block">
+      <h4>실시간 데이터 새로고침</h4>
+      <div class="admin-feed-status">다른 사람이 방금 투표했거나 관리자 도구를 다른 기기(웹/모바일/홈 화면 앱)에서 사용 중일 때, 페이지를 새로고침하지 않고 최신 데이터를 바로 가져올 수 있습니다.</div>
+      <div class="admin-row">
+        <button id="adminRefreshBtn">🔄 지금 새로고침</button>
+        <span class="admin-feed-status" id="adminRefreshStatus"></span>
+      </div>
+    </div>
     <div class="admin-block">
       <h4>경기장·시간·링크·용병 등록</h4>
       <div class="admin-feed-status">확정된 경기 날짜에 경기장, 경기 시간, 경기 신청/안내 링크, 용병(게스트)을 입력하면 홈 화면 "다음 경기" 카드에 그대로 표시됩니다.<br>링크를 입력하면 "경기 링크" 버튼이 함께 표시되어, 눌렀을 때 해당 주소로 이동합니다.<br>용병은 팀원이 아니라 그 경기에 일회성으로 참여하는 인원을 이름으로 등록하는 용도입니다.</div>
