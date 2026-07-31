@@ -90,6 +90,9 @@
   .logout-btn{background:none;border:1px solid var(--line);color:var(--muted);border-radius:8px;padding:6px 12px;font-size:11px;font-weight:600;cursor:pointer;}
   .logout-btn:hover{border-color:var(--danger);color:var(--danger);}
   .member-strip-wrap{display:flex;align-items:center;gap:12px;margin:24px 0 -8px;}
+  .my-injury-toggle-btn{flex-shrink:0;background:var(--surface-2);border:1px solid var(--line);color:var(--muted);border-radius:20px;padding:6px 14px;font-size:12px;cursor:pointer;white-space:nowrap;}
+  .my-injury-toggle-btn:hover{border-color:var(--amber);color:var(--amber);}
+  .my-injury-panel{margin:16px 0 24px;}
   .hero-match-card{background:linear-gradient(135deg, rgba(61,220,132,0.1), var(--surface));border:1px solid rgba(61,220,132,0.35);border-radius:18px;padding:22px 24px;margin:24px 0;}
   .hero-match-card.empty{color:var(--muted);font-size:13px;text-align:center;padding:36px 10px;border-style:dashed;}
   .hero-top{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
@@ -419,7 +422,11 @@
   .admin-row input[type=text]{flex:1;min-width:180px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:9px 10px;color:var(--text);font-size:13px;}
   .admin-row button{background:var(--pitch);color:#0b1410;border:none;border-radius:8px;padding:9px 16px;font-weight:700;font-size:12px;cursor:pointer;}
   .admin-row button.danger{background:var(--danger);color:#1a0505;}
-  .admin-member-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px dashed var(--line);font-size:13px;}
+  .admin-member-row{display:flex;align-items:center;gap:10px;padding:8px 0 4px;border-bottom:none;font-size:13px;}
+  .admin-injury-row{display:flex;align-items:center;gap:8px;padding:0 0 10px;margin-bottom:8px;border-bottom:1px dashed var(--line);font-size:12px;flex-wrap:wrap;}
+  .admin-injury-row .il{color:var(--muted);flex-shrink:0;min-width:70px;}
+  .admin-injury-row input[type=date]{flex:1;min-width:120px;background:var(--surface-2);border:1px solid var(--line);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12px;}
+  .admin-injury-row button{flex-shrink:0;padding:6px 10px;font-size:11px;}
   .admin-member-row:last-child{border-bottom:none;}
   .admin-member-row .n{flex:1;font-weight:600;}
   .admin-member-row .bday{color:var(--muted);font-family:'JetBrains Mono';font-size:11px;}
@@ -457,9 +464,10 @@
   .home-vote-row .hv-bar-wrap{flex:1;height:6px;background:var(--surface-2);border-radius:4px;overflow:hidden;}
   .home-vote-row .hv-bar{height:100%;background:var(--pitch);border-radius:4px;}
   .home-vote-row .hv-count{width:34px;text-align:right;color:var(--pitch);font-weight:700;flex-shrink:0;}
-  .home-recent-row{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px dashed var(--line);font-size:12px;}
+  .home-recent-row{display:flex;align-items:center;gap:10px;justify-content:space-between;padding:9px 0;border-bottom:1px dashed var(--line);font-size:12px;white-space:nowrap;overflow:hidden;}
   .home-recent-row:last-child{border-bottom:none;}
-  .home-recent-row .hr-date{color:var(--muted);font-family:'JetBrains Mono';}
+  .home-recent-row .hr-date{color:var(--muted);font-family:'JetBrains Mono';flex-shrink:0;}
+  .home-recent-row .hr-venue{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right;min-width:0;}
   .home-goto-btn{display:block;width:100%;text-align:center;background:var(--pitch);color:#0b1410;border:none;border-radius:10px;padding:11px;font-weight:700;font-size:13px;cursor:pointer;margin-top:12px;}
 
   /* ---------- 모바일 하단 탭바 (기본: 숨김. 768px 이하에서만 표시) ---------- */
