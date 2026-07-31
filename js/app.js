@@ -125,7 +125,78 @@ function initAppUI(){
   renderMatchStats();
   updateAdminVisibility();
   updateNotifyBanner();
+  loadDefaultMapVenue();
+  renderMyInjuryPanel();
 }
+
+/* 부상 설정은 관리자뿐 아니라 로그인한 본인도 스스로 할 수 있습니다. */
+function renderMyInjuryPanel(){
+  const statusText = $('#myInjuryStatusText');
+  if(!statusText || !myName) return;
+  const m = appData.members && appData.members[myName];
+  if(m && isCurrentlyInjured(myName)){
+    statusText.textContent = `현재 부상 중입니다 (복귀 예정일: ${m.injuryEnd}).`;
+  } else if(m && m.injuryStart && m.injuryEnd){
+    statusText.textContent = `등록된 부상 기간: ${m.injuryStart} ~ ${m.injuryEnd} (지금은 해당하지 않습니다)`;
+  } else {
+    statusText.textContent = '현재 등록된 부상 기간이 없습니다.';
+  }
+  const startInput = $('#myInjuryStartInput');
+  const endInput = $('#myInjuryEndInput');
+  if(startInput) startInput.value = (m && m.injuryStart) || '';
+  if(endInput) endInput.value = (m && m.injuryEnd) || '';
+}
+const myInjuryToggleBtn = $('#myInjuryToggleBtn');
+if(myInjuryToggleBtn) myInjuryToggleBtn.addEventListener('click', ()=>{
+  const panel = $('#myInjuryPanel');
+  if(!panel) return;
+  const show = panel.style.display === 'none';
+  panel.style.display = show ? 'block' : 'none';
+  if(show) renderMyInjuryPanel();
+});
+const myInjurySaveBtn = $('#myInjurySaveBtn');
+if(myInjurySaveBtn) myInjurySaveBtn.addEventListener('click', async ()=>{
+  const start = $('#myInjuryStartInput').value;
+  const end = $('#myInjuryEndInput').value;
+  if(!start || !end){ toast('시작일과 종료일을 모두 선택해 주시기 바랍니다.'); return; }
+  if(end < start){ toast('종료일이 시작일보다 빠를 수 없습니다.'); return; }
+  await setInjuryPeriod(myName, start, end);
+  renderMyInjuryPanel();
+  toast('부상 기간을 등록했습니다. 해당 기간 동안 투표와 순위 집계에서 제외됩니다.');
+});
+const myInjuryClearBtn = $('#myInjuryClearBtn');
+if(myInjuryClearBtn) myInjuryClearBtn.addEventListener('click', async ()=>{
+  await setInjuryPeriod(myName, '', '');
+  renderMyInjuryPanel();
+  toast('부상 상태를 해제했습니다.');
+});
+
+/* 관리자 도구의 "지금 새로고침" 버튼: 페이지를 다시 불러오지 않고 Supabase의 최신 데이터를 가져와 화면을 갱신합니다.
+   웹/모바일 브라우저는 물론, 홈 화면에 추가해서 실행한 경우에도 동일하게 동작합니다. */
+async function refreshAllData(){
+  const btn = $('#adminRefreshBtn');
+  const statusEl = $('#adminRefreshStatus');
+  if(btn) btn.disabled = true;
+  if(statusEl){ statusEl.style.color = 'var(--muted)'; statusEl.textContent = '불러오는 중...'; }
+  try{
+    appData = await remoteLoad();
+    renderCalendar();
+    renderMemberList();
+    computeAttendanceStats();
+    renderMatchStats();
+    updateAdminVisibility();
+    if(selectedDate) await renderMatchPanel();
+    if(statusEl){ statusEl.style.color = 'var(--pitch)'; statusEl.textContent = '최신 데이터로 갱신했습니다 (' + new Date().toLocaleTimeString('ko-KR') + ')'; }
+    toast('최신 데이터로 새로고침했습니다.');
+  }catch(e){
+    console.error(e);
+    if(statusEl){ statusEl.style.color = 'var(--danger)'; statusEl.textContent = '새로고침에 실패했습니다. 네트워크 상태를 확인해 주시기 바랍니다.'; }
+  }finally{
+    if(btn) btn.disabled = false;
+  }
+}
+const adminRefreshBtn = $('#adminRefreshBtn');
+if(adminRefreshBtn) adminRefreshBtn.addEventListener('click', refreshAllData);
 
 $('#loginForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
@@ -856,6 +927,7 @@ async function renderMatchPanel(){
   const notVoted = approvedNames.filter(n=>!absenceMap[n] && (!avail[n] || avail[n].length===0));
   const admin = isAdminUser();
   const iAmAbsent = !!absenceMap[myName];
+  const iAmInjured = isCurrentlyInjured(myName);
   const notVotedHtml = `
     <div class="not-voted-row">
       <span class="label">미투표 인원 (${notVoted.length}명)</span>
@@ -930,7 +1002,7 @@ async function renderMatchPanel(){
     const isConfirmedDay = confirmedDates.includes(d);
     const isTieTop = isTie && topDates.includes(d);
     const names = Object.keys(avail).filter(n=>(avail[n]||[]).includes(d));
-    const disabled = isPast || iAmAbsent;
+    const disabled = isPast || iAmAbsent || iAmInjured;
     return `
       <div class="da-row ${isConfirmedDay?'confirmed':''} ${isTieTop?'tie':''} ${picked?'picked':''} ${disabled?'disabled':''}" data-date="${d}">
         <div class="da-head">
@@ -949,12 +1021,13 @@ async function renderMatchPanel(){
     </div>
     ${banner}
     ${confirmedSummaryHtml}
+    ${iAmInjured ? `<div class="confirm-banner" style="background:rgba(255,93,93,0.1);border-color:rgba(255,93,93,0.4);color:var(--danger);">🤕 부상 중에는 투표할 수 없습니다. (복귀 예정일: ${escapeHtml(appData.members[myName].injuryEnd)})</div>` : ''}
     <div class="week-summary-row">
       <span>참여 의사 ${availableNames.length}명</span><span class="dot-sep">|</span>
       <span>불참 ${absentNames.length}명</span><span class="dot-sep">|</span>
       <span>미투표 ${notVoted.length}명</span>
     </div>
-    <button class="absence-btn ${iAmAbsent?'active':''}" id="absenceBtn">${iAmAbsent?`✕ ${weekLabel} 불참 취소`:`${weekLabel} 전체 불참`}</button>
+    <button class="absence-btn ${iAmAbsent?'active':''}" id="absenceBtn" ${iAmInjured?'disabled':''}>${iAmAbsent?`✕ ${weekLabel} 불참 취소`:`${weekLabel} 전체 불참`}</button>
     ${notVotedHtml}
     <div class="daily-attend-block">
       <div class="label">날짜 선택(누르면 이름이 추가 또는 제거됩니다)</div>
@@ -1090,6 +1163,7 @@ async function adminToggleConfirmDate(weekKey, dateStr){
 /* 주간 가능일 복수선택 토글: 이미 선택했으면 해제, 아니면 추가 */
 async function toggleWeekDay(dateStr){
   if(dateStr < todayStr()){ toast('지난 날짜는 선택할 수 없습니다.'); return; }
+  if(isCurrentlyInjured(myName)){ toast(`부상 중에는 투표할 수 없습니다. (복귀 예정일: ${appData.members[myName].injuryEnd})`); return; }
   const weekKey = getWeekStart(dateStr);
   let added = true;
   await mutateAppData(data=>{
@@ -1115,6 +1189,7 @@ async function toggleWeekDay(dateStr){
 
 /* 이번 주 전체 불참 선언: 날짜 복수선택과 동시에 할 수 없어서, 선언하면 그 주의 가능일 선택은 모두 지워집니다. */
 async function declareWeekAbsence(weekKey){
+  if(isCurrentlyInjured(myName)){ toast(`부상 중에는 투표할 수 없습니다. (복귀 예정일: ${appData.members[myName].injuryEnd})`); return; }
   await mutateAppData(data=>{
     if(!data.weekAbsence) data.weekAbsence = {};
     if(!data.weekAbsence[weekKey]) data.weekAbsence[weekKey] = {};
@@ -1178,6 +1253,7 @@ function computeAttendanceStats(){
   validDateKeys.forEach(date=>{
     getEffectiveVotesForDate(date).forEach(v=>{
       if(v.name === ADMIN_NAME) return; // 관리자는 선수가 아니라 운영 계정이므로 모든 순위 통계에서 제외합니다.
+      if(isInjuredOnDate(v.name, date)) return; // 부상 기간 중인 날짜는 참석/불참 통계에서 제외합니다.
       if(!stats[v.name]) stats[v.name] = {yes:0, no:0, total:0};
       stats[v.name].total++;
       if(v.choice==='yes') stats[v.name].yes++; else stats[v.name].no++;
@@ -1198,6 +1274,7 @@ function computeAttendanceStats(){
     const avail = appData.weekAvailability[wk] || {};
     const absence = (appData.weekAbsence && appData.weekAbsence[wk]) || {};
     approvedNames.forEach(n=>{
+      if(isInjuredDuringWeek(n, wk)) return; // 부상 기간과 겹치는 주는 미투표로 집계하지 않습니다.
       const arr = avail[n];
       if(absence[n]) return; // 명시적으로 불참을 선언한 건 "미투표"가 아니에요
       if(!arr || arr.length===0) missCounts[n]++;
@@ -1390,6 +1467,35 @@ async function adminRejectMember(name){
   toast(`'${name}' 님의 가입 신청을 거절했습니다.`);
 }
 
+/* 부상 기간(injuryStart~injuryEnd)에 기반한 판정 함수들. 관리자뿐 아니라 본인도 설정할 수 있습니다. */
+function isCurrentlyInjured(name){
+  const m = appData.members && appData.members[name];
+  if(!m || !m.injuryStart || !m.injuryEnd) return false;
+  const t = todayStr();
+  return t>=m.injuryStart && t<=m.injuryEnd;
+}
+function isInjuredOnDate(name, dateStr){
+  const m = appData.members && appData.members[name];
+  if(!m || !m.injuryStart || !m.injuryEnd) return false;
+  return dateStr>=m.injuryStart && dateStr<=m.injuryEnd;
+}
+function isInjuredDuringWeek(name, weekKey){
+  const m = appData.members && appData.members[name];
+  if(!m || !m.injuryStart || !m.injuryEnd) return false;
+  return getWeekDates(weekKey).some(d=>d>=m.injuryStart && d<=m.injuryEnd);
+}
+async function setInjuryPeriod(name, startDate, endDate){
+  await mutateAppData(data=>{
+    if(data.members && data.members[name]){
+      data.members[name].injuryStart = startDate || '';
+      data.members[name].injuryEnd = endDate || '';
+    }
+  });
+  renderMemberList();
+  renderAdminMemberTable();
+  computeAttendanceStats();
+}
+
 function renderMemberList(){
   const strip = $('#memberStrip');
   if(!strip) return;
@@ -1400,7 +1506,8 @@ function renderMemberList(){
     const m = appData.members[name] || {};
     const statusClass = m.status==='online' ? 'online' : 'offline';
     const rest = m.restStatus || 'normal';
-    const restBadge = rest==='injury' ? '<span class="rest-badge injury">🤕 부상</span>' : (rest==='rest' ? '<span class="rest-badge rest">💤 휴식</span>' : '');
+    const injured = isCurrentlyInjured(name);
+    const restBadge = injured ? `<span class="rest-badge injury" title="복귀 예정일: ${escapeHtml(m.injuryEnd)}">🤕 부상</span>` : (rest==='rest' ? '<span class="rest-badge rest">💤 휴식</span>' : '');
     return `<div class="member-chip ${name===myName?'me':''}"><span class="dot ${statusClass}"></span>${escapeHtml(name)}${m.birth?`<span class="b">${escapeHtml(m.birth)}</span>`:''}${restBadge}${admin && name!==myName?`<button class="member-del" data-name="${escapeHtml(name)}" title="멤버 삭제">✕</button>`:''}</div>`;
   }).join('');
   if(admin){
@@ -1430,24 +1537,51 @@ function renderAdminMemberTable(){
     const m = appData.members[name] || {};
     const isSelf = name===myName;
     const rest = m.restStatus || 'normal';
+    const injured = isCurrentlyInjured(name);
     return `
       <div class="admin-member-row">
         <span class="n">${escapeHtml(name)}</span>
         <span class="bday">${escapeHtml(m.birth||'-')}</span>
         <select class="rest-select" data-name="${escapeHtml(name)}">
           <option value="normal" ${rest==='normal'?'selected':''}>정상</option>
-          <option value="injury" ${rest==='injury'?'selected':''}>🤕 부상</option>
           <option value="rest" ${rest==='rest'?'selected':''}>💤 휴식</option>
         </select>
         <button data-name="${escapeHtml(name)}" ${isSelf?'disabled title="본인은 삭제할 수 없습니다"':''}>삭제</button>
       </div>
+      <div class="admin-injury-row" data-name="${escapeHtml(name)}">
+        <span class="il">${injured?`🤕 부상 중 (~${escapeHtml(m.injuryEnd)})`:'부상 기간'}</span>
+        <input type="date" class="injury-start" data-name="${escapeHtml(name)}" value="${escapeHtml(m.injuryStart||'')}">
+        <span>~</span>
+        <input type="date" class="injury-end" data-name="${escapeHtml(name)}" value="${escapeHtml(m.injuryEnd||'')}">
+        <button class="injury-save" data-name="${escapeHtml(name)}">설정</button>
+        <button class="injury-clear ghost" data-name="${escapeHtml(name)}">해제</button>
+      </div>
     `;
   }).join('');
-  el.querySelectorAll('button[data-name]').forEach(btn=>{
+  el.querySelectorAll('button[data-name]:not(.injury-save):not(.injury-clear)').forEach(btn=>{
     btn.addEventListener('click', ()=>adminDeleteMember(btn.dataset.name));
   });
   el.querySelectorAll('.rest-select').forEach(sel=>{
     sel.addEventListener('change', ()=>adminSetRestStatus(sel.dataset.name, sel.value));
+  });
+  el.querySelectorAll('.injury-save').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const name = btn.dataset.name;
+      const row = btn.closest('.admin-injury-row');
+      const start = row.querySelector('.injury-start').value;
+      const end = row.querySelector('.injury-end').value;
+      if(!start || !end){ toast('시작일과 종료일을 모두 선택해 주시기 바랍니다.'); return; }
+      if(end < start){ toast('종료일이 시작일보다 빠를 수 없습니다.'); return; }
+      await setInjuryPeriod(name, start, end);
+      toast(`'${name}' 님의 부상 기간을 설정했습니다.`);
+    });
+  });
+  el.querySelectorAll('.injury-clear').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const name = btn.dataset.name;
+      await setInjuryPeriod(name, '', '');
+      toast(`'${name}' 님의 부상 상태를 해제했습니다.`);
+    });
   });
 }
 function renderAdminPendingTable(){
@@ -1762,13 +1896,17 @@ $('#venueInput').addEventListener('keydown', (e)=>{ if(e.key==='Enter') lookupVe
 async function lookupVenueOnMap(){
   const name = $('#venueInput').value.trim();
   if(!name){ toast('경기장 이름을 입력하거나 목록에서 선택해 주시기 바랍니다.'); return; }
+  const preset = findVenuePreset(name);
+  const info = { name, address: preset ? preset.address : '' };
+  await showVenueOnMap(info);
+}
+
+/* 지도 렌더링의 핵심 로직 (직접 검색과 "기본 경기장 자동 표시"가 공통으로 사용합니다) */
+async function showVenueOnMap(info){
   if(location.protocol === 'file:'){
     toast('파일을 직접 열어서는(file://) 경기장 검색이 동작하지 않습니다. 로컬 서버나 실제 배포 주소에서 열어주시기 바랍니다.');
     return;
   }
-  const preset = findVenuePreset(name);
-  const info = { name, address: preset ? preset.address : '' };
-
   const ok = await ensureKakaoReady();
   if(!ok) return;
 
@@ -1787,6 +1925,28 @@ async function lookupVenueOnMap(){
   } else {
     addrRow.style.display = 'none';
   }
+}
+
+/* 지도 탭을 처음 열었을 때: 홈 화면과 동일하게 "가장 가까운 확정 경기"의 경기장을 기본으로 보여줍니다.
+   경기장 선택 UI는 그대로 남아있어서, 다른 경기장을 직접 검색해서 볼 수도 있습니다. */
+let mapDefaultLoaded = false;
+async function loadDefaultMapVenue(force){
+  if(mapDefaultLoaded && !force) return;
+  if(typeof appData==='undefined' || !appData) return;
+  const todayS = todayStr();
+  const confirmedDates = Object.keys(appData.votes||{})
+    .filter(d=>/^\d{4}-\d{2}-\d{2}$/.test(d) && d>=todayS && (appData.votes[d]||[]).length>0)
+    .sort();
+  const nearest = confirmedDates[0];
+  if(!nearest) return; // 확정된 예정 경기가 없으면 기존처럼 빈 상태로 둡니다.
+  const venue = getVenueInfo(nearest);
+  if(!venue || !venue.name) return;
+  mapDefaultLoaded = true;
+  const sel = $('#venuePresetSelect');
+  const input = $('#venueInput');
+  if(sel) sel.value = findVenuePreset(venue.name) ? venue.name : '';
+  if(input) input.value = venue.name;
+  await showVenueOnMap({ name: venue.name, address: venue.address || '' });
 }
 
 /* ---------- 관리자 도구: 경기장 선택 및 경기시간 기입 ---------- */
@@ -2234,7 +2394,7 @@ function renderHomeTab(){
     const todayS = todayStr();
     const played = Object.keys(appData.votes||{})
       .filter(d=>/^\d{4}-\d{2}-\d{2}$/.test(d) && d<=todayS && (appData.votes[d]||[]).length>0)
-      .sort().reverse().slice(0,4);
+      .sort().reverse().slice(0,5);
     if(!played.length){
       recentCard.innerHTML = '<div class="rank-empty">아직 진행된 경기가 없습니다.</div>';
     } else {
@@ -2242,7 +2402,7 @@ function renderHomeTab(){
         const o = parseYMD(d);
         const venue = getVenueInfo(d);
         const venueLabel = venue ? `${escapeHtml(venue.name)}${venue.time?` · ${escapeHtml(venue.time)}`:''}` : '경기장 미등록';
-        return `<div class="home-recent-row"><span class="hr-date">${o.getMonth()+1}.${o.getDate()}(${weekdayKR[o.getDay()]})</span><span>${venueLabel}</span></div>`;
+        return `<div class="home-recent-row"><span class="hr-date">${o.getMonth()+1}.${o.getDate()}(${weekdayKR[o.getDay()]})</span><span class="hr-venue" title="${escapeHtml(venueLabel)}">${venueLabel}</span></div>`;
       }).join('');
     }
   }
@@ -2260,6 +2420,7 @@ function setActiveMobileSection(tabKey){
   if(sec) sec.classList.add('mobile-active');
   window.scrollTo({top:0, behavior:'instant'});
   if(tabKey==='home') tryRenderHomeTab();
+  if(tabKey==='map') loadDefaultMapVenue();
 }
 document.querySelectorAll('.mobile-tabbar .tab-btn').forEach(btn=>{
   btn.addEventListener('click', ()=>setActiveMobileSection(btn.dataset.tab));
