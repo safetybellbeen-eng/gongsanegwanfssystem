@@ -394,19 +394,20 @@
   #mapWrap.map-fullscreen-mode #map{height:100%;width:100%;margin-top:0;}
   #mapWrap.map-fullscreen-mode #mapFullscreenBtn{top:calc(22px + env(safe-area-inset-top));}
   body.map-fullscreen-open{overflow:hidden;}
-  /* 경기장 핀: 평소엔 아이콘+이름만 작게, 터치하면 주소가 펼쳐집니다. 웹/모바일에 맞게 크기가 달라집니다. */
-  .venue-pin{cursor:pointer;background:rgba(17,22,27,0.85);color:#ddd;border:1px solid rgba(255,255,255,0.18);border-radius:14px;padding:4px 9px;font-size:11px;font-weight:600;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,0.35);transform:translateY(-4px);max-width:150px;overflow:hidden;text-overflow:ellipsis;transition:all .15s ease;}
+  /* 경기장 핀: 평소엔 아이콘+이름만 작게, 터치하면 주소가 펼쳐집니다. 웹/모바일에 맞게 크기가 달라집니다.
+     실제 지도(밝은 색 타일) 위에서도 확실히 보이도록 흰 배경 + 진한 글자로 대비를 강하게 줬습니다. */
+  .venue-pin{cursor:pointer;background:#fff;color:#111;border:1.5px solid #999;border-radius:14px;padding:4px 10px;font-size:12px;font-weight:700;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,0.35);transform:translateY(-4px);max-width:150px;overflow:hidden;text-overflow:ellipsis;}
   .venue-pin .vp-name{overflow:hidden;text-overflow:ellipsis;}
-  .venue-pin.favorite{background:rgba(255,176,32,0.18);color:var(--amber);border-color:rgba(255,176,32,0.55);}
-  .venue-pin.confirmed{background:var(--pitch);color:#0b1410;border-color:var(--pitch);font-weight:800;font-size:13px;padding:6px 12px;box-shadow:0 4px 14px rgba(61,220,132,0.55);z-index:5;max-width:none;}
-  .venue-pin.expanded{white-space:normal;max-width:220px;border-radius:12px;padding:10px 14px;background:#fff;color:#111;border-color:#ddd;box-shadow:0 6px 20px rgba(0,0,0,0.35);}
-  .venue-pin.expanded .vp-head{font-size:13px;margin-bottom:4px;}
-  .venue-pin.expanded .vp-addr{font-size:11px;color:#555;margin-bottom:6px;}
-  .venue-pin.expanded .vp-copy{border:1px solid #ccc;background:#f5f5f5;color:#111;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;}
+  .venue-pin.favorite{background:#fff8e6;color:#8a5a00;border-color:#e0ac2b;}
+  .venue-pin.confirmed{background:var(--pitch);color:#0b1410;border-color:#22a35a;font-weight:800;font-size:14px;padding:6px 12px;box-shadow:0 4px 14px rgba(61,220,132,0.6);z-index:5;max-width:none;}
+  .venue-pin.expanded{white-space:normal;width:200px;max-width:200px;border-radius:12px;padding:10px 14px;background:#fff;color:#111;border:1.5px solid #999;box-shadow:0 6px 20px rgba(0,0,0,0.4);word-break:keep-all;}
+  .venue-pin.expanded .vp-head{font-size:14px;margin-bottom:4px;word-break:keep-all;}
+  .venue-pin.expanded .vp-addr{font-size:12px;color:#444;margin-bottom:8px;word-break:keep-all;}
+  .venue-pin.expanded .vp-copy{border:1px solid #ccc;background:#f5f5f5;color:#111;border-radius:6px;padding:5px 12px;font-size:12px;cursor:pointer;}
   @media (max-width:768px){
-    .venue-pin{font-size:10px;padding:3px 7px;max-width:110px;}
-    .venue-pin.confirmed{font-size:11px;padding:5px 10px;}
-    .venue-pin.expanded{font-size:12px;max-width:190px;}
+    .venue-pin{font-size:11px;padding:3px 8px;max-width:110px;}
+    .venue-pin.confirmed{font-size:12px;padding:5px 10px;}
+    .venue-pin.expanded{font-size:12px;width:170px;max-width:170px;}
   }
   #favVenueBtn{background:var(--surface-2);border:1px solid var(--line);color:var(--amber);border-radius:8px;padding:9px 12px;font-size:15px;cursor:pointer;flex-shrink:0;}
   #favVenueBtn.on{background:rgba(255,176,32,0.15);border-color:var(--amber);}
