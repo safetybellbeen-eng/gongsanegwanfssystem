@@ -96,6 +96,7 @@
   <div class="member-strip-wrap">
     <span class="member-strip-label">팀 멤버</span>
     <div class="member-strip" id="memberStrip"></div>
+    <button class="member-viewall-btn" id="memberViewAllBtn" title="팀 멤버 전체보기">전체보기</button>
     <button class="my-injury-toggle-btn" id="myInjuryToggleBtn">내 부상 설정</button>
   </div>
   <div class="weather-card my-injury-panel" id="myInjuryPanel" style="display:none;">
@@ -109,6 +110,16 @@
     <div class="admin-row">
       <button id="myInjurySaveBtn">부상 등록</button>
       <button id="myInjuryClearBtn" class="danger">부상 해제</button>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="memberModalBackdrop" style="display:none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>팀 멤버 전체보기</h3>
+        <button id="closeMemberModalBtn" title="닫기">✕</button>
+      </div>
+      <div class="modal-body" id="memberModalList"></div>
     </div>
   </div>
 
@@ -188,8 +199,9 @@
       </select>
       <input type="text" id="venueInput" placeholder="경기장 이름 검색">
       <button id="lookupVenueBtn">조회</button>
+      <button id="favVenueBtn" class="admin-only" style="display:none;" title="이 경기장 즐겨찾기">☆</button>
     </div>
-    <div class="venue-hint">가장 가까운 확정 경기의 경기장을 기본으로 보여줍니다. 다른 경기장을 보고 싶으면 목록에서 고르거나 이름을 입력하고 "조회"를 눌러주세요.<br>(경기에 확정 반영되는 공식 경기장은 관리자가 관리자 도구에서 지정합니다)</div>
+    <div class="venue-hint">가장 가까운 확정 경기의 경기장을 기본으로 보여줍니다. 다른 경기장을 보고 싶으면 목록에서 고르거나 이름을 입력하고 "조회"를 눌러주세요.<br>⭐ 표시는 우리 팀이 자주 쓰는 경기장입니다. (관리자만 별표를 켜고 끌 수 있어요)<br>(경기에 확정 반영되는 공식 경기장은 관리자가 관리자 도구에서 지정합니다)</div>
     <div class="venue-address-row" id="venueAddressRow" style="display:none;">
       <span id="venueAddressText"></span>
       <button id="copyVenueAddressBtn">주소 복사</button>
@@ -200,7 +212,7 @@
       <div id="map" style="display:none;"></div>
       <button id="mapFullscreenBtn" style="display:none;">⤢ 전체화면</button>
     </div>
-    <div class="map-hint">목록에 있는 경기장은 정확한 주소로, 그 외에는 입력한 이름으로 지도에서 검색해 표시됩니다.</div>
+    <div class="map-hint">목록에 있는 경기장은 정확한 주소로, 그 외에는 입력한 이름으로 지도에서 검색해 표시됩니다.<br>목록에 등록된 모든 경기장 위치가 이름표와 함께 지도에 항상 함께 표시됩니다.</div>
     <div class="map-config" id="mapConfigBox" style="display:none;">
       <div class="t">카카오맵을 불러오지 못했습니다</div>
       <div class="d" id="mapErrorHint">
@@ -337,6 +349,11 @@
         <button id="addExcludeWeekBtn">이 주간 제외</button>
       </div>
       <div class="guest-chip-list" id="excludeWeekList"></div>
+    </div>
+    <div class="admin-block">
+      <h4>순위 횟수 수동 조정</h4>
+      <div class="admin-feed-status">자동 집계된 참석·미투표·불참 횟수에 더하거나 뺄 값을 입력합니다. (예: 특정 상황을 감안해 불참 1회를 빼주고 싶으면 -1) 자동 집계 위에 더해지는 방식이라, 실제 투표 기록 자체는 바뀌지 않습니다.</div>
+      <div id="statAdjustTable"></div>
     </div>
     <div class="admin-block">
       <h4>투표 초기화</h4>
