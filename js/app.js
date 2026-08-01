@@ -2185,7 +2185,10 @@ let confirmedVenueName = null; // 실제 확정 경기의 경기장 이름 (일�
 
 /* 경기장 마다: 평소엔 아이콘+이름만 작게 보이고, 터치하면 주소와 복사 버튼이 펼쳐집니다.
    다른 경기장을 터치하거나 지도 빈 곳을 터치하면 자동으로 닫힙니다.
-   아이콘으로 종류를 구분합니다: 📍 일반 경기장 / ⭐ 즐겨찾기 / ⚽ 확정 경기 경기장(가장 눈에 띄게) */
+   아이콘으로 종류를 구분합니다: 📍 일반 경기장 / ⭐ 즐겨찾기 / ⚽ 확정 경기 경기장(가장 눈에 띄게)
+   주의: 카카오맵 CustomOverlay는 content의 크기가 나중에 바뀌어도 자동으로 다시 계산해주지 않아서,
+   내용을 바꿀 때마다 setContent()를 다시 호출해 강제로 재계산시킵니다 (안 하면 좁은 폭에 텍스트가
+   세로로 끼거나, 아예 안 보이는 문제가 생깁니다). */
 function venueIconFor(type){
   if(type==='confirmed') return '⚽';
   if(type==='favorite') return '⭐';
@@ -2206,6 +2209,8 @@ function renderVenuePinContent(name){
   } else {
     obj.el.innerHTML = `${icon} <span class="vp-name">${escapeHtml(name)}</span>`;
   }
+  // 카카오맵이 새 크기를 다시 계산하도록 강제합니다.
+  if(obj.overlay) obj.overlay.setContent(obj.el);
 }
 function collapseAllVenuePins(){
   if(currentExpandedVenue){
