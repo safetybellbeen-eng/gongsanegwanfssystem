@@ -656,7 +656,7 @@ const SUPABASE_KEY = 'sb_publishable_GY9qgB0wVnh2YmYWO9qrTA_OK-chx5W';
 const supabaseClient = (typeof supabase !== 'undefined') ? supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
 const SUPABASE_ROW_ID = 1; // app_state 테이블의 고정 행(row) id — 팀 전체가 공유하는 데이터 한 덩어리
 
-function emptyAppData(){ return { venues:{}, votedDates:[], votes:{}, members:{}, weekAvailability:{}, weekAbsence:{}, weekOverride:{}, actualAttendance:{}, matchGuests:{}, excludedWeeks:[], matchTimeWindow:{startHour:19,endHour:21}, kakaoJsKey:'', notice:{title:'',body:'',updatedAt:null}, kmaApiKey:'' }; }
+function emptyAppData(){ return { venues:{}, votedDates:[], votes:{}, members:{}, weekAvailability:{}, weekAbsence:{}, weekOverride:{}, actualAttendance:{}, matchGuests:{}, excludedWeeks:[], statAdjustments:{}, favoriteVenues:[], matchTimeWindow:{startHour:19,endHour:21}, kakaoJsKey:'', notice:{title:'',body:'',updatedAt:null}, kmaApiKey:'' }; }
 let appData = emptyAppData();
 
 async function remoteLoad(){
@@ -682,6 +682,8 @@ async function remoteLoad(){
       kmaApiKey: record.kmaApiKey || '',
       matchGuests: record.matchGuests || {},
       excludedWeeks: record.excludedWeeks || [],
+      statAdjustments: record.statAdjustments || {},
+      favoriteVenues: record.favoriteVenues || [],
       matchTimeWindow: record.matchTimeWindow||{startHour:19,endHour:21},
       kakaoJsKey: record.kakaoJsKey || ''
     };
@@ -811,10 +813,16 @@ function resyncWeekDerivedVotes(data, weekKey){
   const autoWinner = (max>0 && topDates.length===1) ? topDates[0] : null;
   const confirmedDates = Array.from(new Set([...(autoWinner?[autoWinner]:[]), ...manual]));
   const approvedNames = Object.keys(data.members||{}).filter(n=>data.members[n].approved);
+  const weekAbsenceMap = (data.weekAbsence && data.weekAbsence[weekKey]) || {};
   confirmedDates.forEach(winner=>{
-    data.votes[winner] = approvedNames.map(name=>({
-      name, choice: (avail[name]||[]).includes(winner) ? 'yes' : 'no'
-    }));
+    // "불참(no)"은 그 주 전체 불참을 명시적으로 선언한 사람만 해당합니다.
+    // 다른 날짜에는 투표했지만 확정된 날짜와 일정이 안 맞았던 사람, 아예 투표를 안 한 사람은
+    // "불참"이 아니라 그냥 이 날짜의 집계에서 빠집니다 (미투표는 별도 통계로 관리됩니다).
+    data.votes[winner] = approvedNames
+      .filter(name => (avail[name]||[]).includes(winner) || weekAbsenceMap[name])
+      .map(name => ({
+        name, choice: (avail[name]||[]).includes(winner) ? 'yes' : 'no'
+      }));
   });
   dates.forEach(d=>{
     const hasVotes = data.votes[d] && data.votes[d].length;
@@ -1245,6 +1253,8 @@ $('#calRefresh').addEventListener('click', async ()=>{
 });
 
 /* ---------- 참석률 순위 ---------- */
+let lastNaturalStats = {};
+let lastNaturalMissCounts = {};
 function computeAttendanceStats(){
   const excludedWeeks = new Set(appData.excludedWeeks || []);
   const validDateKeys = Object.keys(appData.votes)
@@ -1279,6 +1289,27 @@ function computeAttendanceStats(){
       if(absence[n]) return; // 명시적으로 불참을 선언한 건 "미투표"가 아니에요
       if(!arr || arr.length===0) missCounts[n]++;
     });
+  });
+
+  // 관리자 도구(순위 횟수 수동 조정)에서 "현재 자동 집계" 참고용으로 보여주기 위해 조정 전 값을 저장해둡니다.
+  lastNaturalStats = JSON.parse(JSON.stringify(stats));
+  lastNaturalMissCounts = { ...missCounts };
+
+  // 관리자가 수동으로 보정한 값(순위 횟수 수동 조정)을 자연 집계 위에 더합니다.
+  const adj = appData.statAdjustments || {};
+  Object.keys(adj).forEach(name=>{
+    if(name===ADMIN_NAME) return;
+    if(!stats[name]) stats[name] = {yes:0, no:0, total:0};
+  });
+  Object.keys(stats).forEach(name=>{
+    const a = adj[name] || {};
+    stats[name].yes = Math.max(0, stats[name].yes + (a.yes||0));
+    stats[name].no = Math.max(0, stats[name].no + (a.no||0));
+    stats[name].total = stats[name].yes + stats[name].no;
+  });
+  approvedNames.forEach(n=>{
+    const a = adj[n] || {};
+    missCounts[n] = Math.max(0, (missCounts[n]||0) + (a.missed||0));
   });
 
   // 4-1. 참석 순위
@@ -1366,6 +1397,8 @@ function updateAdminVisibility(){
     const kmaInput = $('#kmaApiKeyInput');
     if(kmaInput) kmaInput.value = appData.kmaApiKey || '';
     renderExcludeWeekList();
+    renderStatAdjustTable();
+    updateFavVenueBtn();
   }
 }
 function populateMatchWindowSelects(){
@@ -1505,26 +1538,108 @@ function renderMemberList(){
   strip.innerHTML = names.map(name=>{
     const m = appData.members[name] || {};
     const statusClass = m.status==='online' ? 'online' : 'offline';
-    const rest = m.restStatus || 'normal';
     const injured = isCurrentlyInjured(name);
-    const restBadge = injured ? `<span class="rest-badge injury" title="복귀 예정일: ${escapeHtml(m.injuryEnd)}">🤕 부상</span>` : (rest==='rest' ? '<span class="rest-badge rest">💤 휴식</span>' : '');
-    return `<div class="member-chip ${name===myName?'me':''}"><span class="dot ${statusClass}"></span>${escapeHtml(name)}${m.birth?`<span class="b">${escapeHtml(m.birth)}</span>`:''}${restBadge}${admin && name!==myName?`<button class="member-del" data-name="${escapeHtml(name)}" title="멤버 삭제">✕</button>`:''}</div>`;
+    const injuryBadge = injured ? `<span class="rest-badge injury" title="복귀 예정일: ${escapeHtml(m.injuryEnd)}">🤕 부상</span>` : '';
+    return `<div class="member-chip ${name===myName?'me':''}"><span class="dot ${statusClass}"></span>${escapeHtml(name)}${m.birth?`<span class="b">${escapeHtml(m.birth)}</span>`:''}${injuryBadge}${admin && name!==myName?`<button class="member-del" data-name="${escapeHtml(name)}" title="멤버 삭제">✕</button>`:''}</div>`;
   }).join('');
   if(admin){
     strip.querySelectorAll('.member-del').forEach(btn=>{
       btn.addEventListener('click', (e)=>{ e.stopPropagation(); adminDeleteMember(btn.dataset.name); });
     });
   }
+  renderMemberModal(); // 팝업이 열려있는 동안에도 최신 상태로 갱신
 }
 
-async function adminSetRestStatus(name, status){
-  if(!requireAdmin()) return;
-  await mutateAppData(data=>{
-    if(data.members && data.members[name]) data.members[name].restStatus = status;
+/* 팀 멤버가 많아져도 스크롤 없이 한눈에 보이도록, 터치(클릭) 시 팝업으로 전체 명단을 보여줍니다. */
+function renderMemberModal(){
+  const listEl = $('#memberModalList');
+  if(!listEl) return;
+  const names = Object.keys(appData.members||{}).filter(n=>appData.members[n].approved).sort((a,b)=>a.localeCompare(b,'ko'));
+  if(!names.length){
+    listEl.innerHTML = '<div class="rank-empty">아직 승인된 멤버가 없습니다.</div>';
+    return;
+  }
+  listEl.innerHTML = names.map(name=>{
+    const m = appData.members[name] || {};
+    const statusClass = m.status==='online' ? 'online' : 'offline';
+    const injured = isCurrentlyInjured(name);
+    const injuryBadge = injured ? `<span class="rest-badge injury" title="복귀 예정일: ${escapeHtml(m.injuryEnd)}">🤕 부상</span>` : '';
+    return `
+      <div class="member-modal-row">
+        <span class="dot ${statusClass}"></span>
+        <span class="nm ${name===myName?'me':''}">${escapeHtml(name)}</span>
+        ${injuryBadge}
+        <span class="bd">${escapeHtml(m.birth||'')}</span>
+      </div>
+    `;
+  }).join('');
+}
+function openMemberModal(){
+  const backdrop = $('#memberModalBackdrop');
+  if(!backdrop) return;
+  renderMemberModal();
+  backdrop.style.display = 'flex';
+}
+function closeMemberModal(){
+  const backdrop = $('#memberModalBackdrop');
+  if(backdrop) backdrop.style.display = 'none';
+}
+const memberViewAllBtn = $('#memberViewAllBtn');
+if(memberViewAllBtn) memberViewAllBtn.addEventListener('click', openMemberModal);
+const memberStripEl = $('#memberStrip');
+if(memberStripEl) memberStripEl.addEventListener('click', openMemberModal);
+const closeMemberModalBtn = $('#closeMemberModalBtn');
+if(closeMemberModalBtn) closeMemberModalBtn.addEventListener('click', closeMemberModal);
+const memberModalBackdrop = $('#memberModalBackdrop');
+if(memberModalBackdrop) memberModalBackdrop.addEventListener('click', (e)=>{
+  if(e.target === memberModalBackdrop) closeMemberModal(); // 배경(바깥) 클릭 시에만 닫힘, 카드 안쪽 클릭은 유지
+});
+document.addEventListener('keydown', (e)=>{
+  if(e.key === 'Escape') closeMemberModal();
+});
+
+/* 관리자가 참석·미투표·불참 횟수를 자동 집계 위에 수동으로 더하거나 뺄 수 있게 합니다. */
+function renderStatAdjustTable(){
+  const el = $('#statAdjustTable');
+  if(!el) return;
+  if(!requireAdminSilent()){ el.innerHTML=''; return; }
+  const names = getApprovedNonAdminNames().sort((a,b)=>a.localeCompare(b,'ko'));
+  if(!names.length){ el.innerHTML = '<div class="rank-empty">승인된 회원이 없습니다.</div>'; return; }
+  const adj = appData.statAdjustments || {};
+  el.innerHTML = names.map(name=>{
+    const a = adj[name] || {};
+    const natYes = (lastNaturalStats[name] && lastNaturalStats[name].yes) || 0;
+    const natNo = (lastNaturalStats[name] && lastNaturalStats[name].no) || 0;
+    const natMiss = lastNaturalMissCounts[name] || 0;
+    return `
+      <div class="stat-adjust-row">
+        <span class="n">${escapeHtml(name)}</span>
+        <div class="stat-adjust-fields">
+          <label>참석<span class="nat">자동 ${natYes}</span><input type="number" class="adj-yes" data-name="${escapeHtml(name)}" value="${a.yes||0}"></label>
+          <label>미투표<span class="nat">자동 ${natMiss}</span><input type="number" class="adj-missed" data-name="${escapeHtml(name)}" value="${a.missed||0}"></label>
+          <label>불참<span class="nat">자동 ${natNo}</span><input type="number" class="adj-no" data-name="${escapeHtml(name)}" value="${a.no||0}"></label>
+        </div>
+        <button type="button" data-action="stat-save" data-name="${escapeHtml(name)}">저장</button>
+      </div>
+    `;
+  }).join('');
+  el.querySelectorAll('button[data-action="stat-save"]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const name = btn.dataset.name;
+      const row = btn.closest('.stat-adjust-row');
+      const yes = parseInt(row.querySelector('.adj-yes').value, 10) || 0;
+      const missed = parseInt(row.querySelector('.adj-missed').value, 10) || 0;
+      const no = parseInt(row.querySelector('.adj-no').value, 10) || 0;
+      await mutateAppData(data=>{
+        if(!data.statAdjustments) data.statAdjustments = {};
+        if(yes===0 && missed===0 && no===0){ delete data.statAdjustments[name]; }
+        else { data.statAdjustments[name] = { yes, missed, no }; }
+      });
+      computeAttendanceStats();
+      renderMatchStats();
+      toast(`'${name}' 님의 순위 조정값을 저장했습니다.`);
+    });
   });
-  renderMemberList();
-  renderAdminMemberTable();
-  toast(`'${name}' 님의 상태를 변경했습니다.`);
 }
 
 function renderAdminMemberTable(){
@@ -1536,35 +1651,27 @@ function renderAdminMemberTable(){
   el.innerHTML = names.map(name=>{
     const m = appData.members[name] || {};
     const isSelf = name===myName;
-    const rest = m.restStatus || 'normal';
     const injured = isCurrentlyInjured(name);
     return `
       <div class="admin-member-row">
         <span class="n">${escapeHtml(name)}</span>
         <span class="bday">${escapeHtml(m.birth||'-')}</span>
-        <select class="rest-select" data-name="${escapeHtml(name)}">
-          <option value="normal" ${rest==='normal'?'selected':''}>정상</option>
-          <option value="rest" ${rest==='rest'?'selected':''}>💤 휴식</option>
-        </select>
-        <button data-name="${escapeHtml(name)}" ${isSelf?'disabled title="본인은 삭제할 수 없습니다"':''}>삭제</button>
+        <button type="button" data-action="delete" data-name="${escapeHtml(name)}" ${isSelf?'disabled title="본인은 삭제할 수 없습니다"':''}>삭제</button>
       </div>
       <div class="admin-injury-row" data-name="${escapeHtml(name)}">
         <span class="il">${injured?`🤕 부상 중 (~${escapeHtml(m.injuryEnd)})`:'부상 기간'}</span>
         <input type="date" class="injury-start" data-name="${escapeHtml(name)}" value="${escapeHtml(m.injuryStart||'')}">
         <span>~</span>
         <input type="date" class="injury-end" data-name="${escapeHtml(name)}" value="${escapeHtml(m.injuryEnd||'')}">
-        <button class="injury-save" data-name="${escapeHtml(name)}">설정</button>
-        <button class="injury-clear ghost" data-name="${escapeHtml(name)}">해제</button>
+        <button type="button" data-action="injury-save" data-name="${escapeHtml(name)}">설정</button>
+        <button type="button" class="ghost" data-action="injury-clear" data-name="${escapeHtml(name)}">해제</button>
       </div>
     `;
   }).join('');
-  el.querySelectorAll('button[data-name]:not(.injury-save):not(.injury-clear)').forEach(btn=>{
+  el.querySelectorAll('button[data-action="delete"]').forEach(btn=>{
     btn.addEventListener('click', ()=>adminDeleteMember(btn.dataset.name));
   });
-  el.querySelectorAll('.rest-select').forEach(sel=>{
-    sel.addEventListener('change', ()=>adminSetRestStatus(sel.dataset.name, sel.value));
-  });
-  el.querySelectorAll('.injury-save').forEach(btn=>{
+  el.querySelectorAll('button[data-action="injury-save"]').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
       const name = btn.dataset.name;
       const row = btn.closest('.admin-injury-row');
@@ -1576,7 +1683,7 @@ function renderAdminMemberTable(){
       toast(`'${name}' 님의 부상 기간을 설정했습니다.`);
     });
   });
-  el.querySelectorAll('.injury-clear').forEach(btn=>{
+  el.querySelectorAll('button[data-action="injury-clear"]').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
       const name = btn.dataset.name;
       await setInjuryPeriod(name, '', '');
@@ -1870,8 +1977,18 @@ function getVenueInfo(dateStr){
 }
 function populateVenuePresetSelect(){
   const sel = $('#venuePresetSelect');
-  if(!sel || sel.options.length>1) return;
-  FUTSAL_VENUES.forEach(v=>{ sel.innerHTML += `<option value="${escapeHtml(v.name)}">${escapeHtml(v.name)}</option>`; });
+  if(!sel) return;
+  const prevValue = sel.value;
+  const favSet = new Set(appData.favoriteVenues || []);
+  const favVenues = FUTSAL_VENUES.filter(v=>favSet.has(v.name));
+  const restVenues = FUTSAL_VENUES.filter(v=>!favSet.has(v.name));
+  let html = '<option value="">목록에서 선택</option>';
+  if(favVenues.length){
+    html += `<optgroup label="⭐ 자주 쓰는 경기장">${favVenues.map(v=>`<option value="${escapeHtml(v.name)}">⭐ ${escapeHtml(v.name)}</option>`).join('')}</optgroup>`;
+  }
+  html += `<optgroup label="전체 경기장">${restVenues.map(v=>`<option value="${escapeHtml(v.name)}">${escapeHtml(v.name)}</option>`).join('')}</optgroup>`;
+  sel.innerHTML = html;
+  if(prevValue) sel.value = prevValue;
 }
 populateVenuePresetSelect();
 $('#venuePresetSelect').addEventListener('change', ()=>{
@@ -1879,6 +1996,40 @@ $('#venuePresetSelect').addEventListener('change', ()=>{
   if(!name) return;
   $('#venueInput').value = name;
   lookupVenueOnMap();
+});
+
+/* 관리자만 볼 수 있는 즐겨찾기(자주 쓰는 경기장) 토글 버튼 */
+function updateFavVenueBtn(){
+  const btn = $('#favVenueBtn');
+  if(!btn) return;
+  if(!isAdminUser()){ btn.style.display='none'; return; }
+  const name = $('#venueInput').value.trim();
+  const preset = findVenuePreset(name);
+  if(!preset){ btn.style.display='none'; return; }
+  btn.style.display = 'inline-block';
+  const isFav = (appData.favoriteVenues||[]).includes(preset.name);
+  btn.textContent = isFav ? '★' : '☆';
+  btn.classList.toggle('on', isFav);
+}
+$('#favVenueBtn').addEventListener('click', async ()=>{
+  if(!requireAdmin()) return;
+  const name = $('#venueInput').value.trim();
+  const preset = findVenuePreset(name);
+  if(!preset) return;
+  await mutateAppData(data=>{
+    if(!data.favoriteVenues) data.favoriteVenues = [];
+    if(data.favoriteVenues.includes(preset.name)){
+      data.favoriteVenues = data.favoriteVenues.filter(n=>n!==preset.name);
+    } else {
+      data.favoriteVenues.push(preset.name);
+    }
+  });
+  populateVenuePresetSelect();
+  updateFavVenueBtn();
+  if(venuePinObjects[preset.name]){
+    refreshVenuePinStyle(preset.name, currentHighlightedVenueName===preset.name);
+  }
+  toast((appData.favoriteVenues||[]).includes(preset.name) ? '즐겨찾기에 추가했습니다.' : '즐겨찾기에서 제거했습니다.');
 });
 $('#copyVenueAddressBtn').addEventListener('click', ()=>{
   const text = $('#venueAddressText').textContent;
@@ -1916,6 +2067,7 @@ async function showVenueOnMap(info){
   if(!map){
     map = new kakao.maps.Map($('#map'), { center: new kakao.maps.LatLng(37.5665,126.9780), level: 8 });
   }
+  await renderAllVenuePins(); // 목록에 있는 모든 경기장 핀을 먼저 준비합니다 (첫 실행 후에는 캐시되어 즉시 완료됨).
   await placeVenueMarker(info);
 
   const addrRow = $('#venueAddressRow');
@@ -1925,6 +2077,46 @@ async function showVenueOnMap(info){
   } else {
     addrRow.style.display = 'none';
   }
+  updateFavVenueBtn();
+}
+
+/* 목록에 있는 모든 경기장을 이름표와 함께 지도에 항상 표시합니다.
+   한 번 좌표를 찾은 경기장은 세션 동안 캐시해서, 지도를 다시 열 때마다 다시 검색하지 않습니다.
+   각 경기장의 마커/이름표 객체를 보관해뒀다가, 선택된 경기장만 강조 스타일로 바꿔 재사용합니다
+   (같은 위치에 마커가 두 개 겹치는 것을 방지). */
+let allVenuePinsPlaced = false;
+const venueGeocodeCache = {};
+const venuePinObjects = {}; // { 이름: { marker, label, pos } }
+async function renderAllVenuePins(){
+  if(!map || allVenuePinsPlaced) return;
+  allVenuePinsPlaced = true;
+  for(const v of FUTSAL_VENUES){
+    let coords = venueGeocodeCache[v.name];
+    if(!coords){
+      coords = await kakaoGeocode(v.address, true);
+      if(coords) venueGeocodeCache[v.name] = coords;
+    }
+    if(!coords) continue;
+    const pos = new kakao.maps.LatLng(coords.lat, coords.lng);
+    const isFav = (appData.favoriteVenues||[]).includes(v.name);
+    const pin = new kakao.maps.Marker({ position: pos, opacity: isFav?0.9:0.55 });
+    pin.setMap(map);
+    const label = new kakao.maps.CustomOverlay({
+      position: pos,
+      content: `<div class="venue-pin-label ${isFav?'favorite':''}">${isFav?'⭐ ':''}${escapeHtml(v.name)}</div>`,
+      yAnchor: 2.4
+    });
+    label.setMap(map);
+    venuePinObjects[v.name] = { marker: pin, label, pos };
+  }
+}
+function refreshVenuePinStyle(name, isActive){
+  const obj = venuePinObjects[name];
+  if(!obj) return;
+  const isFav = (appData.favoriteVenues||[]).includes(name);
+  obj.marker.setOpacity(isActive ? 1 : (isFav?0.9:0.55));
+  const cls = isActive ? 'active' : (isFav ? 'favorite' : '');
+  obj.label.setContent(`<div class="venue-pin-label ${cls}">${isActive?'📍 ':(isFav?'⭐ ':'')}${escapeHtml(name)}</div>`);
 }
 
 /* 지도 탭을 처음 열었을 때: 홈 화면과 동일하게 "가장 가까운 확정 경기"의 경기장을 기본으로 보여줍니다.
@@ -2157,34 +2349,31 @@ async function ensureKakaoReady(){
   }
 }
 
-/* 지도 전체화면 / 축소 */
+/* 지도 전체화면 / 축소
+   아이폰 사파리(홈 화면 추가 포함)는 임의의 요소에 대한 네이티브 전체화면 API를 지원하지 않아서,
+   화면 전체를 덮는 CSS 클래스를 직접 토글하는 방식으로 구현했습니다. 모든 환경에서 동일하게 동작합니다. */
 function isMapFullscreen(){
-  return !!(document.fullscreenElement || document.webkitFullscreenElement);
+  const el = $('#mapWrap');
+  return !!(el && el.classList.contains('map-fullscreen-mode'));
+}
+function setMapFullscreen(on){
+  const el = $('#mapWrap');
+  const btn = $('#mapFullscreenBtn');
+  if(!el) return;
+  el.classList.toggle('map-fullscreen-mode', on);
+  document.body.classList.toggle('map-fullscreen-open', on);
+  if(btn) btn.textContent = on ? '✕ 닫기' : '⤢ 전체화면';
+  setTimeout(()=>{
+    try{ if(map) map.relayout(); }catch(e){}
+    if(map && marker){ map.setCenter(marker.getPosition()); }
+  }, 100);
 }
 $('#mapFullscreenBtn').addEventListener('click', ()=>{
-  const el = $('#mapWrap');
-  if(!isMapFullscreen()){
-    const req = el.requestFullscreen || el.webkitRequestFullscreen;
-    if(!req){ toast('이 브라우저는 전체화면 기능을 지원하지 않아요.'); return; }
-    req.call(el).catch(()=>toast('전체화면 전환에 실패했어요.'));
-  } else {
-    const exit = document.exitFullscreen || document.webkitExitFullscreen;
-    if(exit) exit.call(document);
-  }
+  setMapFullscreen(!isMapFullscreen());
 });
-function onFullscreenChange(){
-  const btn = $('#mapFullscreenBtn');
-  const full = isMapFullscreen();
-  if(btn) btn.textContent = full ? '⤡ 축소' : '⤢ 전체화면';
-  if(map){
-    setTimeout(()=>{
-      try{ map.relayout(); }catch(e){}
-      if(marker){ map.setCenter(marker.getPosition()); }
-    }, 150);
-  }
-}
-document.addEventListener('fullscreenchange', onFullscreenChange);
-document.addEventListener('webkitfullscreenchange', onFullscreenChange);
+document.addEventListener('keydown', (e)=>{
+  if(e.key === 'Escape' && isMapFullscreen()) setMapFullscreen(false);
+});
 
 /* 주소가 있으면 정확한 주소 검색(Geocoder)을, 없으면 이름으로 장소 검색(Places)을 사용합니다. */
 function kakaoGeocode(query, isAddress){
@@ -2214,7 +2403,33 @@ function kakaoGeocode(query, isAddress){
   });
 }
 
+let currentHighlightedVenueName = null;
 async function placeVenueMarker(info){
+  // 이전에 강조 표시했던 경기장이 있으면 원래(일반/즐겨찾기) 스타일로 되돌립니다.
+  if(currentHighlightedVenueName && currentHighlightedVenueName !== info.name){
+    refreshVenuePinStyle(currentHighlightedVenueName, false);
+  }
+
+  // 목록에 있는 경기장이면, 이미 지도에 찍혀있는 핀을 그대로 재사용해서 강조 스타일로 바꿉니다
+  // (같은 위치에 마커가 두 개 겹치는 것을 방지합니다).
+  const existing = venuePinObjects[info.name];
+  if(existing){
+    map.setCenter(existing.pos);
+    map.setLevel(3);
+    if(marker && marker !== existing.marker) marker.setMap(null);
+    marker = existing.marker;
+    refreshVenuePinStyle(info.name, true);
+    currentHighlightedVenueName = info.name;
+    const addrHtml = info.address
+      ? `<br><span style="color:#333;">${escapeHtml(info.address)}</span><br><button onclick="window.copyVenueAddress('${info.address.replace(/'/g,"\\'")}')" style="margin-top:6px;padding:4px 10px;border-radius:6px;border:1px solid #ccc;background:#fff;color:#111;cursor:pointer;font-size:11px;">주소 복사</button>`
+      : '';
+    const infoWin = new kakao.maps.InfoWindow({ content: `<div style="padding:8px 12px;font-size:13px;color:#111;background:#fff;">⚽ <b style="color:#111;">${escapeHtml(info.name)}</b>${addrHtml}</div>` });
+    infoWin.open(map, marker);
+    return;
+  }
+
+  // 목록에 없는 경기장(직접 검색)은 별도의 마커를 새로 만듭니다.
+  currentHighlightedVenueName = null;
   let coords = null;
   // 1) 주소가 있으면 정확한 주소로 먼저 검색합니다.
   if(info.address){
