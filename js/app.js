@@ -1816,12 +1816,14 @@ function renderHeroMatch(){
   const dObj = parseYMD(date);
   const diffDays = Math.round((dObj - parseYMD(todayS)) / 86400000);
   const ddayLabel = diffDays===0 ? 'D-DAY' : `D-${diffDays}`;
-  const votes = appData.votes[date] || [];
-  const yesList = votes.filter(v=>v.choice==='yes');
+  // 관리자가 "실제 참석 체크"나 이 카드에서 직접 인원을 추가/제외했으면 그 결과를 우선 사용합니다.
+  const effVotes = getEffectiveVotesForDate(date);
+  const yesList = effVotes.filter(v=>v.choice==='yes');
   const guestNames = (appData.matchGuests && appData.matchGuests[date]) || [];
   const venue = getVenueInfo(date);
   const approvedTotal = getApprovedNonAdminNames().length;
   const totalAttending = yesList.length + guestNames.length;
+  const admin = isAdminUser();
 
   const avatarPalette = ['#3ddc84','#6db8ff','#ffd76b','#ff8fa3','#c9a0ff','#ff9d5c'];
   const avatarColor = (name)=>{
@@ -1837,6 +1839,20 @@ function renderHeroMatch(){
   const overflow = attendeeChips.length - shown.length;
   const avatarsHtml = shown.map(p=>`<div class="avatar-circle ${p.isGuest?'guest':''}" style="background:${avatarColor(p.name)};" title="${escapeHtml(p.name)}${p.isGuest?' (용병)':''}">${escapeHtml(p.name.charAt(0))}</div>`).join('')
     + (overflow>0 ? `<div class="avatar-circle more">+${overflow}</div>` : '');
+
+  // 관리자만: 참석 인원 옆에 제외(✕) 버튼, 그리고 갑자기 오게 된 사람을 추가하는 선택창을 보여줍니다.
+  // 여기서 뺀/더한 결과는 팀 순위(참여횟수)에도 그대로 반영됩니다.
+  const attendeeNames = new Set(yesList.map(v=>v.name));
+  const notAttendingApproved = getApprovedNonAdminNames().filter(n=>!attendeeNames.has(n));
+  const adminAddControl = admin ? `
+    <div class="hero-admin-add-row">
+      <select id="heroAddAttendeeSelect">
+        <option value="">갑자기 오는 인원 추가...</option>
+        ${notAttendingApproved.map(n=>`<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('')}
+      </select>
+      <button id="heroAddAttendeeBtn">추가</button>
+    </div>
+  ` : '';
 
   el.className = 'hero-match-card';
   el.innerHTML = `
@@ -1856,7 +1872,8 @@ function renderHeroMatch(){
         <div class="hero-avatars">${avatarsHtml}</div>
       </div>
     </div>
-    <div class="hero-attendee-list">${attendeeChips.length? attendeeChips.map(p=>`<span class="nv-chip">${escapeHtml(p.name)}${p.isGuest?' <span class="guest-tag">용병</span>':''}</span>`).join('') : '<span class="nv-empty">아직 참석자가 없습니다</span>'}</div>
+    <div class="hero-attendee-list">${attendeeChips.length? attendeeChips.map(p=>`<span class="nv-chip">${escapeHtml(p.name)}${p.isGuest?' <span class="guest-tag">용병</span>':''}${admin?` <button class="chip-remove-btn" data-name="${escapeHtml(p.name)}" data-guest="${p.isGuest?'1':'0'}" title="제외">✕</button>`:''}</span>`).join('') : '<span class="nv-empty">아직 참석자가 없습니다</span>'}</div>
+    ${adminAddControl}
     ${venue && venue.link ? `<button class="hero-link-btn" id="heroLinkBtn" data-link="${escapeHtml(venue.link)}">🔗 경기 링크</button>` : ''}
   `;
   const linkBtn = $('#heroLinkBtn');
@@ -1865,6 +1882,57 @@ function renderHeroMatch(){
       window.open(linkBtn.dataset.link, '_blank', 'noopener');
     });
   }
+  if(admin){
+    el.querySelectorAll('.chip-remove-btn').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        if(btn.dataset.guest==='1') adminRemoveMatchGuest(date, btn.dataset.name);
+        else adminModifyAttendance(date, btn.dataset.name, 'remove');
+      });
+    });
+    const addBtn = $('#heroAddAttendeeBtn');
+    if(addBtn) addBtn.addEventListener('click', ()=>{
+      const sel = $('#heroAddAttendeeSelect');
+      if(sel && sel.value) adminModifyAttendance(date, sel.value, 'add');
+    });
+  }
+}
+
+/* 확정 경기에서 관리자가 인원을 직접 추가/제외합니다 (선수가 갑자기 못 오거나, 갑자기 오게 된 경우).
+   내부적으로는 "실제 참석 체크"와 같은 데이터(actualAttendance)를 사용해서, 팀 순위의 참여횟수 집계에도
+   바로 반영됩니다. */
+async function adminModifyAttendance(date, name, action){
+  if(!requireAdmin()) return;
+  await mutateAppData(data=>{
+    const approvedNames = Object.keys(data.members||{}).filter(n=>data.members[n].approved);
+    const existing = data.actualAttendance && data.actualAttendance[date];
+    let current = (existing && existing.finalized)
+      ? [...existing.attendees]
+      : (data.votes[date]||[]).filter(v=>v.choice==='yes').map(v=>v.name).filter(n=>approvedNames.includes(n));
+    const existingGuests = (existing && existing.finalized) ? (existing.guests||[]) : ((data.matchGuests && data.matchGuests[date]) || []);
+    if(action==='remove'){ current = current.filter(n=>n!==name); }
+    else if(!current.includes(name)){ current.push(name); }
+    if(!data.actualAttendance) data.actualAttendance = {};
+    data.actualAttendance[date] = { attendees: current, guests: existingGuests, finalized: true, savedAt: Date.now() };
+  });
+  renderMatchStats();
+  computeAttendanceStats();
+  toast(action==='remove' ? `'${name}' 님을 참석 명단에서 제외했습니다.` : `'${name}' 님을 참석 명단에 추가했습니다.`);
+}
+/* 홈 카드에서 용병을 바로 제외할 때 사용 (사전 등록된 용병 명단과 확정된 실제 참석 명단 둘 다 갱신) */
+async function adminRemoveMatchGuest(date, name){
+  if(!requireAdmin()) return;
+  await mutateAppData(data=>{
+    if(data.matchGuests && data.matchGuests[date]){
+      data.matchGuests[date] = data.matchGuests[date].filter(n=>n!==name);
+      if(!data.matchGuests[date].length) delete data.matchGuests[date];
+    }
+    const existing = data.actualAttendance && data.actualAttendance[date];
+    if(existing && existing.finalized){
+      existing.guests = (existing.guests||[]).filter(n=>n!==name);
+    }
+  });
+  renderMatchStats();
+  toast(`'${name}' 님(용병)을 참석 명단에서 제외했습니다.`);
 }
 
 /* 관리자가 등록한 공지사항 1건을 표시합니다. */
@@ -2027,6 +2095,8 @@ $('#favVenueBtn').addEventListener('click', async ()=>{
   populateVenuePresetSelect();
   updateFavVenueBtn();
   if(venuePinObjects[preset.name]){
+    const isFavNow = (appData.favoriteVenues||[]).includes(preset.name);
+    setVenueStarBadge(preset.name, isFavNow);
     refreshVenuePinStyle(preset.name, currentHighlightedVenueName===preset.name);
   }
   toast((appData.favoriteVenues||[]).includes(preset.name) ? '즐겨찾기에 추가했습니다.' : '즐겨찾기에서 제거했습니다.');
@@ -2086,7 +2156,31 @@ async function showVenueOnMap(info){
    (같은 위치에 마커가 두 개 겹치는 것을 방지). */
 let allVenuePinsPlaced = false;
 const venueGeocodeCache = {};
-const venuePinObjects = {}; // { 이름: { marker, label, pos } }
+const venuePinObjects = {}; // { 이름: { marker, pos, address } }
+let sharedVenueInfoWindow = null;
+
+/* 경기장 이름을 지도 위에 항상 띄워두면(특히 여러 경기장이 몰려있으면) 글자가 서로 겹쳐 보였습니다.
+   그래서 이제는 평소에는 핀만 보이고, 핀을 터치(클릭)하면 그 경기장의 정보가 말풍선으로 뜨고,
+   ✕를 누르면 닫히는 방식으로 바꿨습니다. */
+function openVenueInfoWindow(marker, name, address){
+  if(!sharedVenueInfoWindow){
+    sharedVenueInfoWindow = new kakao.maps.InfoWindow({ removable: false, zIndex: 10 });
+  }
+  const addrHtml = address
+    ? `<div style="color:#555;font-size:11px;margin-top:4px;">${escapeHtml(address)}</div><button onclick="window.copyVenueAddress('${address.replace(/'/g,"\\'")}')" style="margin-top:6px;padding:4px 10px;border-radius:6px;border:1px solid #ccc;background:#f5f5f5;color:#111;cursor:pointer;font-size:11px;">주소 복사</button>`
+    : '';
+  sharedVenueInfoWindow.setContent(
+    `<div style="position:relative;padding:10px 26px 10px 14px;font-size:13px;color:#111;background:#fff;min-width:100px;max-width:220px;">
+      <button onclick="window.closeVenueInfoWindow()" style="position:absolute;top:4px;right:4px;border:none;background:none;font-size:15px;line-height:1;cursor:pointer;color:#888;padding:4px;">✕</button>
+      ⚽ <b>${escapeHtml(name)}</b>${addrHtml}
+    </div>`
+  );
+  sharedVenueInfoWindow.open(map, marker);
+}
+window.closeVenueInfoWindow = function(){
+  if(sharedVenueInfoWindow) sharedVenueInfoWindow.close();
+};
+
 async function renderAllVenuePins(){
   if(!map || allVenuePinsPlaced) return;
   allVenuePinsPlaced = true;
@@ -2099,24 +2193,35 @@ async function renderAllVenuePins(){
     if(!coords) continue;
     const pos = new kakao.maps.LatLng(coords.lat, coords.lng);
     const isFav = (appData.favoriteVenues||[]).includes(v.name);
-    const pin = new kakao.maps.Marker({ position: pos, opacity: isFav?0.9:0.55 });
+    const pin = new kakao.maps.Marker({ position: pos, opacity: isFav?0.9:0.6, title: v.name });
     pin.setMap(map);
-    const label = new kakao.maps.CustomOverlay({
-      position: pos,
-      content: `<div class="venue-pin-label ${isFav?'favorite':''}">${isFav?'⭐ ':''}${escapeHtml(v.name)}</div>`,
-      yAnchor: 2.4
+    kakao.maps.event.addListener(pin, 'click', ()=>{
+      openVenueInfoWindow(pin, v.name, v.address);
     });
-    label.setMap(map);
-    venuePinObjects[v.name] = { marker: pin, label, pos };
+    venuePinObjects[v.name] = { marker: pin, pos, address: v.address, isFav, starBadge: null };
+    // 즐겨찾기한 경기장은 이름 없이 별 표시만 살짝 얹어 시각적으로만 구분합니다 (터치해야 이름이 보임).
+    if(isFav) setVenueStarBadge(v.name, true);
   }
+}
+/* 즐겨찾기 토글 시, 지도를 다시 그리지 않고 별 배지만 바로 추가/제거합니다. */
+function setVenueStarBadge(name, on){
+  const obj = venuePinObjects[name];
+  if(!obj) return;
+  if(on && !obj.starBadge){
+    obj.starBadge = new kakao.maps.CustomOverlay({
+      position: obj.pos, content: `<div class="venue-star-badge">⭐</div>`, yAnchor: 2.6
+    });
+    obj.starBadge.setMap(map);
+  } else if(!on && obj.starBadge){
+    obj.starBadge.setMap(null);
+    obj.starBadge = null;
+  }
+  obj.isFav = on;
 }
 function refreshVenuePinStyle(name, isActive){
   const obj = venuePinObjects[name];
   if(!obj) return;
-  const isFav = (appData.favoriteVenues||[]).includes(name);
-  obj.marker.setOpacity(isActive ? 1 : (isFav?0.9:0.55));
-  const cls = isActive ? 'active' : (isFav ? 'favorite' : '');
-  obj.label.setContent(`<div class="venue-pin-label ${cls}">${isActive?'📍 ':(isFav?'⭐ ':'')}${escapeHtml(name)}</div>`);
+  obj.marker.setOpacity(isActive ? 1 : (obj.isFav?0.9:0.6));
 }
 
 /* 지도 탭을 처음 열었을 때: 홈 화면과 동일하게 "가장 가까운 확정 경기"의 경기장을 기본으로 보여줍니다.
@@ -2420,11 +2525,7 @@ async function placeVenueMarker(info){
     marker = existing.marker;
     refreshVenuePinStyle(info.name, true);
     currentHighlightedVenueName = info.name;
-    const addrHtml = info.address
-      ? `<br><span style="color:#333;">${escapeHtml(info.address)}</span><br><button onclick="window.copyVenueAddress('${info.address.replace(/'/g,"\\'")}')" style="margin-top:6px;padding:4px 10px;border-radius:6px;border:1px solid #ccc;background:#fff;color:#111;cursor:pointer;font-size:11px;">주소 복사</button>`
-      : '';
-    const infoWin = new kakao.maps.InfoWindow({ content: `<div style="padding:8px 12px;font-size:13px;color:#111;background:#fff;">⚽ <b style="color:#111;">${escapeHtml(info.name)}</b>${addrHtml}</div>` });
-    infoWin.open(map, marker);
+    openVenueInfoWindow(marker, info.name, info.address);
     return;
   }
 
@@ -2447,11 +2548,7 @@ async function placeVenueMarker(info){
   if(marker) marker.setMap(null);
   marker = new kakao.maps.Marker({ position: pos });
   marker.setMap(map);
-  const addrHtml = info.address
-    ? `<br><span style="color:#333;">${escapeHtml(info.address)}</span><br><button onclick="window.copyVenueAddress('${info.address.replace(/'/g,"\\'")}')" style="margin-top:6px;padding:4px 10px;border-radius:6px;border:1px solid #ccc;background:#fff;color:#111;cursor:pointer;font-size:11px;">주소 복사</button>`
-    : '';
-  const infoWin = new kakao.maps.InfoWindow({ content: `<div style="padding:8px 12px;font-size:13px;color:#111;background:#fff;">⚽ <b style="color:#111;">${escapeHtml(info.name)}</b>${addrHtml}</div>` });
-  infoWin.open(map, marker);
+  openVenueInfoWindow(marker, info.name, info.address);
 }
 
 /* ---------- Init ---------- */
