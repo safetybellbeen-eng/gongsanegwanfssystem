@@ -1255,6 +1255,7 @@ $('#calRefresh').addEventListener('click', async ()=>{
 /* ---------- 참석률 순위 ---------- */
 let lastNaturalStats = {};
 let lastNaturalMissCounts = {};
+let lastStatPeriodInfo = {};
 function computeAttendanceStats(){
   const excludedWeeks = new Set(appData.excludedWeeks || []);
   const validDateKeys = Object.keys(appData.votes)
@@ -1291,9 +1292,20 @@ function computeAttendanceStats(){
     });
   });
 
-  // 관리자 도구(순위 횟수 수동 조정)에서 "현재 자동 집계" 참고용으로 보여주기 위해 조정 전 값을 저장해둡니다.
+  // 관리자 도구(순위 횟수 수동 조정)에서 "현재 자동 집계" 참고용으로 보여주기 위해 조정 전 값과 집계 기간을 저장해둡니다.
   lastNaturalStats = JSON.parse(JSON.stringify(stats));
   lastNaturalMissCounts = { ...missCounts };
+  const sortedMatchDates = [...validDateKeys].sort();
+  const sortedWeekKeys = [...weekKeys].sort();
+  lastStatPeriodInfo = {
+    today: todayStr(),
+    matchCount: sortedMatchDates.length,
+    earliestMatchDate: sortedMatchDates[0] || null,
+    latestMatchDate: sortedMatchDates[sortedMatchDates.length-1] || null,
+    weekCount: sortedWeekKeys.length,
+    earliestWeek: sortedWeekKeys[0] || null,
+    currentWeekKey: currentWeekKey
+  };
 
   // 관리자가 수동으로 보정한 값(순위 횟수 수동 조정)을 자연 집계 위에 더합니다.
   const adj = appData.statAdjustments || {};
@@ -1601,8 +1613,18 @@ document.addEventListener('keydown', (e)=>{
 /* 관리자가 참석·미투표·불참 횟수를 자동 집계 위에 수동으로 더하거나 뺄 수 있게 합니다. */
 function renderStatAdjustTable(){
   const el = $('#statAdjustTable');
+  const periodEl = $('#statPeriodInfo');
   if(!el) return;
-  if(!requireAdminSilent()){ el.innerHTML=''; return; }
+  if(!requireAdminSilent()){ el.innerHTML=''; if(periodEl) periodEl.textContent=''; return; }
+  if(periodEl){
+    const p = lastStatPeriodInfo || {};
+    if(p.matchCount){
+      const wLabel = p.earliestWeek ? `${p.earliestWeek} 주 ~ ${p.currentWeekKey} 주(이번 주)` : '아직 없음';
+      periodEl.innerHTML = `📅 오늘(${p.today}) 기준 집계 범위<br>· 참석/불참: 확정된 경기 ${p.earliestMatchDate} ~ ${p.latestMatchDate} (총 ${p.matchCount}경기, 미래에 확정된 경기가 있다면 포함)<br>· 미투표: ${wLabel} (${p.weekCount}주간, 아직 안 지난 미래 주는 제외)`;
+    } else {
+      periodEl.textContent = `📅 오늘(${p.today}) 기준 — 아직 집계할 확정 경기가 없습니다.`;
+    }
+  }
   const names = getApprovedNonAdminNames().sort((a,b)=>a.localeCompare(b,'ko'));
   if(!names.length){ el.innerHTML = '<div class="rank-empty">승인된 회원이 없습니다.</div>'; return; }
   const adj = appData.statAdjustments || {};
@@ -1769,6 +1791,7 @@ function renderMatchStats(){
   tryRenderHomeTab();
   checkMatchConfirmedNotification();
   checkVoteDeadlineReminder();
+  if(allVenuePinsPlaced) applyConfirmedVenueMarker();
   const el = $('#matchStatsCard');
   if(!el) return;
   const stats = computeMatchStats();
@@ -2156,30 +2179,50 @@ async function showVenueOnMap(info){
    (같은 위치에 마커가 두 개 겹치는 것을 방지). */
 let allVenuePinsPlaced = false;
 const venueGeocodeCache = {};
-const venuePinObjects = {}; // { 이름: { marker, pos, address } }
-let sharedVenueInfoWindow = null;
+const venuePinObjects = {}; // { 이름: { overlay, el, pos, address, type, expanded } }
+let currentExpandedVenue = null;
+let confirmedVenueName = null; // 실제 확정 경기의 경기장 이름 (일치하는 핀을 축구공으로 표시)
 
-/* 경기장 이름을 지도 위에 항상 띄워두면(특히 여러 경기장이 몰려있으면) 글자가 서로 겹쳐 보였습니다.
-   그래서 이제는 평소에는 핀만 보이고, 핀을 터치(클릭)하면 그 경기장의 정보가 말풍선으로 뜨고,
-   ✕를 누르면 닫히는 방식으로 바꿨습니다. */
-function openVenueInfoWindow(marker, name, address){
-  if(!sharedVenueInfoWindow){
-    sharedVenueInfoWindow = new kakao.maps.InfoWindow({ removable: false, zIndex: 10 });
-  }
-  const addrHtml = address
-    ? `<div style="color:#555;font-size:11px;margin-top:4px;">${escapeHtml(address)}</div><button onclick="window.copyVenueAddress('${address.replace(/'/g,"\\'")}')" style="margin-top:6px;padding:4px 10px;border-radius:6px;border:1px solid #ccc;background:#f5f5f5;color:#111;cursor:pointer;font-size:11px;">주소 복사</button>`
-    : '';
-  sharedVenueInfoWindow.setContent(
-    `<div style="position:relative;padding:10px 26px 10px 14px;font-size:13px;color:#111;background:#fff;min-width:100px;max-width:220px;">
-      <button onclick="window.closeVenueInfoWindow()" style="position:absolute;top:4px;right:4px;border:none;background:none;font-size:15px;line-height:1;cursor:pointer;color:#888;padding:4px;">✕</button>
-      ⚽ <b>${escapeHtml(name)}</b>${addrHtml}
-    </div>`
-  );
-  sharedVenueInfoWindow.open(map, marker);
+/* 경기장 마다: 평소엔 아이콘+이름만 작게 보이고, 터치하면 주소와 복사 버튼이 펼쳐집니다.
+   다른 경기장을 터치하거나 지도 빈 곳을 터치하면 자동으로 닫힙니다.
+   아이콘으로 종류를 구분합니다: 📍 일반 경기장 / ⭐ 즐겨찾기 / ⚽ 확정 경기 경기장(가장 눈에 띄게) */
+function venueIconFor(type){
+  if(type==='confirmed') return '⚽';
+  if(type==='favorite') return '⭐';
+  return '📍';
 }
-window.closeVenueInfoWindow = function(){
-  if(sharedVenueInfoWindow) sharedVenueInfoWindow.close();
-};
+function renderVenuePinContent(name){
+  const obj = venuePinObjects[name];
+  if(!obj) return;
+  const icon = venueIconFor(obj.type);
+  obj.el.className = `venue-pin ${obj.type}${obj.expanded?' expanded':''}`;
+  if(obj.expanded){
+    obj.el.innerHTML = `
+      <div class="vp-head">${icon} <b>${escapeHtml(name)}</b></div>
+      ${obj.address ? `<div class="vp-addr">${escapeHtml(obj.address)}</div><button type="button" class="vp-copy">주소 복사</button>` : '<div class="vp-addr">등록된 주소가 없습니다</div>'}
+    `;
+    const copyBtn = obj.el.querySelector('.vp-copy');
+    if(copyBtn) copyBtn.addEventListener('click', (e)=>{ e.stopPropagation(); window.copyVenueAddress(obj.address); });
+  } else {
+    obj.el.innerHTML = `${icon} <span class="vp-name">${escapeHtml(name)}</span>`;
+  }
+}
+function collapseAllVenuePins(){
+  if(currentExpandedVenue){
+    const prev = currentExpandedVenue;
+    currentExpandedVenue = null;
+    const obj = venuePinObjects[prev];
+    if(obj){ obj.expanded = false; renderVenuePinContent(prev); }
+  }
+}
+function expandVenuePin(name){
+  if(!venuePinObjects[name]) return;
+  collapseAllVenuePins();
+  currentExpandedVenue = name;
+  venuePinObjects[name].expanded = true;
+  renderVenuePinContent(name);
+  map.setCenter(venuePinObjects[name].pos);
+}
 
 async function renderAllVenuePins(){
   if(!map || allVenuePinsPlaced) return;
@@ -2193,36 +2236,54 @@ async function renderAllVenuePins(){
     if(!coords) continue;
     const pos = new kakao.maps.LatLng(coords.lat, coords.lng);
     const isFav = (appData.favoriteVenues||[]).includes(v.name);
-    const pin = new kakao.maps.Marker({ position: pos, opacity: isFav?0.9:0.6, title: v.name });
-    pin.setMap(map);
-    kakao.maps.event.addListener(pin, 'click', ()=>{
-      openVenueInfoWindow(pin, v.name, v.address);
+    const el = document.createElement('div');
+    el.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const obj = venuePinObjects[v.name];
+      if(obj.expanded){ collapseAllVenuePins(); } else { expandVenuePin(v.name); }
     });
-    venuePinObjects[v.name] = { marker: pin, pos, address: v.address, isFav, starBadge: null };
-    // 즐겨찾기한 경기장은 이름 없이 별 표시만 살짝 얹어 시각적으로만 구분합니다 (터치해야 이름이 보임).
-    if(isFav) setVenueStarBadge(v.name, true);
+    const overlay = new kakao.maps.CustomOverlay({
+      position: pos, content: el, yAnchor: 1, xAnchor: 0.5,
+      zIndex: isFav ? 3 : 2
+    });
+    overlay.setMap(map);
+    venuePinObjects[v.name] = { overlay, el, pos, address: v.address, type: isFav?'favorite':'regular', expanded:false };
+    renderVenuePinContent(v.name);
+  }
+  // 지도 빈 공간을 누르면 열려있던 상세정보를 닫습니다.
+  kakao.maps.event.addListener(map, 'click', ()=>{ collapseAllVenuePins(); });
+  applyConfirmedVenueMarker();
+}
+
+/* 홈 화면과 동일한 "가장 가까운 확정 경기"의 경기장을 ⚽ 아이콘으로 확실하게 구분해서 표시합니다. */
+function applyConfirmedVenueMarker(){
+  const todayS = todayStr();
+  const confirmedDates = Object.keys(appData.votes||{})
+    .filter(d=>/^\d{4}-\d{2}-\d{2}$/.test(d) && d>=todayS && (appData.votes[d]||[]).length>0)
+    .sort();
+  const nearest = confirmedDates[0];
+  const venue = nearest ? getVenueInfo(nearest) : null;
+  const newConfirmedName = (venue && venuePinObjects[venue.name]) ? venue.name : null;
+  if(confirmedVenueName && confirmedVenueName !== newConfirmedName && venuePinObjects[confirmedVenueName]){
+    const prevObj = venuePinObjects[confirmedVenueName];
+    prevObj.type = (appData.favoriteVenues||[]).includes(confirmedVenueName) ? 'favorite' : 'regular';
+    renderVenuePinContent(confirmedVenueName);
+  }
+  confirmedVenueName = newConfirmedName;
+  if(confirmedVenueName){
+    const obj = venuePinObjects[confirmedVenueName];
+    obj.type = 'confirmed';
+    renderVenuePinContent(confirmedVenueName);
   }
 }
-/* 즐겨찾기 토글 시, 지도를 다시 그리지 않고 별 배지만 바로 추가/제거합니다. */
+/* 즐겨찾기 토글 시, 지도를 다시 그리지 않고 해당 핀의 아이콘만 바로 바꿉니다. */
 function setVenueStarBadge(name, on){
   const obj = venuePinObjects[name];
   if(!obj) return;
-  if(on && !obj.starBadge){
-    obj.starBadge = new kakao.maps.CustomOverlay({
-      position: obj.pos, content: `<div class="venue-star-badge">⭐</div>`, yAnchor: 2.6
-    });
-    obj.starBadge.setMap(map);
-  } else if(!on && obj.starBadge){
-    obj.starBadge.setMap(null);
-    obj.starBadge = null;
-  }
-  obj.isFav = on;
+  if(obj.type !== 'confirmed'){ obj.type = on ? 'favorite' : 'regular'; }
+  renderVenuePinContent(name);
 }
-function refreshVenuePinStyle(name, isActive){
-  const obj = venuePinObjects[name];
-  if(!obj) return;
-  obj.marker.setOpacity(isActive ? 1 : (obj.isFav?0.9:0.6));
-}
+function refreshVenuePinStyle(){ /* 강조 스타일은 이제 아이콘 종류(type)로만 구분하므로 별도 처리가 필요 없습니다. */ }
 
 /* 지도 탭을 처음 열었을 때: 홈 화면과 동일하게 "가장 가까운 확정 경기"의 경기장을 기본으로 보여줍니다.
    경기장 선택 UI는 그대로 남아있어서, 다른 경기장을 직접 검색해서 볼 수도 있습니다. */
@@ -2470,7 +2531,8 @@ function setMapFullscreen(on){
   if(btn) btn.textContent = on ? '✕ 닫기' : '⤢ 전체화면';
   setTimeout(()=>{
     try{ if(map) map.relayout(); }catch(e){}
-    if(map && marker){ map.setCenter(marker.getPosition()); }
+    const focusName = currentExpandedVenue || confirmedVenueName;
+    if(map && focusName && venuePinObjects[focusName]){ map.setCenter(venuePinObjects[focusName].pos); }
   }, 100);
 }
 $('#mapFullscreenBtn').addEventListener('click', ()=>{
@@ -2508,29 +2570,20 @@ function kakaoGeocode(query, isAddress){
   });
 }
 
-let currentHighlightedVenueName = null;
+let adhocVenueOverlay = null; // 목록에 없는 경기장을 직접 검색했을 때 쓰는 임시 핀
 async function placeVenueMarker(info){
-  // 이전에 강조 표시했던 경기장이 있으면 원래(일반/즐겨찾기) 스타일로 되돌립니다.
-  if(currentHighlightedVenueName && currentHighlightedVenueName !== info.name){
-    refreshVenuePinStyle(currentHighlightedVenueName, false);
-  }
+  // 이전에 열려있던 임시(목록 외 검색) 핀은 정리합니다.
+  if(adhocVenueOverlay){ adhocVenueOverlay.setMap(null); adhocVenueOverlay = null; }
 
-  // 목록에 있는 경기장이면, 이미 지도에 찍혀있는 핀을 그대로 재사용해서 강조 스타일로 바꿉니다
-  // (같은 위치에 마커가 두 개 겹치는 것을 방지합니다).
+  // 목록에 있는 경기장이면, 이미 지도에 찍혀있는 핀을 그대로 펼쳐서 보여줍니다.
   const existing = venuePinObjects[info.name];
   if(existing){
-    map.setCenter(existing.pos);
+    expandVenuePin(info.name);
     map.setLevel(3);
-    if(marker && marker !== existing.marker) marker.setMap(null);
-    marker = existing.marker;
-    refreshVenuePinStyle(info.name, true);
-    currentHighlightedVenueName = info.name;
-    openVenueInfoWindow(marker, info.name, info.address);
     return;
   }
 
-  // 목록에 없는 경기장(직접 검색)은 별도의 마커를 새로 만듭니다.
-  currentHighlightedVenueName = null;
+  // 목록에 없는 경기장(직접 검색)은 임시 핀을 새로 만듭니다.
   let coords = null;
   // 1) 주소가 있으면 정확한 주소로 먼저 검색합니다.
   if(info.address){
@@ -2545,10 +2598,18 @@ async function placeVenueMarker(info){
   const pos = new kakao.maps.LatLng(coords.lat, coords.lng);
   map.setCenter(pos);
   map.setLevel(3);
-  if(marker) marker.setMap(null);
-  marker = new kakao.maps.Marker({ position: pos });
-  marker.setMap(map);
-  openVenueInfoWindow(marker, info.name, info.address);
+  collapseAllVenuePins();
+  const el = document.createElement('div');
+  el.className = 'venue-pin regular expanded';
+  el.innerHTML = `
+    <div class="vp-head">📍 <b>${escapeHtml(info.name)}</b></div>
+    ${info.address ? `<div class="vp-addr">${escapeHtml(info.address)}</div><button type="button" class="vp-copy">주소 복사</button>` : '<div class="vp-addr">등록된 주소가 없습니다</div>'}
+  `;
+  const copyBtn = el.querySelector('.vp-copy');
+  if(copyBtn) copyBtn.addEventListener('click', (e)=>{ e.stopPropagation(); window.copyVenueAddress(info.address); });
+  el.addEventListener('click', (e)=>e.stopPropagation());
+  adhocVenueOverlay = new kakao.maps.CustomOverlay({ position: pos, content: el, yAnchor: 1, xAnchor: 0.5, zIndex: 5 });
+  adhocVenueOverlay.setMap(map);
 }
 
 /* ---------- Init ---------- */
