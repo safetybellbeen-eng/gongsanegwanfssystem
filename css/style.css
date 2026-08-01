@@ -90,9 +90,29 @@
   .logout-btn{background:none;border:1px solid var(--line);color:var(--muted);border-radius:8px;padding:6px 12px;font-size:11px;font-weight:600;cursor:pointer;}
   .logout-btn:hover{border-color:var(--danger);color:var(--danger);}
   .member-strip-wrap{display:flex;align-items:center;gap:12px;margin:24px 0 -8px;}
+  .member-strip-wrap .member-strip{cursor:pointer;}
+  .member-viewall-btn{flex-shrink:0;background:var(--surface-2);border:1px solid var(--line);color:var(--pitch);border-radius:20px;padding:6px 14px;font-size:12px;cursor:pointer;white-space:nowrap;}
+  .member-viewall-btn:hover{border-color:var(--pitch);background:var(--pitch-dim);}
   .my-injury-toggle-btn{flex-shrink:0;background:var(--surface-2);border:1px solid var(--line);color:var(--muted);border-radius:20px;padding:6px 14px;font-size:12px;cursor:pointer;white-space:nowrap;}
   .my-injury-toggle-btn:hover{border-color:var(--amber);color:var(--amber);}
   .my-injury-panel{margin:16px 0 24px;}
+
+  /* ---------- 팀 멤버 전체보기 팝업 ---------- */
+  .modal-backdrop{position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;padding:20px;}
+  .modal-card{background:var(--surface);border:1px solid var(--line);border-radius:16px;width:100%;max-width:420px;max-height:80vh;display:flex;flex-direction:column;overflow:hidden;}
+  .modal-header{display:flex;align-items:center;justify-content:space-between;padding:18px 20px;border-bottom:1px solid var(--line);flex-shrink:0;}
+  .modal-header h3{margin:0;font-family:'Bebas Neue';font-size:20px;font-weight:400;letter-spacing:0.02em;}
+  .modal-header button{background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:4px 8px;line-height:1;}
+  .modal-header button:hover{color:var(--text);}
+  .modal-body{padding:10px 12px;overflow-y:auto;flex:1;}
+  .member-modal-row{display:flex;align-items:center;gap:10px;padding:12px 10px;border-bottom:1px solid var(--line);}
+  .member-modal-row:last-child{border-bottom:none;}
+  .member-modal-row .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+  .member-modal-row .dot.online{background:var(--pitch);}
+  .member-modal-row .dot.offline{background:var(--muted);}
+  .member-modal-row .nm{font-size:14px;font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .member-modal-row .nm.me{color:var(--pitch);}
+  .member-modal-row .bd{font-size:11px;color:var(--muted);font-family:'JetBrains Mono';flex-shrink:0;}
   .hero-match-card{background:linear-gradient(135deg, rgba(61,220,132,0.1), var(--surface));border:1px solid rgba(61,220,132,0.35);border-radius:18px;padding:22px 24px;margin:24px 0;}
   .hero-match-card.empty{color:var(--muted);font-size:13px;text-align:center;padding:36px 10px;border-style:dashed;}
   .hero-top{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
@@ -145,8 +165,6 @@
   .member-chip .b{color:var(--muted);font-family:'JetBrains Mono';font-size:10px;}
   .rest-badge{font-size:10px;border-radius:8px;padding:1px 6px;margin-left:2px;}
   .rest-badge.injury{background:rgba(255,93,93,0.15);color:var(--danger);}
-  .rest-badge.rest{background:rgba(109,184,255,0.15);color:#6db8ff;}
-  .rest-select{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:4px 6px;color:var(--text);font-size:11px;}
   .member-del{background:none;border:none;color:var(--muted);font-size:11px;cursor:pointer;padding:0 0 0 2px;line-height:1;}
   .member-del:hover{color:var(--danger);}
   .admin-badge{font-size:9px;color:var(--amber);border:1px solid rgba(255,176,32,0.4);border-radius:8px;padding:1px 6px;margin-left:6px;vertical-align:middle;}
@@ -362,13 +380,20 @@
   .plab-link{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--pitch);text-decoration:none;border:1px solid rgba(61,220,132,0.35);border-radius:20px;padding:8px 14px;margin-bottom:14px;}
   .plab-link:hover{background:var(--pitch-dim);}
   #mapWrap{position:relative;}
-  #map{height:380px;border-radius:12px;margin-top:14px; background:var(--surface-2);}
+  #map{height:440px;border-radius:12px;margin-top:14px; background:var(--surface-2);}
   #mapFullscreenBtn{position:absolute;top:22px;right:10px;z-index:10;background:rgba(26,34,42,0.9);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer;}
   #mapFullscreenBtn:hover{border-color:rgba(61,220,132,0.5);}
-  #mapWrap:fullscreen{background:var(--bg);display:flex;align-items:center;justify-content:center;padding:20px;}
-  #mapWrap:fullscreen #map{height:100%;width:100%;margin-top:0;}
-  #mapWrap:-webkit-full-screen{background:var(--bg);display:flex;align-items:center;justify-content:center;padding:20px;}
-  #mapWrap:-webkit-full-screen #map{height:100%;width:100%;margin-top:0;}
+  /* 아이폰 사파리 등 네이티브 전체화면 API를 지원하지 않는 환경에서도 동일하게 동작하도록,
+     :fullscreen 의사 클래스 대신 직접 토글하는 클래스를 씁니다. */
+  #mapWrap.map-fullscreen-mode{position:fixed;inset:0;z-index:9999;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:16px;padding-top:calc(16px + env(safe-area-inset-top));padding-bottom:calc(16px + env(safe-area-inset-bottom));}
+  #mapWrap.map-fullscreen-mode #map{height:100%;width:100%;margin-top:0;}
+  #mapWrap.map-fullscreen-mode #mapFullscreenBtn{top:calc(22px + env(safe-area-inset-top));}
+  body.map-fullscreen-open{overflow:hidden;}
+  .venue-pin-label{background:rgba(17,22,27,0.75);color:#ccc;border:1px solid rgba(255,255,255,0.15);border-radius:6px;padding:2px 7px;font-size:10px;font-weight:600;white-space:nowrap;transform:translateY(-6px);box-shadow:0 2px 6px rgba(0,0,0,0.3);}
+  .venue-pin-label.favorite{background:rgba(255,176,32,0.16);color:var(--amber);border-color:rgba(255,176,32,0.5);font-weight:700;}
+  .venue-pin-label.active{background:var(--pitch);color:#0b1410;border-color:var(--pitch);font-size:12px;font-weight:800;padding:4px 10px;box-shadow:0 3px 10px rgba(61,220,132,0.5);}
+  #favVenueBtn{background:var(--surface-2);border:1px solid var(--line);color:var(--amber);border-radius:8px;padding:9px 12px;font-size:15px;cursor:pointer;flex-shrink:0;}
+  #favVenueBtn.on{background:rgba(255,176,32,0.15);border-color:var(--amber);}
   .map-hint{font-size:12px;color:var(--muted);margin-top:10px;}
   .map-empty{color:var(--muted);font-size:13px;text-align:center;padding:80px 10px;}
   .map-config{background:var(--surface-2);border:1px dashed var(--line);border-radius:12px;padding:16px;margin-top:14px;}
@@ -427,6 +452,14 @@
   .admin-injury-row .il{color:var(--muted);flex-shrink:0;min-width:70px;}
   .admin-injury-row input[type=date]{flex:1;min-width:120px;background:var(--surface-2);border:1px solid var(--line);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12px;}
   .admin-injury-row button{flex-shrink:0;padding:6px 10px;font-size:11px;}
+  .stat-adjust-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 0;border-bottom:1px dashed var(--line);}
+  .stat-adjust-row:last-child{border-bottom:none;}
+  .stat-adjust-row .n{font-weight:600;font-size:13px;min-width:60px;flex-shrink:0;}
+  .stat-adjust-fields{display:flex;gap:10px;flex:1;flex-wrap:wrap;}
+  .stat-adjust-fields label{display:flex;flex-direction:column;gap:3px;font-size:10px;color:var(--muted);}
+  .stat-adjust-fields .nat{font-size:9px;color:var(--muted);opacity:0.8;}
+  .stat-adjust-fields input[type=number]{width:56px;background:var(--surface-2);border:1px solid var(--line);border-radius:6px;padding:5px 6px;color:var(--text);font-size:12px;}
+  .stat-adjust-row button{flex-shrink:0;padding:6px 12px;font-size:11px;}
   .admin-member-row:last-child{border-bottom:none;}
   .admin-member-row .n{flex:1;font-weight:600;}
   .admin-member-row .bday{color:var(--muted);font-family:'JetBrains Mono';font-size:11px;}
@@ -548,7 +581,7 @@
     .podium-col .prate{font-size:10px;}
     .admin-row input[type=text]{min-width:0;width:100%;}
     .admin-row button{min-height:40px;}
-    #map{height:280px;}
+    #map{height:380px;}
     .voter-lists{grid-template-columns:1fr 1fr;gap:8px;}
     input,select,textarea,button{font-size:16px;} /* iOS 자동 확대 방지 */
 
