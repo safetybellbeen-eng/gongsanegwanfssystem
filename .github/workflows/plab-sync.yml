@@ -1,0 +1,25 @@
+name: Plab Sync Test
+
+on:
+  push:
+    branches:
+      - plab-sync-test
+    paths:
+      - '.github/workflows/plab-sync.yml'
+      - 'scripts/fetch-plab.js'
+  workflow_dispatch:
+
+jobs:
+  fetch-plab:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Fetch Plab match data (오늘 날짜 기준)
+        run: node scripts/fetch-plab.js
