@@ -374,6 +374,43 @@
   .voter-name:last-child{border-bottom:none;}
   .voter-empty{font-size:12px;color:var(--muted);}
 
+  /* ---------- 경기 탭 (플랩풋볼) ---------- */
+  .match-date-scroll{display:flex;gap:8px;overflow-x:auto;padding-bottom:8px;margin-bottom:14px;-webkit-overflow-scrolling:touch;}
+  .match-date-scroll::-webkit-scrollbar{height:4px;}
+  .match-date-chip{flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:2px;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:8px 14px;cursor:pointer;min-width:52px;}
+  .match-date-chip .md-label{font-size:10px;color:var(--muted);font-weight:600;}
+  .match-date-chip .md-date{font-size:13px;font-weight:700;font-family:'JetBrains Mono';}
+  .match-date-chip.active{background:var(--pitch-dim);border-color:var(--pitch);}
+  .match-date-chip.active .md-label{color:var(--pitch);}
+  .match-meta-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
+  .match-count{font-family:'Bebas Neue';font-size:24px;font-weight:400;letter-spacing:0.02em;}
+  .match-updated{font-size:11px;color:var(--muted);margin-top:2px;}
+  .mf-refresh-btn{flex-shrink:0;background:var(--surface-2);border:1px solid var(--line);color:var(--text);border-radius:20px;padding:8px 14px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;}
+  .mf-refresh-btn:hover{border-color:var(--pitch);color:var(--pitch);}
+  .mf-refresh-btn:disabled{opacity:0.5;cursor:not-allowed;}
+  .match-filter-row{display:flex;gap:6px;flex-wrap:nowrap;overflow-x:auto;margin-bottom:16px;padding-bottom:2px;-webkit-overflow-scrolling:touch;}
+  .match-filter-row::-webkit-scrollbar{height:4px;}
+  .mf-chip{flex-shrink:0;background:var(--surface-2);border:1px solid var(--line);color:var(--muted);border-radius:16px;padding:6px 13px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;}
+  .mf-chip.active{background:var(--pitch-dim);border-color:var(--pitch);color:var(--pitch);}
+  .mf-chip.mf-fav.active{background:rgba(255,176,32,0.15);border-color:var(--amber);color:var(--amber);}
+  .match-card{background:var(--surface-2);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:10px;}
+  .match-card .mc-top-row{display:flex;align-items:flex-start;gap:8px;margin-bottom:12px;}
+  .match-card .mc-time{font-family:'JetBrains Mono';font-size:17px;font-weight:700;flex-shrink:0;}
+  .match-card .mc-venue{font-size:13px;color:var(--text);flex:1;min-width:0;white-space:normal;word-break:keep-all;line-height:1.4;}
+  .match-card .mc-status{flex-shrink:0;display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:700;border-radius:8px;padding:5px 10px;white-space:nowrap;}
+  .match-card .mc-status.status-open{background:rgba(61,220,132,0.15);color:var(--pitch);}
+  .match-card .mc-status.status-closing{background:rgba(255,176,32,0.15);color:var(--amber);}
+  .match-card .mc-status.status-full{background:rgba(255,93,93,0.15);color:var(--danger);}
+  .mc-type{display:inline-flex;align-items:center;gap:4px;background:rgba(109,184,255,0.15);color:#6db8ff;border-radius:8px;padding:5px 10px;font-size:12px;font-weight:700;white-space:nowrap;}
+  .mc-tags-row{display:flex;gap:6px;margin-bottom:10px;}
+  .mc-tag{background:var(--surface);border:1px solid var(--line);color:var(--muted);border-radius:7px;padding:3px 9px;font-size:11px;font-weight:600;}
+  .mc-bottom-row{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+  .mc-apply-btn{flex-shrink:0;background:var(--pitch);color:#0b1410;border:none;border-radius:10px;padding:11px 18px;font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap;}
+  .mc-apply-btn:hover{filter:brightness(1.05);}
+  .match-loading{text-align:center;color:var(--muted);font-size:13px;padding:30px 0;}
+  .match-more-btn{display:block;width:100%;margin-top:8px;background:var(--surface-2);border:1px dashed var(--line);color:var(--text);border-radius:12px;padding:13px;font-size:13px;font-weight:600;cursor:pointer;}
+  .match-more-btn:hover{border-color:var(--pitch);color:var(--pitch);}
+
   .map-card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:22px 24px;}
   .venue-row{display:flex;gap:8px;margin-bottom:10px;}
   .venue-address-row{display:flex;align-items:center;gap:10px;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:12px;color:var(--muted);}
