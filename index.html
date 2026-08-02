@@ -86,6 +86,7 @@
         <div class="my-rate" id="myRateTag"></div>
       </div>
     </div>
+    <button class="my-injury-toggle-btn" id="myInjuryToggleBtn">내 부상 설정</button>
     <button class="logout-btn" id="logoutBtn">로그아웃</button>
   </div>
 </header>
@@ -97,7 +98,6 @@
     <span class="member-strip-label">팀 멤버</span>
     <div class="member-strip" id="memberStrip"></div>
     <button class="member-viewall-btn" id="memberViewAllBtn" title="팀 멤버 전체보기">전체보기</button>
-    <button class="my-injury-toggle-btn" id="myInjuryToggleBtn">내 부상 설정</button>
   </div>
   <div class="weather-card my-injury-panel" id="myInjuryPanel" style="display:none;">
     <div class="admin-feed-status">부상으로 설정한 기간 동안에는 투표(가능일 선택·불참 선언)를 할 수 없고, 팀 순위(참석·미투표·불참) 집계에서도 그 기간이 제외됩니다.</div>
@@ -190,8 +190,33 @@
   </div>
   </section>
 
+  <section class="app-section" id="sectionMatches">
+  <div class="eyebrow"><span class="num">03</span><h2>경기 찾기 (플랩풋볼)</h2><div class="line"></div></div>
+  <div class="weather-card">
+    <div class="match-date-scroll" id="matchDateScroll"></div>
+
+    <div class="match-meta-row">
+      <div>
+        <div class="match-count" id="matchCountText">-</div>
+        <div class="match-updated" id="matchUpdatedText"></div>
+      </div>
+      <button class="mf-refresh-btn" id="matchRefreshBtn">🔄 최신 경기 불러오기</button>
+    </div>
+
+    <div class="match-filter-row" id="matchFilterRow">
+      <button class="mf-chip active" data-filter-time="all">전체</button>
+      <button class="mf-chip" data-filter-time="morning">오전</button>
+      <button class="mf-chip" data-filter-time="afternoon">오후</button>
+      <button class="mf-chip" data-filter-time="evening">저녁</button>
+      <button class="mf-chip mf-fav" id="matchFavFilterBtn">⭐ 즐겨찾기만</button>
+    </div>
+
+    <div id="matchListContainer"></div>
+  </div>
+  </section>
+
   <section class="app-section" id="sectionMap">
-  <div class="eyebrow"><span class="num">03</span><h2>경기장 지도 (카카오맵)</h2><div class="line"></div></div>
+  <div class="eyebrow"><span class="num">04</span><h2>경기장 지도 (카카오맵)</h2><div class="line"></div></div>
   <div class="map-card">
     <div class="venue-row">
       <select id="venuePresetSelect" style="background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:10px 8px;color:var(--text);font-size:12px;max-width:150px;">
@@ -225,7 +250,7 @@
   </section>
 
   <section class="app-section" id="sectionRecords">
-  <div class="eyebrow"><span class="num">04</span><h2>팀 순위</h2><div class="line"></div>
+  <div class="eyebrow"><span class="num">05</span><h2>팀 순위</h2><div class="line"></div>
     <button class="refresh-btn" id="rankRefresh"><span class="ic">⟳</span>새로고침</button>
   </div>
   <div class="weather-card" id="rankCard">
@@ -251,12 +276,12 @@
     </div>
   </div>
 
-  <div class="eyebrow"><span class="num">05</span><h2>경기 진행 기록</h2><div class="line"></div></div>
+  <div class="eyebrow"><span class="num">06</span><h2>경기 진행 기록</h2><div class="line"></div></div>
   <div class="weather-card" id="matchStatsCard"></div>
   </section>
 
   <section class="app-section admin-only-section" id="sectionAdmin">
-  <div class="eyebrow admin-only" id="adminSectionEyebrow" style="display:none;"><span class="num">06</span><h2>관리자 도구</h2><div class="line"></div></div>
+  <div class="eyebrow admin-only" id="adminSectionEyebrow" style="display:none;"><span class="num">07</span><h2>관리자 도구</h2><div class="line"></div></div>
   <div class="weather-card admin-only" id="adminPanel" style="display:none;">
     <div class="admin-block">
       <h4>실시간 데이터 새로고침</h4>
@@ -370,9 +395,10 @@
 
 <nav class="mobile-tabbar" id="mobileTabbar">
   <button class="tab-btn active" data-tab="home"><span class="tab-ic">🏠</span><span class="tab-lb">홈</span></button>
-  <button class="tab-btn" data-tab="weather"><span class="tab-ic">☀️</span><span class="tab-lb">날씨</span></button>
   <button class="tab-btn" data-tab="calendar"><span class="tab-ic">🗓️</span><span class="tab-lb">캘린더</span></button>
+  <button class="tab-btn" data-tab="matches"><span class="tab-ic">⚽</span><span class="tab-lb">경기</span></button>
   <button class="tab-btn" data-tab="map"><span class="tab-ic">📍</span><span class="tab-lb">지도</span></button>
+  <button class="tab-btn" data-tab="weather"><span class="tab-ic">☀️</span><span class="tab-lb">날씨</span></button>
   <button class="tab-btn" data-tab="records"><span class="tab-ic">🏆</span><span class="tab-lb">기록</span></button>
   <button class="tab-btn admin-only" id="adminTabBtn" data-tab="admin" style="display:none;"><span class="tab-ic">⚙️</span><span class="tab-lb">관리자</span></button>
 </nav>
