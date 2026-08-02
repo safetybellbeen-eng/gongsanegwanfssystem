@@ -1,4 +1,4 @@
-name: Plab Sync Test
+name: Plab Sync
 
 on:
   push:
@@ -7,19 +7,26 @@ on:
     paths:
       - '.github/workflows/plab-sync.yml'
       - 'scripts/fetch-plab.js'
+      - 'package.json'
   workflow_dispatch:
 
 jobs:
-  fetch-plab:
+  sync-plab:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Node.js 20
+      - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      - name: Fetch Plab match data (오늘 날짜 기준)
+      - name: Install dependencies
+        run: npm install
+
+      - name: Sync Plab matches to Supabase
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: node scripts/fetch-plab.js
