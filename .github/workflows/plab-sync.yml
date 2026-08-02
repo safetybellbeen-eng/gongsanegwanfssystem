@@ -1,13 +1,6 @@
 name: Plab Sync
 
 on:
-  push:
-    branches:
-      - plab-sync-test
-    paths:
-      - '.github/workflows/plab-sync.yml'
-      - 'scripts/fetch-plab.js'
-      - 'package.json'
   workflow_dispatch:
 
 jobs:
@@ -17,15 +10,15 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
+      - name: Set up Node.js 20
         uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version: '20'
 
       - name: Install dependencies
         run: npm install
 
-      - name: Sync Plab matches to Supabase
+      - name: Sync Plab matches to Supabase (오늘부터 14일, 서울 지역만)
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
