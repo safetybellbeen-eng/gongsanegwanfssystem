@@ -1,0 +1,12 @@
+{
+  "name": "gongsaengwan-plab-sync",
+  "version": "1.0.0",
+  "private": true,
+  "description": "플랩풋볼 API에서 서울 지역 경기 정보를 가져와 Supabase에 동기화하는 GitHub Actions 전용 스크립트",
+  "scripts": {
+    "fetch-plab": "node scripts/fetch-plab.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0"
+  }
+}
