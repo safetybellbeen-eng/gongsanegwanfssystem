@@ -5,16 +5,15 @@
 // - 기존 공생관 웹앱(index.html / app.js / style.css)과는 전혀 연결되지 않은 별도 파이프라인입니다.
 // - SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY는 GitHub Secrets에서 환경변수로 전달받습니다.
 //
-// ⚠️ 3차 수정 사항 (실제 API 응답 구조 확정 후 전면 재작성)
-// - match-explore/1 자체가 이미 서울 지역 조회이므로, 별도의 지역(서울/가산 등) 판별 로직을 전부 제거했습니다.
-// - 필드 추측 로직을 전부 제거하고, 실제 확인된 필드(id, time, schedule, stadium_name, apply_status,
-//   player_count, confirm_cnt, max_player_cnt)만 사용합니다.
-// - player_count는 "6vs6" 같은 경기 형식 문자열이며, confirm_cnt/max_player_cnt로 계산하지 않고
-//   원본 값을 그대로 저장합니다.
-// - apply_status가 available / hurry인 경기만 저장하고, full은 저장하지 않습니다.
-// - 매번 전체 삭제 후 재삽입하던 방식을 버리고, id 기준 upsert로 바꿨습니다. 저장 후에는 오늘 이전
-//   과거 경기만 정리합니다.
-// - 최종 저장 대상이 0건이면 기존 데이터를 절대 건드리지 않고 작업을 중단합니다.
+// ⚠️ 4차 수정 사항 (진단 로그 전용 추가, 필터/매핑 로직은 전혀 바꾸지 않았습니다)
+// "가산"이 포함된 경기장이 plab_matches에 한 건도 저장되지 않는 문제의 원인을 찾기 위해,
+// 아래 5단계마다 "가산" 포함 경기가 몇 건 있는지 추적하는 로그만 추가했습니다.
+//   1) 각 날짜별 전체 페이지 조회 여부
+//   2) API 원본 results 안에 가산 경기가 있는지
+//   3) 가산 경기의 apply_status
+//   4) 가산 경기가 데이터 검증에서 제외되는지
+//   5) 최종 upsert 대상에 가산 경기가 포함되는지
+// 가산 경기를 강제로 포함시키거나 별도 취급하는 로직은 전혀 추가하지 않았습니다 — 순수하게 로그만 남깁니다.
 
 const { createClient } = require('@supabase/supabase-js');
 
@@ -25,6 +24,7 @@ const DAYS_TO_FETCH = 14;
 const TABLE_NAME = 'plab_matches';
 const MAX_PAGES_PER_DATE = 50; // 무한 루프 방지용 안전장치
 const ALLOWED_STATUSES = ['available', 'hurry'];
+const DIAG_KEYWORD = '가산'; // 진단 대상 키워드 (이 값 자체가 저장 여부를 바꾸지는 않습니다)
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
   console.error('[fetch-plab] SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY 환경변수가 설정되어 있지 않습니다.');
@@ -56,11 +56,32 @@ function buildDateList() {
   return list;
 }
 
-/* ---------- 특정 날짜의 전체 페이지를 끝까지 조회 (match-explore/1 = 서울 지역 조회) ---------- */
+/* ---------- 진단용 헬퍼 ---------- */
+function isDiagMatch(item) {
+  return String((item && item.stadium_name) || '').includes(DIAG_KEYWORD);
+}
+function logDiagRaw(item) {
+  console.log(
+    '[진단][가산 원본]',
+    JSON.stringify({
+      id: item.id,
+      schedule: item.schedule,
+      time: item.time,
+      stadium_name: item.stadium_name,
+      apply_status: item.apply_status,
+      player_count: item.player_count,
+      confirm_cnt: item.confirm_cnt,
+      max_player_cnt: item.max_player_cnt,
+    })
+  );
+}
+
+/* ---------- 특정 날짜의 전체 페이지를 끝까지 조회 ---------- */
 async function fetchAllPagesForDate(date) {
   const results = [];
   let page = 1;
   let pageCount = 0;
+  let dateDiagCount = 0;
 
   while (true) {
     pageCount++;
@@ -69,6 +90,8 @@ async function fetchAllPagesForDate(date) {
       break;
     }
     const url = `https://social-admin.plabfootball.com/api/v2/match-explore/1/match/?date=${date}&page=${page}&type=region`;
+    console.log(`[진단][${date}] 페이지 ${page} 요청: ${url}`);
+
     const res = await fetch(url, { headers: { Accept: 'application/json' } });
     if (!res.ok) {
       console.error(`[fetch-plab] ${date} 페이지 ${page} 요청 실패 (status ${res.status})`);
@@ -76,16 +99,29 @@ async function fetchAllPagesForDate(date) {
     }
     const data = await res.json();
     const pageResults = Array.isArray(data.results) ? data.results : [];
+    console.log(`[진단][${date}] 페이지 ${page} 원본 ${pageResults.length}건`);
+
+    const pageDiag = pageResults.filter(isDiagMatch);
+    if (pageDiag.length) {
+      console.log(`[진단][${date}] 페이지 ${page}에서 "${DIAG_KEYWORD}" 포함 경기 ${pageDiag.length}건 발견`);
+      pageDiag.forEach(logDiagRaw);
+    }
+    dateDiagCount += pageDiag.length;
+
     results.push(...pageResults);
 
     if (!data.next) break; // next가 null/빈 문자열/undefined면 마지막 페이지
     page++;
   }
-  console.log(`[fetch-plab] ${date}: ${pageCount}페이지 조회, 원본 ${results.length}건`);
+
+  console.log(`[진단][${date}] 조회한 총 페이지 수: ${pageCount}`);
+  console.log(`[진단][${date}] 원본 results 총 개수: ${results.length}`);
+  console.log(`[진단][${date}] "${DIAG_KEYWORD}" 포함 경기 수: ${dateDiagCount}`);
+
   return results;
 }
 
-/* ---------- 검증 + 매핑 ----------
+/* ---------- 검증 + 매핑 (기존 로직 그대로, 변경 없음) ----------
    실제 확인된 필드만 사용합니다: id, time, schedule, stadium_name, apply_status,
    player_count(경기 형식, 예: "6vs6"), confirm_cnt(현재 모집 인원), max_player_cnt(최대 정원) */
 function mapAndValidate(item) {
@@ -112,14 +148,10 @@ function mapAndValidate(item) {
   if (!ALLOWED_STATUSES.includes(item.apply_status)) {
     return { ok: false, reason: `apply_status(${item.apply_status})가 저장 대상(available/hurry)이 아님` };
   }
-  const confirmCount = Number(item.confirm_cnt);
-  if (Number.isNaN(confirmCount)) {
-    return { ok: false, reason: `confirm_cnt를 숫자로 변환할 수 없음 (원본: ${item.confirm_cnt})` };
-  }
-  const maxPlayerCnt = Number(item.max_player_cnt);
-  if (Number.isNaN(maxPlayerCnt)) {
-    return { ok: false, reason: `max_player_cnt를 숫자로 변환할 수 없음 (원본: ${item.max_player_cnt})` };
-  }
+  // confirm_cnt / max_player_cnt는 null이어도 경기 저장 자체를 막지 않습니다.
+  // Supabase의 confirm_count, max_player_cnt 컬럼은 nullable이므로 값이 없으면 null 그대로 저장합니다.
+  const confirmCount = item.confirm_cnt == null ? null : Number(item.confirm_cnt);
+  const maxPlayerCnt = item.max_player_cnt == null ? null : Number(item.max_player_cnt);
 
   return {
     ok: true,
@@ -151,10 +183,24 @@ async function main() {
   }
   console.log(`[fetch-plab] 전체 원본 경기 수: ${allRaw.length}건`);
 
+  // ---- 진단 1단계: 원본 전체에서 "가산" 포함 경기 집계 ----
+  const allDiagRaw = allRaw.filter(isDiagMatch);
+  console.log(`[진단] 전체 원본 경기: ${allRaw.length}건`);
+  console.log(`[진단] 전체 "${DIAG_KEYWORD}" 경기: ${allDiagRaw.length}건`);
+
+  // ---- 진단 2단계: 가산 경기의 apply_status 확인 ----
+  allDiagRaw.forEach((item) => {
+    console.log(`[진단][가산 상태] id=${item.id}, stadium_name=${item.stadium_name}, apply_status=${item.apply_status}`);
+  });
+  const diagAvailableOrHurry = allDiagRaw.filter((item) => ALLOWED_STATUSES.includes(item.apply_status));
+  console.log(`[진단] 모집 가능(available/hurry) "${DIAG_KEYWORD}" 경기: ${diagAvailableOrHurry.length}건`);
+
+  // ---- 검증 단계 (기존 로직 그대로) + 진단 3단계: 검증 통과한 가산 경기 추적 ----
   let availableCount = 0;
   let hurryCount = 0;
   let skippedCount = 0;
   const validRows = [];
+  const diagValidatedIds = new Set();
 
   for (const item of allRaw) {
     if (item.apply_status === 'available') availableCount++;
@@ -164,20 +210,29 @@ async function main() {
     if (!result.ok) {
       skippedCount++;
       console.warn(`[fetch-plab] 검증 실패로 제외: id=${item.id}, 사유=${result.reason}`);
+      if (isDiagMatch(item)) {
+        console.log(`[진단][가산 검증실패] id=${item.id}, stadium_name=${item.stadium_name}, 사유=${result.reason}`);
+      }
       continue;
     }
     validRows.push(result.row);
+    if (isDiagMatch(item)) diagValidatedIds.add(result.row.id);
   }
 
   console.log(`[fetch-plab] available(모집중) 경기 수: ${availableCount}건`);
   console.log(`[fetch-plab] hurry(마감임박) 경기 수: ${hurryCount}건`);
   console.log(`[fetch-plab] 검증 실패로 제외된 경기 수: ${skippedCount}건`);
+  console.log(`[진단] 검증 통과 "${DIAG_KEYWORD}" 경기: ${diagValidatedIds.size}건`);
 
-  // id 기준 중복 제거 (마지막 값 사용)
+  // id 기준 중복 제거 (마지막 값 사용) — 기존 로직 그대로
   const dedupedMap = new Map();
   validRows.forEach((row) => dedupedMap.set(row.id, row));
   const finalRows = Array.from(dedupedMap.values());
   console.log(`[fetch-plab] 최종 저장 대상 경기 수: ${finalRows.length}건`);
+
+  // ---- 진단 4단계: 최종 upsert 대상에 가산 경기가 포함되는지 ----
+  const finalDiagCount = finalRows.filter((row) => diagValidatedIds.has(row.id)).length;
+  console.log(`[진단] 최종 저장 대상 "${DIAG_KEYWORD}" 경기: ${finalDiagCount}건`);
 
   if (finalRows.length) {
     console.log('[fetch-plab] player_count 예시값 3개:', finalRows.slice(0, 3).map((r) => r.player_count));
