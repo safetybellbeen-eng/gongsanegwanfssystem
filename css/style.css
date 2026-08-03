@@ -383,7 +383,9 @@
   .match-date-chip.active{background:var(--pitch-dim);border-color:var(--pitch);}
   .match-date-chip.active .md-label{color:var(--pitch);}
   .match-meta-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
-  .match-count{font-family:'Bebas Neue';font-size:24px;font-weight:400;letter-spacing:0.02em;}
+  .match-count{display:flex;flex-direction:column;gap:3px;}
+  .mc-count-label{font-size:12px;color:var(--muted);font-weight:600;}
+  .mc-count-num{font-family:'JetBrains Mono';font-size:22px;font-weight:800;color:var(--text);letter-spacing:0.01em;}
   .match-updated{font-size:11px;color:var(--muted);margin-top:2px;}
   .mf-refresh-btn{flex-shrink:0;background:var(--surface-2);border:1px solid var(--line);color:var(--text);border-radius:20px;padding:8px 14px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;}
   .mf-refresh-btn:hover{border-color:var(--pitch);color:var(--pitch);}
