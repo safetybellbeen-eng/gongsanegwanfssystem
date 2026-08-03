@@ -210,6 +210,18 @@ async function main() {
   const totalGasan = allRaw.filter((item) => String(item.title || '').includes('가산')).length;
   console.log(`[진단] "가산" 포함 경기 수: ${totalGasan}건`);
 
+  // ⚠️ 검증(mapAndValidate)을 시작하기 전에, 첫 번째 경기의 원본 객체 전체를 그대로 출력합니다.
+  // 모든 경기가 "schedule 없음"으로 제외되고 있어, schedule이 실제로 어떤 위치/이름으로
+  // 들어있는지 원본 그대로 확인해야 합니다. 검증 로직보다 반드시 먼저 실행됩니다.
+  if (allRaw.length) {
+    const firstItem = allRaw[0];
+    console.log('===== RAW FIRST ITEM =====');
+    console.log(JSON.stringify(firstItem, null, 2));
+    console.log('===== END RAW FIRST ITEM =====');
+  } else {
+    console.log('[진단] allRaw가 비어있어 원본 첫 번째 경기를 출력할 수 없습니다.');
+  }
+
   const validRows = [];
   for (const item of allRaw) {
     const result = mapAndValidate(item);
