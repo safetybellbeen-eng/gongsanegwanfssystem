@@ -30,6 +30,10 @@
 // 이 모든 추정 부분은 실행 후 로그의 "[진단]" 항목을 보면 바로 확인할 수 있습니다.
 
 const { createClient } = require('@supabase/supabase-js');
+// Node.js 20에는 네이티브 WebSocket이 없어서, @supabase/supabase-js가 내부적으로 만드는
+// Realtime 클라이언트가 생성 시점에 즉시 에러를 던집니다. 이 스크립트는 realtime(구독) 기능을
+// 전혀 쓰지 않지만, createClient() 자체가 이 초기화를 피할 수 없어서 ws 패키지를 대신 꽂아줍니다.
+const WebSocket = require('ws');
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -45,7 +49,9 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
   process.exit(1);
 }
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+  realtime: { transport: WebSocket },
+});
 
 /* ---------- 날짜 계산 (KST 기준, 오늘을 1일째로 포함해 14일) ---------- */
 function getKstNow() {
