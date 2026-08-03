@@ -65,34 +65,40 @@ function buildDateList() {
   return list;
 }
 
-/* ---------- 특정 날짜의 첫 페이지 URL 생성 (area_id를 여러 번 append) ---------- */
-function buildFirstPageUrl(date) {
+/* ---------- 특정 날짜·페이지의 요청 URL 생성 (area_id를 여러 번 append) ----------
+   항상 www.plabfootball.com/api/v3/social-matches만 직접 호출합니다.
+   ⚠️ response.data.next는 실행 환경(GitHub Actions)에서 접속이 안 되는
+   social-backend.plabfootball.com 주소를 가리켜서 타임아웃이 났습니다.
+   그래서 data.next의 URL을 그대로 따라가지 않고, "다음 페이지가 있는지" 판단 용도로만
+   쓰고, 실제 요청은 항상 이 함수로 직접 만든 URL로 보냅니다. */
+function buildPageUrl(date, page) {
   const params = new URLSearchParams();
   params.set('date', date);
   params.set('hide_soldout', '1');
   SEOUL_AREA_IDS.forEach((id) => {
     params.append('area_id', String(id));
   });
-  params.set('page', '1');
+  params.set('page', String(page));
   return `${API_BASE}?${params.toString()}`;
 }
 
 /* ---------- 특정 날짜의 전체 페이지를 끝까지 조회 ----------
-   첫 페이지는 직접 만든 URL로, 그 다음부터는 응답의 data.next URL을 그대로 따라갑니다. */
+   매 페이지 항상 www.plabfootball.com을 직접 호출하고, page 번호만 1씩 증가시킵니다.
+   data.next가 없거나(마지막 페이지) 이번 페이지 results가 0건이면 종료합니다. */
 async function fetchAllPagesForDate(date) {
   const results = [];
-  let url = buildFirstPageUrl(date);
   let pageNum = 1;
   let pageCount = 0;
   let gasanForDate = 0;
 
-  while (url) {
+  while (true) {
     pageCount++;
     if (pageCount > MAX_PAGES_PER_DATE) {
       console.warn(`[fetch-plab] ${date}: 최대 페이지 수(${MAX_PAGES_PER_DATE})에 도달해 중단합니다.`);
       break;
     }
 
+    const url = buildPageUrl(date, pageNum);
     console.log(`[진단] 전체 요청 URL: ${url}`);
     const res = await fetch(url, { headers: { Accept: 'application/json' } });
     console.log(`[진단] 응답 상태 코드: ${res.status}`);
@@ -110,16 +116,18 @@ async function fetchAllPagesForDate(date) {
     const next = data?.next;
 
     console.log(`[진단] 해당 페이지 results 개수: ${pageResults.length}`);
-    console.log(`[진단] data.next 존재 여부: ${next ? '있음' : '없음'}`);
+    console.log(`[진단] data.next 존재 여부: ${next ? '있음' : '없음'} (실제 next URL은 호출하지 않고 판단 용도로만 사용)`);
 
     const pageGasan = pageResults.filter((item) => String(item.title || '').includes('가산')).length;
     gasanForDate += pageGasan;
 
     results.push(...pageResults);
 
-    if (!next) break; // next가 null/빈 문자열/undefined면 마지막 페이지
-    url = next;
+    // 다음 페이지 존재 여부는 data.next 유무와 results 개수 둘 다로 확인합니다.
+    // (실제 next URL은 절대 호출하지 않고, 다음 페이지 번호로 직접 요청을 다시 만듭니다.)
+    if (!next || pageResults.length === 0) break;
     pageNum++;
+
   }
 
   console.log(`[진단] ${date} "가산" 포함 경기 수: ${gasanForDate}건`);
