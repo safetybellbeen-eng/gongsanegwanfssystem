@@ -122,6 +122,7 @@ async function fetchAllPagesForDate(date) {
     gasanForDate += pageGasan;
 
     results.push(...pageResults);
+    console.log('[진단] pageResults[0] (push 직후):', JSON.stringify(pageResults[0], null, 2));
 
     // 다음 페이지 존재 여부는 data.next 유무와 results 개수 둘 다로 확인합니다.
     // (실제 next URL은 절대 호출하지 않고, 다음 페이지 번호로 직접 요청을 다시 만듭니다.)
@@ -154,6 +155,11 @@ function getApplyStatus(item) {
    id, schedule, time, title(경기장명), attributes.format(경기 형식),
    attributes.participants.label("6/15" 형식 → 현재/정원), badges(모집 상태) */
 function mapAndValidate(item) {
+  // 검증 로직이 시작되기 직전에, 지금 검사하려는 이 객체가 실제로 무엇인지 그대로 찍습니다.
+  console.log('CHECK ID:', item.id);
+  console.log('CHECK SCHEDULE:', item.schedule);
+  console.log(JSON.stringify(item, null, 2));
+
   const idNum = Number(item.id);
   if (item.id === undefined || item.id === null || Number.isNaN(idNum)) {
     return { ok: false, reason: 'id가 유효한 숫자가 아님' };
@@ -172,7 +178,7 @@ function mapAndValidate(item) {
     return { ok: false, reason: 'title(경기장명) 없음' };
   }
 
-  const label = String(item.attributes?.participants?.label || '');
+  const label = String(item.participants?.label || '');
   const [currentText, maxText] = label.split('/');
   const confirmCount = toNullableNumber(currentText);
   const maxPlayerCnt = toNullableNumber(maxText);
@@ -223,6 +229,7 @@ async function main() {
   }
 
   const validRows = [];
+  console.log('[진단] for 루프 직전 allRaw[0]:', JSON.stringify(allRaw[0], null, 2));
   for (const item of allRaw) {
     const result = mapAndValidate(item);
     if (!result.ok) {
