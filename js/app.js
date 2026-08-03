@@ -3044,7 +3044,12 @@ function renderMatchList(){
   });
 
   // 화면에 보이는(필터링된) 경기 수를 그대로 표시합니다 — 필터 적용 전 전체 수를 보여주면 실제 목록과 안 맞아 보입니다.
-  if(countEl) countEl.textContent = `${rows.length}경기`;
+  if(countEl){
+    const dObj = selectedMatchDate ? parseYMD(selectedMatchDate) : null;
+    const isToday = selectedMatchDate === todayStr();
+    const dayLabel = dObj ? (isToday ? '오늘 경기' : `${dObj.getMonth()+1}.${dObj.getDate()}(${weekdayKR[dObj.getDay()]}) 경기`) : '경기';
+    countEl.innerHTML = `<span class="mc-count-label">${escapeHtml(dayLabel)}</span><span class="mc-count-num">${rows.length}경기</span>`;
+  }
 
   if(!rows.length){
     listEl.innerHTML = '<div class="rank-empty">오늘은 등록된 경기가 없습니다.</div>';
