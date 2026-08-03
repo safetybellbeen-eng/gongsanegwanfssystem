@@ -1,3153 +1,688 @@
-/* ---------- Utilities ---------- */
-const $ = (s)=>document.querySelector(s);
+:root{
+    --bg:#11161b; --surface:#1a222a; --surface-2:#212b34;
+    --line: rgba(255,255,255,0.08);
+    --pitch:#3ddc84; --pitch-dim: rgba(61,220,132,0.14);
+    --amber:#ffb020; --text:#f4f7f6; --muted:#8b98a1; --danger:#ff5d5d;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;}
+  body{
+    background-image:
+      radial-gradient(circle at 15% 0%, rgba(61,220,132,0.07), transparent 40%),
+      radial-gradient(circle at 85% 20%, rgba(255,176,32,0.05), transparent 45%);
+  }
+  .mono{font-family:'JetBrains Mono',monospace;}
+  a{color:inherit;}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 28px 80px;}
+  .hidden{display:none !important;}
 
-/* 파일을 더블클릭해서(file://) 직접 열면 지도 검색·서비스 워커·PWA 매니페스트가 동작하지 않습니다.
-   원인을 바로 알 수 있도록 화면에 안내를 띄웁니다. */
-if(location.protocol === 'file:'){
-  console.warn('[공생관] file:// 로 열려 있습니다. 지도 검색, 서비스 워커, PWA 매니페스트 등은 http(s) 주소에서만 동작합니다. 로컬 서버(예: VS Code Live Server)나 실제 배포 주소로 열어주세요.');
-  window.addEventListener('DOMContentLoaded', ()=>{
-    const warnEl = document.createElement('div');
-    warnEl.textContent = '⚠️ 지금 파일을 직접 열어서(file://) 보고 계십니다. 지도 검색 등 일부 기능은 로컬 서버나 실제 배포 주소(http/https)에서만 정상 동작합니다.';
-    warnEl.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#ffb020;color:#1a1300;font-size:12px;font-weight:700;text-align:center;padding:8px 12px;';
-    document.body.prepend(warnEl);
-  });
-}
-const toastEl = $('#toast');
-/* 구단 엠블럼: 로그인 화면 및 헤더 브랜드 마크에서 공통으로 사용 (assets/club-emblem.png 파일 참조) */
-const CLUB_EMBLEM = './assets/club-emblem.png';
-document.querySelectorAll('.club-emblem-img').forEach(img=>{ img.src = CLUB_EMBLEM; });
-function toast(msg){ toastEl.textContent = msg; toastEl.classList.add('show'); setTimeout(()=>toastEl.classList.remove('show'), 2200); }
-function fmtDate(d){ const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), day=String(d.getDate()).padStart(2,'0'); return `${y}-${m}-${day}`; }
-function pad(n){ return String(n).padStart(2,'0'); }
-async function safeGet(key, shared){ try{ const r = await window.storage.get(key, shared); return r ? r.value : null; }catch(e){ return null; } }
-async function safeSet(key, value, shared){ try{ return await window.storage.set(key, value, shared); }catch(e){ console.error('storage set failed', e); return null; } }
-function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-function kstNow(){ const now=new Date(); return new Date(now.getTime() + (9*60 + now.getTimezoneOffset())*60000); }
-function getLocalName(){ try{ return localStorage.getItem('futsal-my-name'); }catch(e){ return null; } }
-function setLocalName(name){ try{ localStorage.setItem('futsal-my-name', name); }catch(e){} }
-function getLocalBirth(){ try{ return localStorage.getItem('futsal-my-birth'); }catch(e){ return null; } }
-function setLocalBirth(b){ try{ localStorage.setItem('futsal-my-birth', b); }catch(e){} }
-function getLocalCode(){ try{ return localStorage.getItem('futsal-my-code'); }catch(e){ return null; } }
-function setLocalCode(code){ try{ localStorage.setItem('futsal-my-code', code); }catch(e){} }
-function getLocalRememberPref(){ try{ const v = localStorage.getItem('futsal-remember-pref'); return v===null ? true : v==='1'; }catch(e){ return true; } }
-function setLocalRememberPref(on){ try{ localStorage.setItem('futsal-remember-pref', on ? '1' : '0'); }catch(e){} }
-function clearLocalLogin(){
-  try{
-    localStorage.removeItem('futsal-my-name');
-    localStorage.removeItem('futsal-my-birth');
-    localStorage.removeItem('futsal-my-code');
-  }catch(e){}
-}
-/* 로그아웃은 "이 기기에서의 자동 로그인 세션"만 끝냅니다.
-   "아이디 및 참석코드 저장"에 체크해 두었다면 그 값은 로그아웃 후에도 유지되어,
-   다음 접속 시 아이디·참석코드 입력칸에 그대로 채워집니다(생일은 매번 다시 입력). */
-function clearLoginSessionOnly(){
-  try{ localStorage.removeItem('futsal-my-birth'); }catch(e){}
-}
+  /* Login overlay */
+  #loginOverlay{
+    position:fixed;inset:0;z-index:9999;
+    display:flex;align-items:center;justify-content:center;
+    overflow:hidden;
+    background-image:
+      linear-gradient(180deg, rgba(6,11,17,0.6) 0%, rgba(6,11,17,0.32) 42%, rgba(6,11,17,0.78) 100%),
+      url('../assets/login-background.jpg');
+    background-size: cover;
+    background-position: center 40%;
+    background-repeat: no-repeat;
+  }
+  #loginOverlay::after{
+    content:'';
+    position:absolute; inset:0;
+    background: radial-gradient(ellipse 80% 60% at 50% 100%, rgba(0,0,0,0.5), transparent 70%);
+    pointer-events:none;
+  }
+  .login-card{position:relative; z-index:1;}
+  .login-card{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:40px 40px 34px;width:340px;max-width:calc(100vw - 32px);box-sizing:border-box;text-align:center;}
+  .login-card .mark{width:60px;height:60px;border-radius:50%;margin:0 auto 16px;background:radial-gradient(circle at 32% 28%, #eafff2, #bdf3d2 55%, #8fe6b3);display:flex;align-items:center;justify-content:center;font-size:28px;box-shadow:inset 0 -4px 8px rgba(0,0,0,0.08);}
+  .login-card .crest{margin:0 auto 6px;filter:drop-shadow(0 4px 10px rgba(0,0,0,0.45));}
+  .login-card .crest img{width:118px;height:auto;display:block;margin:0 auto;}
+  .dribble-strip{position:relative;height:44px;margin:2px 0 22px;overflow:hidden;background:linear-gradient(180deg, transparent, rgba(61,220,132,0.06));border-radius:10px;border:1px solid var(--line);}
+  .dribbler{position:absolute;bottom:2px;font-size:18px;left:-30px;animation-name:dribbleAcross;animation-timing-function:linear;animation-iteration-count:infinite;}
+  .dribbler .body{display:inline-block;animation:bob 0.4s ease-in-out infinite alternate;}
+  .dribbler .ball{display:inline-block;font-size:11px;margin-left:-4px;vertical-align:bottom;animation:ballBounce 0.4s ease-in-out infinite alternate-reverse;}
+  .dribbler.p1{animation-duration:5.5s; animation-delay:0s;}
+  .dribbler.p2{animation-duration:6.2s; animation-delay:0.6s;}
+  .dribbler.p3{animation-duration:5.8s; animation-delay:1.3s;}
+  .dribbler.p4{animation-duration:6.6s; animation-delay:2.1s;}
+  .dribbler.p5{animation-duration:5.2s; animation-delay:2.8s;}
+  @keyframes dribbleAcross{ from{ left:-30px; } to{ left:100%; } }
+  @keyframes bob{ from{ transform:translateY(0); } to{ transform:translateY(-3px); } }
+  @keyframes ballBounce{ from{ transform:translateY(0); } to{ transform:translateY(-5px); } }
+  .sponsor-row{margin-top:20px;padding-top:16px;border-top:1px solid var(--line);}
+  .sponsor-label{font-size:10px;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:8px;}
+  .sponsor-slots{display:flex;gap:8px;justify-content:center;}
+  .sponsor-slot{width:56px;height:32px;border:1px dashed var(--line);border-radius:8px;background:var(--surface-2);}
+  .login-card h2{font-family:'Bebas Neue','Inter',sans-serif;font-size:clamp(21px, 7.5vw, 34px);letter-spacing:0.01em;margin:14px 0 4px;font-weight:400;white-space:nowrap;}
+  .login-card .sub{font-size:13px;color:var(--muted);margin-bottom:22px;}
+  .field-box{display:flex;align-items:flex-start;gap:12px;background:var(--surface-2);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:14px;text-align:left;}
+  .field-box .field-icon{color:var(--pitch);flex-shrink:0;margin-top:1px;}
+  .field-box .field-body{flex:1;min-width:0;}
+  .login-card label{display:block;font-size:12px;color:var(--muted);text-align:left;margin:0 0 6px;}
+  .login-card input{width:100%;background:transparent;border:none;padding:0;color:var(--text);font-size:14px;margin-bottom:0;}
+  .login-card input:focus{outline:none;}
+  .login-card input::placeholder{color:rgba(139,152,161,0.45);}
+  .remember-row{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text);margin:2px 0 16px;text-align:left;cursor:pointer;}
+  .remember-row input[type=checkbox]{width:17px;height:17px;accent-color:var(--pitch);cursor:pointer;}
+  .login-card button{width:100%;display:flex;align-items:center;justify-content:center;gap:10px;background:linear-gradient(90deg, #b6ff4d, #7ee640);color:#0b1410;border:none;border-radius:14px;padding:15px;font-weight:800;font-size:16px;cursor:pointer;margin-top:4px;}
+  .login-card button .arrow{font-size:18px;}
+  .login-note{font-size:11px;color:var(--muted);margin-top:16px;line-height:1.5;}
+  .login-error{font-size:12px;color:var(--danger);text-align:left;min-height:16px;margin:-6px 0 12px;white-space:pre-line;line-height:1.5;}
 
-/* ---------- 명언 ---------- */
-/* 출처가 확실한 유명 발언은 인물명을, 그렇지 않은 팀 응원 메시지는 인물명 없이 표시합니다. */
-const SOCCER_QUOTES = [
-  { text: '축구는 혼자 빛나는 경기가 아니라 함께 움직이는 경기다.', who: null },
-  { text: '오늘의 패스 한 번이 내일의 승리를 만든다.', who: null },
-  { text: '연습은 배신하지 않는다.', who: null },
-  { text: '즐기지 못하면 오래 뛸 수 없다.', who: null },
-  { text: '패배도 다음 경기를 위한 데이터일 뿐이다.', who: null },
-  { text: '팀보다 위대한 개인은 없다.', who: '펠레' },
-  { text: '중요한 건 승패가 아니라 어떻게 싸웠는가다.', who: '지네딘 지단' },
-  { text: '나는 실수를 두려워하지 않는다, 그 안에서 배우기 때문이다.', who: '리오넬 메시' },
-  { text: '재능은 노력이 뒷받침되지 않으면 오래가지 않는다.', who: '크리스티아누 호날두' },
-  { text: '축구는 단순한 경기지만, 단순하게 하는 것이 가장 어렵다.', who: '요한 크루이프' },
-  { text: '실수를 가장 적게 하는 팀이 결국 이긴다.', who: '요한 크루이프' },
-  { text: '패배도 배움의 한 과정일 뿐이다.', who: '알렉스 퍼거슨' },
-  { text: '자신을 믿지 않으면 아무도 나를 믿어주지 않는다.', who: '카카' },
-  { text: '즐기지 못하는 순간, 최고가 될 수 없다.', who: '네이마르' },
-  { text: '꿈을 위해 매일 조금씩이라도 나아가야 한다.', who: '손흥민' },
-  { text: '노력은 배신하지 않는다.', who: '박지성' },
-  { text: '공은 둥글고, 경기는 끝나봐야 안다.', who: '제프 헤르베르거' },
-  { text: '오늘 흘린 땀이 다음 경기의 자신감이 된다.', who: null },
-  { text: '작은 습관 하나가 팀 전체의 분위기를 바꾼다.', who: null },
-  { text: '이기고 지는 것보다, 함께 뛰었다는 사실이 남는다.', who: null },
-  { text: '준비된 사람에게만 기회가 보인다.', who: null },
-  { text: '한 골보다 값진 건 끝까지 포기하지 않는 마음이다.', who: null },
-];
-function renderQuote(){
-  const el = $('#quoteBar');
-  if(!el) return;
-  const q = SOCCER_QUOTES[Math.floor(Math.random()*SOCCER_QUOTES.length)];
-  el.innerHTML = `“${escapeHtml(q.text)}”${q.who ? `<span class="who">— ${escapeHtml(q.who)}</span>` : ''}`;
-}
-renderQuote();
+  header{display:flex;align-items:center;justify-content:space-between;padding:calc(28px + env(safe-area-inset-top)) 28px 22px;max-width:1180px;margin:0 auto;border-bottom:1px solid var(--line);}
+  .quote-bar{max-width:1180px;margin:0 auto;padding:16px 28px 4px;font-size:18px;color:var(--text);font-style:italic;font-weight:500;line-height:1.5;}
+  .quote-bar .who{color:var(--pitch);font-style:normal;font-weight:700;margin-left:8px;font-size:14px;}
+  .brand{display:flex;align-items:center;gap:14px;}
+  .brand-mark{width:44px;height:44px;display:flex;align-items:center;justify-content:center;}
+  .brand-mark img{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.4));}
+  .brand h1{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:0.05em;margin:0;line-height:1;}
+  .brand span{display:block;font-family:'Inter';font-size:11px;color:var(--muted);letter-spacing:0.12em;text-transform:uppercase;margin-top:2px;}
+  #nameTag{font-size:12px;color:var(--muted);}
+  .user-box{display:flex;align-items:center;gap:10px;}
+  .user-box .info{display:flex;flex-direction:column;align-items:flex-end;gap:2px;}
+  .user-box .who{font-size:13px;font-weight:700;color:var(--text);}
+  .user-box .who .birth{font-family:'JetBrains Mono';font-weight:500;color:var(--muted);font-size:11px;margin-left:5px;}
+  .user-box .my-rate-row{display:flex;align-items:center;gap:6px;}
+  .user-box .my-rate{font-size:11px;color:var(--pitch);}
+  .mini-pie{width:26px;height:26px;border-radius:50%;background:var(--surface-2);flex-shrink:0;}
+  .logout-btn{background:none;border:1px solid var(--line);color:var(--muted);border-radius:8px;padding:6px 12px;font-size:11px;font-weight:600;cursor:pointer;}
+  .logout-btn:hover{border-color:var(--danger);color:var(--danger);}
+  .member-strip-wrap{display:flex;align-items:center;gap:12px;margin:24px 0 -8px;}
+  .member-strip-wrap .member-strip{cursor:pointer;}
+  .member-viewall-btn{flex-shrink:0;background:var(--surface-2);border:1px solid var(--line);color:var(--pitch);border-radius:20px;padding:6px 14px;font-size:12px;cursor:pointer;white-space:nowrap;}
+  .member-viewall-btn:hover{border-color:var(--pitch);background:var(--pitch-dim);}
+  .my-injury-toggle-btn{flex-shrink:0;background:var(--surface-2);border:1px solid var(--line);color:var(--muted);border-radius:20px;padding:6px 14px;font-size:12px;cursor:pointer;white-space:nowrap;}
+  .my-injury-toggle-btn:hover{border-color:var(--amber);color:var(--amber);}
+  .my-injury-panel{margin:16px 0 24px;}
 
-/* ---------- Login ---------- */
-// TODO: 정식 배포 전 Supabase Auth 및 서버 측 권한 검증으로 이전 필요
-const ACCESS_CODE = 'jb0309';
-let myName = null;
-let myBirth = null;
+  /* ---------- 팀 멤버 전체보기 팝업 ---------- */
+  .modal-backdrop{position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;padding:20px;}
+  .modal-card{background:var(--surface);border:1px solid var(--line);border-radius:16px;width:100%;max-width:420px;max-height:80vh;display:flex;flex-direction:column;overflow:hidden;}
+  .modal-header{display:flex;align-items:center;justify-content:space-between;padding:18px 20px;border-bottom:1px solid var(--line);flex-shrink:0;}
+  .modal-header h3{margin:0;font-family:'Bebas Neue';font-size:20px;font-weight:400;letter-spacing:0.02em;}
+  .modal-header button{background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:4px 8px;line-height:1;}
+  .modal-header button:hover{color:var(--text);}
+  .modal-body{padding:10px 12px;overflow-y:auto;flex:1;}
+  .member-modal-row{display:flex;align-items:center;gap:10px;padding:12px 10px;border-bottom:1px solid var(--line);}
+  .member-modal-row:last-child{border-bottom:none;}
+  .member-modal-row .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+  .member-modal-row .dot.online{background:var(--pitch);}
+  .member-modal-row .dot.offline{background:var(--muted);}
+  .member-modal-row .nm{font-size:14px;font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .member-modal-row .nm.me{color:var(--pitch);}
+  .member-modal-row .bd{font-size:11px;color:var(--muted);font-family:'JetBrains Mono';flex-shrink:0;}
+  .hero-match-card{background:linear-gradient(135deg, rgba(61,220,132,0.1), var(--surface));border:1px solid rgba(61,220,132,0.35);border-radius:18px;padding:22px 24px;margin:24px 0;}
+  .hero-match-card.empty{color:var(--muted);font-size:13px;text-align:center;padding:36px 10px;border-style:dashed;}
+  .hero-top{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+  .hero-dday{font-family:'Bebas Neue';font-size:15px;background:var(--pitch);color:#0b1410;padding:3px 12px;border-radius:20px;letter-spacing:0.03em;}
+  .hero-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;}
+  .hero-date{font-family:'Bebas Neue';font-size:32px;letter-spacing:0.03em;margin-bottom:4px;}
+  .hero-time{color:var(--pitch);font-size:14px;font-weight:600;margin-bottom:8px;}
+  .hero-venue{font-size:13px;color:var(--text);margin-bottom:2px;}
+  .hero-venue .addr{color:var(--muted);font-size:11px;}
+  .hero-count{font-size:13px;color:var(--pitch);font-weight:700;margin:12px 0 8px;}
+  .hero-attendee-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px;padding-top:14px;border-top:1px solid var(--line);}
+  .chip-remove-btn{background:none;border:none;color:var(--danger);font-size:11px;cursor:pointer;padding:0 0 0 4px;line-height:1;vertical-align:middle;}
+  .chip-remove-btn:hover{opacity:0.7;}
+  .hero-admin-add-row{display:flex;gap:8px;margin-top:12px;}
+  .hero-admin-add-row select{flex:1;min-width:0;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;color:var(--text);font-size:12px;}
+  .hero-admin-add-row button{flex-shrink:0;background:var(--surface-2);border:1px solid var(--pitch);color:var(--pitch);border-radius:8px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;}
+  .hero-link-btn{display:block;width:100%;margin-top:16px;background:var(--pitch);color:#0b1410;border:none;border-radius:10px;padding:13px;font-weight:700;font-size:14px;cursor:pointer;min-height:44px;}
+  .hero-link-btn:hover{filter:brightness(1.05);}
+  .hero-main-row{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;}
+  .hero-left{flex:1;min-width:160px;}
+  .hero-right{text-align:right;}
+  .hero-count-label{font-size:11px;color:var(--muted);margin-bottom:4px;}
+  .hero-count-big{font-family:'Bebas Neue';font-size:26px;color:var(--pitch);}
+  .hero-count-big .of{font-family:'Inter';font-size:12px;color:var(--muted);margin-left:2px;}
+  .hero-avatars{display:flex;justify-content:flex-end;margin-top:8px;}
+  .avatar-circle{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#0b1410;border:2px solid var(--surface);margin-left:-8px;}
+  .avatar-circle.guest{border:2px dashed var(--amber);}
+  .guest-tag{display:inline-block;font-size:10px;background:rgba(255,176,32,0.18);color:var(--amber);border-radius:5px;padding:1px 5px;margin-left:3px;font-weight:700;}
+  .guest-chip-list{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;min-height:20px;}
+  .guest-chip-list .empty-hint{font-size:12px;color:var(--muted);}
+  .guest-chip{display:inline-flex;align-items:center;gap:6px;background:rgba(255,176,32,0.1);border:1px dashed var(--amber);color:var(--amber);border-radius:20px;padding:5px 6px 5px 12px;font-size:13px;font-weight:600;}
+  .guest-chip button{background:none;border:none;color:var(--amber);cursor:pointer;font-size:14px;line-height:1;padding:2px 6px;border-radius:50%;}
+  .guest-chip button:hover{background:rgba(255,176,32,0.2);}
+  .avatar-circle:first-child{margin-left:0;}
+  .avatar-circle.more{background:var(--surface-2);color:var(--muted);border-color:var(--surface);}
+  .notify-banner{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;background:rgba(61,220,132,0.08);border:1px solid rgba(61,220,132,0.3);border-radius:14px;padding:14px 18px;margin:16px 0 20px;font-size:13px;}
+  .notify-banner-btns{display:flex;gap:8px;flex-shrink:0;}
+  .notify-banner-btns button{border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;min-height:36px;}
+  .notify-banner-btns button:not(.ghost){background:var(--pitch);color:#0b1410;}
+  .notify-banner-btns button.ghost{background:transparent;color:var(--muted);border:1px solid var(--line);}
+  .notice-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin:0 0 24px;}
+  .notice-card .nc-top{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+  .notice-card .nc-tag{background:rgba(255,176,32,0.15);color:var(--amber);font-size:10px;font-weight:700;border-radius:6px;padding:2px 8px;}
+  .notice-card .nc-title{font-size:14px;font-weight:700;flex:1;}
+  .notice-card .nc-chevron{color:var(--muted);font-size:16px;}
+  .notice-card .nc-body{font-size:12px;color:var(--muted);line-height:1.6;white-space:pre-line;}
+  .notice-card .nc-date{font-size:10px;color:var(--muted);margin-top:8px;}
+  .member-strip-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;flex-shrink:0;}
+  .member-strip{display:flex;gap:8px;overflow-x:auto;padding:4px 0;}
+  .member-chip{display:flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:6px 12px;font-size:12px;flex-shrink:0;white-space:nowrap;}
+  .member-chip.me{border-color:var(--pitch);background:var(--pitch-dim);}
+  .member-chip .dot{width:6px;height:6px;border-radius:50%;background:var(--muted);}
+  .member-chip .dot.online{background:var(--pitch);}
+  .member-chip .dot.offline{background:var(--danger);}
+  .member-chip .b{color:var(--muted);font-family:'JetBrains Mono';font-size:10px;}
+  .rest-badge{font-size:10px;border-radius:8px;padding:1px 6px;margin-left:2px;}
+  .rest-badge.injury{background:rgba(255,93,93,0.15);color:var(--danger);}
+  .member-del{background:none;border:none;color:var(--muted);font-size:11px;cursor:pointer;padding:0 0 0 2px;line-height:1;}
+  .member-del:hover{color:var(--danger);}
+  .admin-badge{font-size:9px;color:var(--amber);border:1px solid rgba(255,176,32,0.4);border-radius:8px;padding:1px 6px;margin-left:6px;vertical-align:middle;}
 
-async function loginOrValidate(name, birth){
-  const fresh = await remoteLoad();
-  if(!fresh.members) fresh.members = {};
-  const existing = fresh.members[name];
-  const isAdminAccount = (name===ADMIN_NAME && birth===ADMIN_BIRTH);
+  .eyebrow{display:flex;align-items:center;gap:10px;margin:56px 0 18px;}
+  .eyebrow .num{font-family:'JetBrains Mono';font-size:12px;color:var(--pitch);border:1px solid rgba(61,220,132,0.35);border-radius:5px;padding:3px 7px;}
+  .eyebrow h2{font-family:'Bebas Neue';font-size:26px;letter-spacing:0.04em;margin:0;}
+  .eyebrow .line{flex:1;height:1px;background:var(--line);}
+  .date-nav-mini{display:flex;gap:4px;}
+  .date-nav-mini button{background:var(--surface-2);border:1px solid var(--line);color:var(--text);border-radius:8px;min-width:36px;height:32px;font-size:12px;font-weight:600;cursor:pointer;padding:0 8px;}
+  .date-nav-mini button:hover{border-color:rgba(61,220,132,0.5);}
+  .refresh-btn{background:var(--surface-2);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;}
+  .refresh-btn:hover{border-color:rgba(61,220,132,0.5);background:var(--pitch-dim);}
+  .refresh-btn.spinning .ic{display:inline-block;animation:spin .7s linear infinite;}
+  @keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+  .weather-badge{font-family:'JetBrains Mono';font-size:10px;font-weight:700;padding:2px 8px;border-radius:6px;letter-spacing:0.04em;}
+  .weather-badge.LIVE{color:var(--pitch);background:var(--pitch-dim);border:1px solid rgba(61,220,132,0.4);}
+  .weather-badge.CACHE{color:var(--amber);background:rgba(255,176,32,0.12);border:1px solid rgba(255,176,32,0.4);}
+  .weather-badge.ERROR{color:var(--danger);background:rgba(255,93,93,0.12);border:1px solid rgba(255,93,93,0.4);}
+  .weather-badge.LOADING{color:var(--muted);background:var(--surface-2);border:1px solid var(--line);}
 
-  if(existing && existing.birth){
-    if(existing.birth !== birth){
-      return { ok:false, message:'비밀번호(생일)가 일치하지 않습니다.\n처음 등록한 생일을 입력해 주시기 바랍니다.' };
+  .weather-card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:22px 24px;}
+  .week-tabs{display:flex;gap:8px;margin-bottom:16px;}
+  .week-tab{background:var(--surface-2);border:1px solid var(--line);color:var(--muted);padding:8px 16px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;}
+  .week-tab.active{background:var(--pitch-dim);border-color:var(--pitch);color:var(--pitch);}
+  .week-strip{display:grid;grid-template-columns:repeat(7,1fr);gap:10px;margin-bottom:20px;}
+  .day-chip{background:var(--surface-2);border-radius:12px;padding:14px 8px;text-align:center;border:1px solid transparent;cursor:pointer;transition:border-color .12s;}
+  .day-chip:hover{border-color:rgba(61,220,132,0.4);}
+  .day-chip.today{border-color:var(--pitch);background:var(--pitch-dim);}
+  .day-chip .dow{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;}
+  .day-chip .ddate{font-family:'JetBrains Mono';font-size:14px;font-weight:700;color:var(--text);margin-top:2px;}
+  .day-chip .ico{font-size:22px;margin:6px 0;}
+  .day-chip .ampm-row{display:flex;gap:6px;margin:8px 0 4px;}
+  .day-chip .ampm-col{flex:1;display:flex;flex-direction:column;align-items:center;background:var(--surface);border-radius:8px;padding:5px 2px;}
+  .day-chip .ampm-label{font-size:8px;color:var(--muted);text-transform:uppercase;}
+  .day-chip .ampm-ico{font-size:16px;margin:2px 0;}
+  .day-chip .ampm-pop{font-size:9px;color:#6db8ff;}
+  .day-chip .temps{font-family:'JetBrains Mono';font-size:13px;}
+  .day-chip .temps .max{color:var(--text);font-weight:700;}
+  .day-chip .temps .min{color:var(--muted);}
+  .day-chip .pop{font-size:11px;color:#6db8ff;margin-top:4px;}
+  .day-chip .wf{font-size:10px;color:var(--muted);margin-top:4px;min-height:13px;}
+
+  .day-verdict{display:flex;align-items:center;gap:14px;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin:14px 0;}
+  .day-verdict .dv-icon{font-size:32px;flex-shrink:0;}
+  .day-verdict .dv-date{font-size:11px;color:var(--muted);margin-bottom:2px;}
+  .day-verdict .dv-label{font-size:15px;font-weight:700;}
+  .day-verdict .dv-detail{font-size:11px;color:var(--muted);margin-top:3px;}
+  .day-verdict.level-good{border-color:rgba(61,220,132,0.4);}
+  .day-verdict.level-good .dv-label{color:var(--pitch);}
+  .day-verdict.level-cloudy{border-color:rgba(109,184,255,0.4);}
+  .day-verdict.level-cloudy .dv-label{color:#6db8ff;}
+  .day-verdict.level-wet{border-color:rgba(255,176,32,0.4);}
+  .day-verdict.level-wet .dv-label{color:var(--amber);}
+  .day-verdict.level-no{border-color:rgba(255,93,93,0.4);}
+  .day-verdict.level-no .dv-label{color:var(--danger);}
+  .hourly-title{font-size:13px;color:var(--muted);margin:4px 0 12px;}
+  .hourly-row{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;}
+  .hour-cell{min-width:56px;text-align:center;background:var(--surface-2);border-radius:10px;padding:10px 6px;flex-shrink:0;}
+  .hour-cell .t{font-size:11px;color:var(--muted);}
+  .hour-cell .p{font-family:'JetBrains Mono';font-size:13px;font-weight:700;color:#6db8ff;margin:6px 0 2px;}
+  .hour-cell .mm{font-size:10px;color:var(--muted);}
+  .weather-status{font-size:12px;color:var(--muted);margin-top:14px;}
+
+  .cal-layout{display:grid;grid-template-columns:1.3fr 1fr;gap:22px;align-items:start;}
+  .cal-card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:22px 24px;}
+  .cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+  .cal-nav .month{font-family:'Bebas Neue';font-size:22px;letter-spacing:0.03em;}
+  .cal-nav button{background:none;border:1px solid var(--line);color:var(--text);border-radius:8px;width:32px;height:32px;cursor:pointer;font-size:16px;}
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;}
+  .cal-dow{font-size:11px;color:var(--muted);text-align:center;padding:4px 0;text-transform:uppercase;letter-spacing:0.06em;}
+  .cal-cell{aspect-ratio:1;border-radius:10px;background:var(--surface-2);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;position:relative;border:1px solid transparent;transition:all .12s;}
+  .cal-cell.empty{background:none;cursor:default;}
+  .cal-cell:hover:not(.empty){border-color:rgba(61,220,132,0.4);}
+  .cal-cell.selected{border-color:var(--pitch);background:var(--pitch-dim);}
+  .cal-cell.week-active{border-color:rgba(61,220,132,0.45);background:rgba(61,220,132,0.08);}
+  .cal-cell.week-active.selected{border-color:var(--pitch);background:var(--pitch-dim);box-shadow:0 0 0 1px var(--pitch) inset;}
+  .cal-cell.today .d{color:var(--amber);}
+  .cal-cell .d{font-family:'JetBrains Mono';font-size:14px;font-weight:700;}
+  .cal-cell .dot{width:6px;height:6px;border-radius:50%;background:var(--muted);margin-top:4px;}
+  .cal-cell .vote-count{font-family:'JetBrains Mono';font-size:9px;color:var(--muted);margin-top:2px;white-space:nowrap;}
+  .cal-cell .bday-badge{position:absolute;top:2px;right:3px;font-size:10px;}
+  .cal-cell .vote-count.confirmed{color:var(--amber);font-weight:700;}
+  .cal-cell .vote-count.pending{color:#6db8ff;font-weight:700;}
+  .cal-cell.confirmed{border-color:rgba(255,176,32,0.5);background:rgba(255,176,32,0.08);}
+  .cal-cell.pending{border-color:rgba(109,184,255,0.5);background:rgba(109,184,255,0.08);}
+  .cal-cell .dot.dot-yes{background:var(--pitch);}
+  .cal-cell .dot.dot-no{background:var(--danger);}
+  .cal-cell .dot.dot-neutral{background:var(--muted);}
+
+  .match-panel{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:22px 24px;min-height:340px;}
+  .match-empty{color:var(--muted);font-size:13px;text-align:center;padding:60px 10px;}
+  .match-head{display:flex;justify-content:space-between;align-items:flex-start;}
+  .match-date{font-family:'Bebas Neue';font-size:30px;letter-spacing:0.03em;line-height:1;display:flex;align-items:baseline;gap:10px;}
+  .match-date .sub{display:inline-block;font-family:'Bebas Neue';font-size:22px;color:var(--pitch);letter-spacing:0.03em;text-transform:none;margin-top:0;}
+
+  .vote-buttons{display:flex;gap:8px;margin:18px 0 20px;}
+  .past-notice{background:var(--surface-2);border:1px dashed var(--line);color:var(--muted);font-size:12px;padding:12px;border-radius:10px;margin:16px 0 20px;text-align:center;}
+
+  .confirm-banner{background:rgba(255,176,32,0.1);border:1px solid rgba(255,176,32,0.4);color:var(--amber);font-size:13px;font-weight:600;padding:12px 14px;border-radius:10px;margin:16px 0 18px;text-align:center;}
+  .confirm-banner.tie{background:rgba(109,184,255,0.1);border-color:rgba(109,184,255,0.4);color:#6db8ff;}
+  .week-day-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:18px;}
+  .week-day-chip{position:relative;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:10px 2px;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;}
+  .week-day-chip:hover:not(.disabled){border-color:rgba(61,220,132,0.4);}
+  .week-day-chip .wdow{font-size:10px;color:var(--muted);}
+  .week-day-chip .wdate{font-family:'JetBrains Mono';font-weight:700;font-size:15px;}
+  .week-day-chip .wcount{font-size:9px;color:var(--muted);}
+  .week-day-chip.picked{border-color:var(--pitch);background:var(--pitch-dim);}
+  .week-day-chip.picked .wcount{color:var(--pitch);}
+  .week-day-chip.winner{border-color:var(--amber);}
+  .week-day-chip.tie{border-color:#6db8ff;}
+  .week-day-chip .wbadge{position:absolute;top:-8px;right:-4px;background:var(--amber);color:#2a1c00;font-size:8px;font-weight:700;border-radius:6px;padding:1px 5px;}
+  .week-day-chip .wbadge.tie{background:#6db8ff;color:#08243d;}
+  .week-day-chip.disabled{opacity:0.35;cursor:not-allowed;}
+  .week-day-wrap{display:flex;flex-direction:column;gap:4px;}
+  .wconfirm-btn{background:none;border:1px solid rgba(255,176,32,0.4);color:var(--amber);border-radius:6px;padding:3px 0;font-size:9px;cursor:pointer;}
+  .wconfirm-btn.off{border-color:rgba(255,93,93,0.4);color:var(--danger);}
+  .confirmed-block{border-top:1px solid var(--line);padding-top:16px;margin-top:16px;}
+  .admin-week-manage{border-top:1px dashed rgba(255,176,32,0.4);padding-top:14px;margin-top:18px;}
+  .admin-week-manage .label{font-size:11px;color:var(--amber);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px;}
+  .admin-week-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;}
+  .admin-week-chip{background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:6px 2px;display:flex;flex-direction:column;align-items:center;gap:2px;}
+  .admin-week-chip.winner{border-color:var(--amber);background:rgba(255,176,32,0.08);}
+  .admin-week-chip .wdow{font-size:9px;color:var(--muted);}
+  .admin-week-chip .wdate{font-family:'JetBrains Mono';font-weight:700;font-size:12px;}
+  .admin-week-chip .wcount{font-size:8px;color:var(--muted);}
+  .admin-week-chip .wconfirm-btn{width:100%;margin-top:2px;}
+  .wconfirm-btn.actual{border-color:rgba(109,184,255,0.4);color:#6db8ff;}
+  .wconfirm-btn.actual.done{border-color:rgba(61,220,132,0.5);color:var(--pitch);}
+  .actual-attend-editor{border-top:1px dashed rgba(109,184,255,0.4);padding-top:14px;margin-top:16px;}
+  .actual-attend-editor .label{font-size:11px;color:#6db8ff;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px;}
+  .actual-check-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:12px;}
+  .actual-check-row{display:flex;align-items:center;gap:6px;font-size:13px;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;cursor:pointer;}
+  .actual-attend-editor input[type=text]{width:100%;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:10px 12px;color:var(--text);font-size:13px;margin-bottom:10px;}
+  .noshow-summary{margin-top:14px;padding-top:14px;border-top:1px solid var(--line);}
+  .ns-row{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:8px;}
+  .ns-label{font-size:11px;font-weight:700;border-radius:6px;padding:3px 8px;}
+  .ns-label.noshow{background:rgba(255,93,93,0.15);color:var(--danger);}
+  .ns-label.sudden{background:rgba(61,220,132,0.15);color:var(--pitch);}
+  .confirmed-block:first-of-type{border-top:none;padding-top:0;margin-top:0;}
+  .cb-date{font-size:12px;color:var(--amber);font-weight:600;margin-bottom:10px;}
+  .wconfirm-btn:hover{background:rgba(255,176,32,0.1);}
+  .wclear-btn{display:block;margin:8px auto 0;background:none;border:1px solid currentColor;color:inherit;border-radius:8px;padding:4px 12px;font-size:11px;cursor:pointer;opacity:0.85;}
+  .wclear-btn:hover{opacity:1;}
+
+  .stats-top{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px;}
+  .stats-box{flex:1;min-width:120px;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:16px;text-align:center;}
+  .stats-big{font-family:'Bebas Neue';font-size:36px;color:var(--pitch);line-height:1;}
+  .stats-big.small{font-size:28px;color:var(--text);}
+  .stats-label{font-size:11px;color:var(--muted);margin-top:6px;}
+  .stats-history-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px;}
+  .stats-history-list{display:flex;flex-direction:column;gap:2px;}
+  .smh-row{display:flex;justify-content:space-between;padding:8px 4px;border-bottom:1px dashed var(--line);font-size:13px;}
+  .smh-row:last-child{border-bottom:none;}
+  .smh-row span:last-child{color:var(--pitch);font-weight:600;font-family:'JetBrains Mono';}
+  .not-voted-row{margin-bottom:18px;}
+  .daily-attend-block{padding-top:2px;}
+  .daily-attend-block .label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px;}
+  .daily-attend-list{display:flex;flex-direction:column;gap:8px;}
+  .da-row{background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;cursor:pointer;transition:border-color .12s;}
+  .da-row:hover:not(.disabled){border-color:rgba(61,220,132,0.4);}
+  .da-row.picked{border-color:var(--pitch);background:var(--pitch-dim);}
+  .da-row.confirmed{border-color:rgba(255,176,32,0.5);background:rgba(255,176,32,0.08);}
+  .da-row.tie{border-color:#6db8ff;}
+  .da-row.disabled{opacity:0.45;cursor:not-allowed;}
+  .da-head{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+  .da-date{font-family:'JetBrains Mono';font-size:13px;font-weight:700;color:var(--text);}
+  .da-count{font-size:11px;color:var(--muted);}
+  .da-head .wbadge{margin-left:auto;background:var(--amber);color:#2a1c00;font-size:9px;font-weight:700;border-radius:6px;padding:2px 7px;}
+  .da-head .wbadge.tie{background:#6db8ff;color:#08243d;}
+  .da-names{display:flex;flex-wrap:wrap;gap:5px;}
+  .nv-chip.me{background:var(--pitch);color:#0b1410;border-color:var(--pitch);font-weight:700;}
+  .week-summary-row{display:flex;gap:8px;align-items:center;font-size:12px;color:var(--muted);margin-bottom:14px;flex-wrap:wrap;}
+  .week-summary-row .dot-sep{color:var(--line);}
+  .absence-btn{width:100%;background:var(--surface-2);border:1px solid var(--line);color:var(--muted);border-radius:10px;padding:12px;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:18px;}
+  .absence-btn.active{background:rgba(255,93,93,0.12);border-color:rgba(255,93,93,0.4);color:var(--danger);}
+  .week-rate-big{font-family:'Bebas Neue';font-size:20px;color:var(--text);text-align:center;margin:14px 0;padding:10px;background:var(--surface-2);border-radius:10px;}
+  .week-rate-big b{color:var(--pitch);font-size:26px;}
+  .week-rate-big .wr-sub{font-family:'Inter';font-size:11px;color:var(--muted);margin-left:4px;}
+  .not-voted-row .label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;display:block;margin-bottom:8px;}
+  .not-voted-list{display:flex;flex-wrap:wrap;gap:6px;}
+  .nv-chip{background:var(--surface-2);border:1px solid var(--line);border-radius:20px;padding:4px 10px;font-size:12px;color:var(--muted);}
+  .nv-empty{font-size:12px;color:var(--pitch);}
+  .vote-btn{flex:1;padding:12px;border-radius:10px;border:1px solid var(--line);background:var(--surface-2);color:var(--text);font-weight:700;font-size:14px;cursor:pointer;}
+  .vote-btn.yes.picked{background:var(--pitch);color:#0b1410;border-color:var(--pitch);}
+  .vote-btn.no.picked{background:var(--danger);color:#1a0505;border-color:var(--danger);}
+
+  .pie-row{display:flex;align-items:center;gap:20px;margin-bottom:20px;}
+  .pie{width:88px;height:88px;border-radius:50%;flex-shrink:0;}
+  .pie-legend{font-size:12px;display:flex;flex-direction:column;gap:6px;}
+  .pie-legend .li{display:flex;align-items:center;gap:8px;}
+  .pie-legend .sw{width:9px;height:9px;border-radius:2px;}
+  .pie-legend .sw.yes{background:var(--pitch);}
+  .pie-legend .sw.no{background:var(--danger);}
+  .pie-empty{color:var(--muted);font-size:12px;}
+
+  .voter-lists{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .voter-col h4{font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);margin:0 0 8px;}
+  .voter-col.yes h4{color:var(--pitch);}
+  .voter-col.no h4{color:var(--danger);}
+  .voter-name{font-size:13px;padding:4px 0;border-bottom:1px dashed var(--line);}
+  .voter-name:last-child{border-bottom:none;}
+  .voter-empty{font-size:12px;color:var(--muted);}
+
+  /* ---------- 경기 탭 (플랩풋볼) ---------- */
+  .match-date-scroll{display:flex;gap:8px;overflow-x:auto;padding-bottom:8px;margin-bottom:14px;-webkit-overflow-scrolling:touch;}
+  .match-date-scroll::-webkit-scrollbar{height:4px;}
+  .match-date-chip{flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:2px;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:8px 14px;cursor:pointer;min-width:52px;}
+  .match-date-chip .md-label{font-size:10px;color:var(--muted);font-weight:600;}
+  .match-date-chip .md-date{font-size:13px;font-weight:700;font-family:'JetBrains Mono';}
+  .match-date-chip.active{background:var(--pitch-dim);border-color:var(--pitch);}
+  .match-date-chip.active .md-label{color:var(--pitch);}
+  .match-meta-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
+  .match-count{display:flex;flex-direction:column;gap:3px;}
+  .mc-count-label{font-size:12px;color:var(--muted);font-weight:600;}
+  .mc-count-num{font-family:'JetBrains Mono';font-size:22px;font-weight:800;color:var(--text);letter-spacing:0.01em;}
+  .match-updated{font-size:11px;color:var(--muted);margin-top:2px;}
+  .mf-refresh-btn{flex-shrink:0;background:var(--surface-2);border:1px solid var(--line);color:var(--text);border-radius:20px;padding:8px 14px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;}
+  .mf-refresh-btn:hover{border-color:var(--pitch);color:var(--pitch);}
+  .mf-refresh-btn:disabled{opacity:0.5;cursor:not-allowed;}
+  .match-filter-row{display:flex;gap:6px;flex-wrap:nowrap;overflow-x:auto;margin-bottom:16px;padding-bottom:2px;-webkit-overflow-scrolling:touch;}
+  .match-filter-row::-webkit-scrollbar{height:4px;}
+  .mf-chip{flex-shrink:0;background:var(--surface-2);border:1px solid var(--line);color:var(--muted);border-radius:16px;padding:6px 13px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;}
+  .mf-chip.active{background:var(--pitch-dim);border-color:var(--pitch);color:var(--pitch);}
+  .mf-chip.mf-fav.active{background:rgba(255,176,32,0.15);border-color:var(--amber);color:var(--amber);}
+  .match-card{background:var(--surface-2);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:10px;}
+  .match-card .mc-top-row{display:flex;align-items:flex-start;gap:8px;margin-bottom:12px;}
+  .match-card .mc-time{font-family:'JetBrains Mono';font-size:17px;font-weight:700;flex-shrink:0;}
+  .match-card .mc-venue{font-size:13px;color:var(--text);flex:1;min-width:0;white-space:normal;word-break:keep-all;line-height:1.4;}
+  .match-card .mc-status{flex-shrink:0;display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:700;border-radius:8px;padding:5px 10px;white-space:nowrap;}
+  .match-card .mc-status.status-open{background:rgba(61,220,132,0.15);color:var(--pitch);}
+  .match-card .mc-status.status-closing{background:rgba(255,176,32,0.15);color:var(--amber);}
+  .match-card .mc-status.status-full{background:rgba(255,93,93,0.15);color:var(--danger);}
+  .mc-type{flex-shrink:0;display:inline-flex;align-items:center;gap:4px;background:rgba(109,184,255,0.15);color:#6db8ff;border-radius:8px;padding:5px 10px;font-size:12px;font-weight:700;white-space:nowrap;}
+  .mc-tags-row{display:flex;gap:6px;margin-bottom:10px;}
+  .mc-tag{background:var(--surface);border:1px solid var(--line);color:var(--muted);border-radius:7px;padding:3px 9px;font-size:11px;font-weight:600;}
+  /* 상태·인원수 뱃지 줄과 신청하기 버튼 줄을 완전히 분리했습니다.
+     한 줄에 다 같이 넣으면 뱃지 글자 길이(모집중 vs 마감임박 등)에 따라 버튼 위치가 카드마다
+     미묘하게 달라 보이는 문제가 있었는데, 버튼을 별도 줄에 두면 글자 길이와 무관하게 항상
+     같은 자리(오른쪽 끝)에 고정됩니다. */
+  .mc-status-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
+  .mc-action-row{display:flex;justify-content:flex-end;}
+  .mc-apply-btn{flex-shrink:0;width:100%;background:var(--pitch);color:#0b1410;border:none;border-radius:10px;padding:12px 18px;font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap;}
+  .mc-apply-btn:hover{filter:brightness(1.05);}
+  .match-loading{text-align:center;color:var(--muted);font-size:13px;padding:30px 0;}
+  .match-more-btn{display:block;width:100%;margin-top:8px;background:var(--surface-2);border:1px dashed var(--line);color:var(--text);border-radius:12px;padding:13px;font-size:13px;font-weight:600;cursor:pointer;}
+  .match-more-btn:hover{border-color:var(--pitch);color:var(--pitch);}
+
+  .map-card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:22px 24px;}
+  .venue-row{display:flex;gap:8px;margin-bottom:10px;}
+  .venue-address-row{display:flex;align-items:center;gap:10px;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:12px;color:var(--muted);}
+  .venue-address-row span{flex:1;}
+  .venue-address-row button{background:var(--pitch);color:#0b1410;border:none;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0;}
+  .venue-row input{flex:1;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:10px 12px;color:var(--text);font-size:13px;}
+  .venue-row button{background:var(--pitch);color:#0b1410;border:none;border-radius:8px;padding:0 16px;font-weight:700;font-size:13px;cursor:pointer;}
+  .venue-hint{font-size:11px;color:var(--muted);margin-bottom:6px;}
+  .plab-link{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--pitch);text-decoration:none;border:1px solid rgba(61,220,132,0.35);border-radius:20px;padding:8px 14px;margin-bottom:14px;}
+  .plab-link:hover{background:var(--pitch-dim);}
+  #mapWrap{position:relative;}
+  #map{height:440px;border-radius:12px;margin-top:14px; background:var(--surface-2);}
+  #mapFullscreenBtn{position:absolute;top:22px;right:10px;z-index:10;background:rgba(26,34,42,0.9);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer;}
+  #mapFullscreenBtn:hover{border-color:rgba(61,220,132,0.5);}
+  /* 아이폰 사파리 등 네이티브 전체화면 API를 지원하지 않는 환경에서도 동일하게 동작하도록,
+     :fullscreen 의사 클래스 대신 직접 토글하는 클래스를 씁니다. */
+  #mapWrap.map-fullscreen-mode{position:fixed;inset:0;z-index:9999;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:16px;padding-top:calc(16px + env(safe-area-inset-top));padding-bottom:calc(16px + env(safe-area-inset-bottom));}
+  #mapWrap.map-fullscreen-mode #map{height:100%;width:100%;margin-top:0;}
+  #mapWrap.map-fullscreen-mode #mapFullscreenBtn{top:calc(22px + env(safe-area-inset-top));}
+  body.map-fullscreen-open{overflow:hidden;}
+  /* 경기장 핀: 평소엔 아이콘+이름만 작게, 터치하면 주소가 펼쳐집니다. 웹/모바일에 맞게 크기가 달라집니다.
+     실제 지도(밝은 색 타일) 위에서도 확실히 보이도록 흰 배경 + 진한 글자로 대비를 강하게 줬습니다. */
+  .venue-pin{cursor:pointer;background:#fff;color:#111;border:1.5px solid #999;border-radius:14px;padding:4px 10px;font-size:12px;font-weight:700;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,0.35);transform:translateY(-4px);max-width:150px;overflow:hidden;text-overflow:ellipsis;}
+  .venue-pin .vp-name{overflow:hidden;text-overflow:ellipsis;}
+  .venue-pin.favorite{background:#fff8e6;color:#8a5a00;border-color:#e0ac2b;}
+  .venue-pin.confirmed{background:var(--pitch);color:#0b1410;border-color:#22a35a;font-weight:800;font-size:14px;padding:6px 12px;box-shadow:0 4px 14px rgba(61,220,132,0.6);z-index:5;max-width:none;}
+  .venue-pin.expanded{white-space:normal;width:200px;max-width:200px;border-radius:12px;padding:10px 14px;background:#fff;color:#111;border:1.5px solid #999;box-shadow:0 6px 20px rgba(0,0,0,0.4);word-break:keep-all;}
+  .venue-pin.expanded .vp-head{font-size:14px;margin-bottom:4px;word-break:keep-all;}
+  .venue-pin.expanded .vp-addr{font-size:12px;color:#444;margin-bottom:8px;word-break:keep-all;}
+  .venue-pin.expanded .vp-copy{border:1px solid #ccc;background:#f5f5f5;color:#111;border-radius:6px;padding:5px 12px;font-size:12px;cursor:pointer;}
+  @media (max-width:768px){
+    .venue-pin{font-size:11px;padding:3px 8px;max-width:110px;}
+    .venue-pin.confirmed{font-size:12px;padding:5px 10px;}
+    .venue-pin.expanded{font-size:12px;width:170px;max-width:170px;}
+  }
+  #favVenueBtn{background:var(--surface-2);border:1px solid var(--line);color:var(--amber);border-radius:8px;padding:9px 12px;font-size:15px;cursor:pointer;flex-shrink:0;}
+  #favVenueBtn.on{background:rgba(255,176,32,0.15);border-color:var(--amber);}
+  .map-hint{font-size:12px;color:var(--muted);margin-top:10px;}
+  .map-empty{color:var(--muted);font-size:13px;text-align:center;padding:80px 10px;}
+  .map-config{background:var(--surface-2);border:1px dashed var(--line);border-radius:12px;padding:16px;margin-top:14px;}
+  .map-config .t{font-size:13px;font-weight:700;margin-bottom:8px;}
+  .map-config .d{font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.7;}
+  .map-config .d a{color:var(--pitch);}
+  .map-config .row{display:flex;gap:8px;}
+  .map-config input{flex:1;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:9px 10px;color:var(--text);font-size:13px;}
+  .map-config button{background:var(--pitch);color:#0b1410;border:none;border-radius:8px;padding:0 16px;font-weight:700;font-size:13px;cursor:pointer;}
+
+  .rank-empty{color:var(--muted);font-size:13px;text-align:center;padding:30px 10px;}
+  .rank-sub-hint{font-size:12px;color:var(--muted);margin-bottom:12px;}
+  .rank-cols{display:grid;grid-template-columns:1fr 1fr 1fr;}
+  .rank-col{padding:0 16px;border-left:1px solid var(--line);}
+  .rank-col:first-child{border-left:none;padding-left:0;}
+  .rank-col:last-child{padding-right:0;}
+  .rank-col-title{font-family:'Bebas Neue';font-size:15px;letter-spacing:0.03em;color:var(--text);margin-bottom:12px;text-align:center;}
+  .rank-row{display:flex;align-items:center;gap:8px;padding:10px 2px;border-bottom:1px solid var(--line);}
+  .rank-row:last-child{border-bottom:none;}
+  .rank-row .no{font-family:'JetBrains Mono';font-size:12px;color:var(--muted);width:18px;flex-shrink:0;}
+  .rank-row.top1 .no{color:var(--amber);font-weight:700;}
+  .rank-row .name{flex:1;font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .rank-row .bar-wrap{flex:1.2;height:6px;background:var(--surface-2);border-radius:4px;overflow:hidden;}
+  .rank-row .bar{height:100%;background:var(--pitch);border-radius:4px;}
+  .rank-row .pct{font-family:'JetBrains Mono';font-size:11px;color:var(--pitch);width:34px;text-align:right;flex-shrink:0;}
+
+  .podium{display:flex;align-items:flex-end;justify-content:center;gap:14px;margin-bottom:24px;padding-top:10px;}
+  .podium-col{display:flex;flex-direction:column;align-items:center;width:110px;}
+  .podium-col .medal{font-size:28px;margin-bottom:6px;}
+  .podium-col .pname{font-size:13px;font-weight:700;margin-bottom:2px;text-align:center;}
+  .podium-col .prate{font-family:'JetBrains Mono';font-size:12px;color:var(--pitch);margin-bottom:8px;}
+  .podium-col .bar{width:100%;border-radius:10px 10px 0 0;background:var(--surface-2);display:flex;align-items:flex-start;justify-content:center;padding-top:8px;font-family:'Bebas Neue';font-size:20px;color:var(--muted);}
+  .podium-col.gold .bar{height:110px;background:linear-gradient(180deg, rgba(255,215,0,0.18), var(--surface-2));border:1px solid rgba(255,215,0,0.4);color:#ffd700;}
+  .podium-col.silver .bar{height:82px;background:linear-gradient(180deg, rgba(200,200,210,0.16), var(--surface-2));border:1px solid rgba(200,200,210,0.4);color:#c8c8d2;}
+  .podium-col.bronze .bar{height:60px;background:linear-gradient(180deg, rgba(205,127,50,0.18), var(--surface-2));border:1px solid rgba(205,127,50,0.4);color:#cd7f32;}
+  .podium.mini{gap:6px;margin-bottom:16px;}
+  .podium.mini .podium-col{width:31%;}
+  .podium.mini .podium-col .medal{font-size:18px;margin-bottom:3px;}
+  .podium.mini .podium-col .pname{font-size:10px;margin-bottom:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;}
+  .podium.mini .podium-col .prate{font-size:9px;margin-bottom:4px;}
+  .podium.mini .podium-col .bar{font-size:11px;padding-top:4px;}
+  .podium.mini .podium-col.gold .bar{height:52px;}
+  .podium.mini .podium-col.silver .bar{height:40px;}
+  .podium.mini .podium-col.bronze .bar{height:30px;}
+
+
+  .admin-block{border-top:1px solid var(--line);padding-top:16px;margin-top:16px;}
+  .admin-block:first-child{border-top:none;padding-top:0;margin-top:0;}
+  .admin-block h4{font-family:'Bebas Neue';font-size:17px;letter-spacing:0.03em;margin:0 0 12px;color:var(--amber);}
+  .admin-row{display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap;}
+  .admin-row input[type=text]{flex:1;min-width:180px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:9px 10px;color:var(--text);font-size:13px;}
+  .admin-row button{background:var(--pitch);color:#0b1410;border:none;border-radius:8px;padding:9px 16px;font-weight:700;font-size:12px;cursor:pointer;}
+  .admin-row button.danger{background:var(--danger);color:#1a0505;}
+  .admin-member-row{display:flex;align-items:center;gap:10px;padding:8px 0 4px;border-bottom:none;font-size:13px;}
+  .admin-injury-row{display:flex;align-items:center;gap:8px;padding:0 0 10px;margin-bottom:8px;border-bottom:1px dashed var(--line);font-size:12px;flex-wrap:wrap;}
+  .admin-injury-row .il{color:var(--muted);flex-shrink:0;min-width:70px;}
+  .admin-injury-row input[type=date]{flex:1;min-width:120px;background:var(--surface-2);border:1px solid var(--line);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12px;}
+  .admin-injury-row button{flex-shrink:0;padding:6px 10px;font-size:11px;}
+  .stat-adjust-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 0;border-bottom:1px dashed var(--line);}
+  .stat-adjust-row:last-child{border-bottom:none;}
+  .stat-adjust-row .n{font-weight:600;font-size:13px;min-width:60px;flex-shrink:0;}
+  .stat-adjust-fields{display:flex;gap:10px;flex:1;flex-wrap:wrap;}
+  .stat-adjust-fields label{display:flex;flex-direction:column;gap:3px;font-size:10px;color:var(--muted);}
+  .stat-adjust-fields .nat{font-size:9px;color:var(--muted);opacity:0.8;}
+  .stat-adjust-fields input[type=number]{width:56px;background:var(--surface-2);border:1px solid var(--line);border-radius:6px;padding:5px 6px;color:var(--text);font-size:12px;}
+  .stat-adjust-row button{flex-shrink:0;padding:6px 12px;font-size:11px;}
+  .admin-member-row:last-child{border-bottom:none;}
+  .admin-member-row .n{flex:1;font-weight:600;}
+  .admin-member-row .bday{color:var(--muted);font-family:'JetBrains Mono';font-size:11px;}
+  .admin-member-row button{background:none;border:1px solid var(--line);color:var(--danger);border-radius:8px;padding:5px 10px;font-size:11px;cursor:pointer;}
+  .admin-member-row button:disabled{opacity:0.35;cursor:not-allowed;}
+  .pending-count{font-family:'JetBrains Mono';font-size:11px;color:var(--amber);border:1px solid rgba(255,176,32,0.4);border-radius:6px;padding:1px 7px;margin-left:6px;}
+  .pending-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px dashed var(--line);font-size:13px;}
+  .pending-row:last-child{border-bottom:none;}
+  .pending-row .n{flex:1;font-weight:600;}
+  .pending-row .bday{color:var(--muted);font-family:'JetBrains Mono';font-size:11px;}
+  .pending-row .approve-btn{background:var(--pitch);color:#0b1410;border:none;border-radius:8px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;}
+  .pending-row .reject-btn{background:none;border:1px solid var(--line);color:var(--danger);border-radius:8px;padding:5px 10px;font-size:11px;cursor:pointer;}
+
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--surface-2);border:1px solid var(--pitch);color:var(--text);padding:12px 20px;border-radius:10px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s; z-index:999;}
+  .toast.show{opacity:1;}
+  ::-webkit-scrollbar{height:8px;}
+  ::-webkit-scrollbar-thumb{background:var(--surface-2);border-radius:4px;}
+
+  /* ---------- 홈 탭 전용 미니 위젯 (모바일 폭에서만 보임) ---------- */
+  .mobile-only-widgets{display:none;}
+  .home-mini-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:20px;margin-bottom:24px;}
+  .home-mini{padding:14px 16px;cursor:pointer;}
+  .home-mini .hm-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;}
+  .home-mini .hm-main{font-family:'Bebas Neue';font-size:22px;margin-bottom:2px;}
+  .home-mini .hm-sub{font-size:11px;color:var(--muted);}
+  .home-mini .hm-ampm-row{display:flex;gap:8px;margin:4px 0;}
+  .home-mini .hm-ampm-col{flex:1;display:flex;flex-direction:column;align-items:center;background:var(--surface-2);border-radius:8px;padding:6px 2px;}
+  .home-mini .hm-ampm-lb{font-size:8px;color:var(--muted);text-transform:uppercase;}
+  .home-mini .hm-ampm-ico{font-size:16px;margin:2px 0;}
+  .home-mini .hm-ampm-pop{font-size:9px;color:#6db8ff;}
+  .home-mini .hm-bday-msg{font-size:11px;color:var(--pitch);font-weight:600;margin-top:6px;}
+  .home-vote-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px dashed var(--line);font-size:12px;}
+  .home-vote-row:last-child{border-bottom:none;}
+  .home-vote-row .hv-date{width:78px;flex-shrink:0;color:var(--muted);font-family:'JetBrains Mono';}
+  .home-vote-row .hv-bar-wrap{flex:1;height:6px;background:var(--surface-2);border-radius:4px;overflow:hidden;}
+  .home-vote-row .hv-bar{height:100%;background:var(--pitch);border-radius:4px;}
+  .home-vote-row .hv-count{width:34px;text-align:right;color:var(--pitch);font-weight:700;flex-shrink:0;}
+  .home-recent-row{display:flex;align-items:center;gap:10px;justify-content:space-between;padding:9px 0;border-bottom:1px dashed var(--line);font-size:12px;white-space:nowrap;overflow:hidden;}
+  .home-recent-row:last-child{border-bottom:none;}
+  .home-recent-row .hr-date{color:var(--muted);font-family:'JetBrains Mono';flex-shrink:0;}
+  .home-recent-row .hr-venue{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right;min-width:0;}
+  .home-goto-btn{display:block;width:100%;text-align:center;background:var(--pitch);color:#0b1410;border:none;border-radius:10px;padding:11px;font-weight:700;font-size:13px;cursor:pointer;margin-top:12px;}
+
+  /* ---------- 모바일 하단 탭바 (기본: 숨김. 768px 이하에서만 표시) ---------- */
+  nav.mobile-tabbar{display:none;}
+  nav.mobile-tabbar button{
+    flex:1;background:none;border:none;color:var(--muted);
+    display:flex;flex-direction:column;align-items:center;gap:3px;
+    padding:8px 0;font-size:10px;font-family:'Inter';cursor:pointer;
+    min-height:44px;
+  }
+  nav.mobile-tabbar button .tab-ic{font-size:19px;}
+  nav.mobile-tabbar button.active{color:var(--pitch);}
+
+  /* ---------- 반응형 분기: 768px를 기준으로 웹/모바일 레이아웃 전환 ---------- */
+  @media (max-width:768px){
+    nav.mobile-tabbar{
+      position:fixed;bottom:0;left:0;right:0;z-index:40;display:flex;
+      background:rgba(17,22,27,0.97);backdrop-filter:blur(10px);
+      border-top:1px solid var(--line);
+      padding:6px 4px calc(6px + env(safe-area-inset-bottom));
     }
-    if(!existing.approved && !isAdminAccount){
-      return { ok:false, pending:true, message:'관리자 승인 대기 중입니다.\n관리자가 승인하면 접속할 수 있습니다.' };
+    .wrap{padding-bottom:calc(88px + env(safe-area-inset-bottom));}
+    /* 모바일에서는 한 번에 선택된 탭(app-section)만 보여줍니다 */
+    .app-section{display:none;}
+    .app-section.mobile-active{display:block;}
+    .mobile-only-widgets{display:block;}
+  }
+  @media (min-width:769px){
+    /* 웹 화면에서는 홈탭의 모바일 전용 미니 위젯을 숨기고, 히어로/공지 카드만 항상 상단에 노출합니다 */
+    .mobile-only-widgets{display:none !important;}
+  }
+
+  @media (max-width:900px){ .cal-layout{grid-template-columns:1fr;} }
+
+  /* ---------- 모바일 최적화 (768px 이하) ---------- */
+  html,body{overflow-x:hidden;max-width:100%;}
+  @media (max-width:768px){
+    .login-card{padding:32px 24px 26px;}
+    header{flex-wrap:wrap;gap:12px;padding:calc(18px + env(safe-area-inset-top)) 16px 14px;}
+    .rank-cols{grid-template-columns:1fr;}
+    .rank-col{border-left:none;border-top:1px dashed var(--line);padding:16px 0 0;margin-top:16px;}
+    .rank-col:first-child{border-top:none;margin-top:0;padding-top:0;}
+    .quote-bar{padding:10px 16px 4px;font-size:15px;}
+    .wrap{padding-left:14px;padding-right:14px;}
+    .eyebrow{margin:36px 0 14px;flex-wrap:wrap;row-gap:8px;}
+    .eyebrow h2{font-size:20px;}
+    .user-box{gap:8px;width:100%;}
+    .user-box .info{margin-right:auto;}
+    .user-box .who{font-size:12px;}
+    .logout-btn{padding:6px 10px;font-size:10px;min-height:38px;}
+    .cal-layout{grid-template-columns:1fr; gap:14px;}
+    .cal-card{padding:12px 10px;}
+    .cal-nav{margin-bottom:8px;}
+    .cal-nav .month{font-size:15px;}
+    .cal-nav button{width:32px;height:32px;font-size:13px;min-height:0;}
+    .cal-dow{font-size:9px;padding:2px 0;}
+    .cal-grid{gap:3px;}
+    .cal-cell{aspect-ratio:auto;height:38px;min-height:0;border-radius:6px;}
+    .cal-cell .d{font-size:11px;}
+    .cal-cell .vote-count{font-size:7px;margin-top:0;line-height:1;}
+    .cal-cell .dot{width:4px;height:4px;margin-top:1px;}
+    .vote-btn{padding:14px 8px;font-size:13px;min-height:44px;}
+    .week-day-grid{gap:4px;}
+    .week-day-chip{padding:8px 1px;}
+    .week-day-chip .wdate{font-size:13px;}
+    .week-day-chip .wcount{font-size:8px;}
+    .not-voted-list{gap:5px;}
+    .nv-chip{font-size:11px;padding:3px 8px;}
+    .day-chip{padding:10px 4px;}
+    .day-verdict{padding:12px;gap:10px;}
+    .day-verdict .dv-icon{font-size:26px;}
+    .day-verdict .dv-label{font-size:13px;}
+    .stats-box{min-width:100px;padding:12px;}
+    .stats-big{font-size:28px;}
+    .stats-big.small{font-size:20px;}
+    .podium{gap:8px;}
+    .podium-col{width:31%;}
+    .podium-col .pname{font-size:11px;white-space:normal;word-break:keep-word;}
+    .podium-col .prate{font-size:10px;}
+    .admin-row input[type=text]{min-width:0;width:100%;}
+    .admin-row button{min-height:40px;}
+    #map{height:380px;}
+    .voter-lists{grid-template-columns:1fr 1fr;gap:8px;}
+    input,select,textarea,button{font-size:16px;} /* iOS 자동 확대 방지 */
+
+    /* 화면 폭에 안 맞고 잘려 보이던 요소들: 그리드를 줄이거나 가로 스크롤로 전환 */
+    .week-strip{
+      grid-template-columns:none;
+      grid-auto-flow:column;
+      grid-auto-columns:minmax(72px,1fr);
+      overflow-x:auto;
+      -webkit-overflow-scrolling:touch;
+      gap:8px;
+      padding-bottom:4px;
+      scrollbar-width:none;
     }
-  } else {
-    // 신규 가입 신청: 관리자 계정이 아니면 바로 접속시키지 않고 승인 대기 상태로만 등록
-    fresh.members[name] = { birth, status:'offline', approved: isAdminAccount, lastSeen: Date.now() };
-    const savedNew = await remoteSave(fresh);
-    if(!savedNew) return { ok:false, message:'서버 저장에 실패했습니다.\n네트워크 상태를 확인해 주시기 바랍니다.' };
-    if(!isAdminAccount){
-      return { ok:false, pending:true, message:'가입 신청이 접수되었습니다.\n관리자 승인 후 접속할 수 있습니다.' };
+    .week-strip::-webkit-scrollbar{display:none;}
+    .day-chip{min-width:72px;}
+    .week-day-grid{
+      grid-template-columns:none;
+      grid-auto-flow:column;
+      grid-auto-columns:minmax(56px,1fr);
+      overflow-x:auto;
+      -webkit-overflow-scrolling:touch;
+      scrollbar-width:none;
     }
-  }
-  fresh.members[name].status = 'online';
-  fresh.members[name].lastSeen = Date.now();
-  if(isAdminAccount) fresh.members[name].approved = true;
-  const saved = await remoteSave(fresh);
-  if(!saved) return { ok:false, message:'서버 저장에 실패했습니다.\n네트워크 상태를 확인해 주시기 바랍니다.' };
-  return { ok:true, data: fresh };
-}
-
-function initAppUI(){
-  const now = new Date();
-  viewYear = now.getFullYear(); viewMonth = now.getMonth();
-  renderCalendar();
-  renderMemberList();
-  loadWeather();
-  computeAttendanceStats();
-  renderMatchStats();
-  updateAdminVisibility();
-  updateNotifyBanner();
-  loadDefaultMapVenue();
-  renderMyInjuryPanel();
-  initMatchesTabOnce();
-}
-
-/* 부상 설정은 관리자뿐 아니라 로그인한 본인도 스스로 할 수 있습니다. */
-function renderMyInjuryPanel(){
-  const statusText = $('#myInjuryStatusText');
-  if(!statusText || !myName) return;
-  const m = appData.members && appData.members[myName];
-  if(m && isCurrentlyInjured(myName)){
-    statusText.textContent = `현재 부상 중입니다 (복귀 예정일: ${m.injuryEnd}).`;
-  } else if(m && m.injuryStart && m.injuryEnd){
-    statusText.textContent = `등록된 부상 기간: ${m.injuryStart} ~ ${m.injuryEnd} (지금은 해당하지 않습니다)`;
-  } else {
-    statusText.textContent = '현재 등록된 부상 기간이 없습니다.';
-  }
-  const startInput = $('#myInjuryStartInput');
-  const endInput = $('#myInjuryEndInput');
-  if(startInput) startInput.value = (m && m.injuryStart) || '';
-  if(endInput) endInput.value = (m && m.injuryEnd) || '';
-}
-const myInjuryToggleBtn = $('#myInjuryToggleBtn');
-if(myInjuryToggleBtn) myInjuryToggleBtn.addEventListener('click', ()=>{
-  const panel = $('#myInjuryPanel');
-  if(!panel) return;
-  const show = panel.style.display === 'none';
-  panel.style.display = show ? 'block' : 'none';
-  if(show) renderMyInjuryPanel();
-});
-const myInjurySaveBtn = $('#myInjurySaveBtn');
-if(myInjurySaveBtn) myInjurySaveBtn.addEventListener('click', async ()=>{
-  const start = $('#myInjuryStartInput').value;
-  const end = $('#myInjuryEndInput').value;
-  if(!start || !end){ toast('시작일과 종료일을 모두 선택해 주시기 바랍니다.'); return; }
-  if(end < start){ toast('종료일이 시작일보다 빠를 수 없습니다.'); return; }
-  await setInjuryPeriod(myName, start, end);
-  renderMyInjuryPanel();
-  toast('부상 기간을 등록했습니다. 해당 기간 동안 투표와 순위 집계에서 제외됩니다.');
-});
-const myInjuryClearBtn = $('#myInjuryClearBtn');
-if(myInjuryClearBtn) myInjuryClearBtn.addEventListener('click', async ()=>{
-  await setInjuryPeriod(myName, '', '');
-  renderMyInjuryPanel();
-  toast('부상 상태를 해제했습니다.');
-});
-
-/* 관리자 도구의 "지금 새로고침" 버튼: 페이지를 다시 불러오지 않고 Supabase의 최신 데이터를 가져와 화면을 갱신합니다.
-   웹/모바일 브라우저는 물론, 홈 화면에 추가해서 실행한 경우에도 동일하게 동작합니다. */
-async function refreshAllData(){
-  const btn = $('#adminRefreshBtn');
-  const statusEl = $('#adminRefreshStatus');
-  if(btn) btn.disabled = true;
-  if(statusEl){ statusEl.style.color = 'var(--muted)'; statusEl.textContent = '불러오는 중...'; }
-  try{
-    appData = await remoteLoad();
-    renderCalendar();
-    renderMemberList();
-    computeAttendanceStats();
-    renderMatchStats();
-    updateAdminVisibility();
-    if(selectedDate) await renderMatchPanel();
-    if(statusEl){ statusEl.style.color = 'var(--pitch)'; statusEl.textContent = '최신 데이터로 갱신했습니다 (' + new Date().toLocaleTimeString('ko-KR') + ')'; }
-    toast('최신 데이터로 새로고침했습니다.');
-  }catch(e){
-    console.error(e);
-    if(statusEl){ statusEl.style.color = 'var(--danger)'; statusEl.textContent = '새로고침에 실패했습니다. 네트워크 상태를 확인해 주시기 바랍니다.'; }
-  }finally{
-    if(btn) btn.disabled = false;
-  }
-}
-const adminRefreshBtn = $('#adminRefreshBtn');
-if(adminRefreshBtn) adminRefreshBtn.addEventListener('click', refreshAllData);
-
-$('#loginForm').addEventListener('submit', async (e)=>{
-  e.preventDefault();
-  const errEl = $('#loginError');
-  errEl.textContent = '';
-  const id = $('#loginId').value.trim();
-  const pw = $('#loginPw').value.trim();
-  const code = $('#loginAccessCode').value;
-  if(!id){ errEl.textContent = '이름을 입력해 주시기 바랍니다.'; return; }
-  if(!/^[0-9]{6}$/.test(pw)){ errEl.textContent = '비밀번호는 숫자 6자리(생일, 예: 990101)여야 합니다.'; return; }
-  if(code !== ACCESS_CODE){ errEl.textContent = '참석코드가 올바르지 않습니다.'; return; }
-
-  const submitBtn = $('#loginForm button[type="submit"]');
-  submitBtn.disabled = true; submitBtn.innerHTML = '확인 중...';
-  const result = await loginOrValidate(id, pw);
-  submitBtn.disabled = false; submitBtn.innerHTML = '입장하기 <span class="arrow">→</span>';
-
-  if(!result.ok){
-    errEl.textContent = result.message;
-    errEl.style.color = result.pending ? 'var(--amber)' : 'var(--danger)';
-    return;
-  }
-  errEl.style.color = 'var(--danger)';
-
-  myName = id;
-  myBirth = pw;
-  appData = result.data;
-  const rememberId = $('#rememberIdChk').checked;
-  setLocalRememberPref(rememberId);
-  if(rememberId){
-    setLocalName(myName);
-    setLocalBirth(myBirth);
-    setLocalCode(code);
-  } else {
-    clearLocalLogin();
-  }
-  $('#nameTag').textContent = myName;
-  $('#birthTag').textContent = `(${myBirth})`;
-  $('#adminBadge').style.display = isAdmin() ? 'inline-block' : 'none';
-  $('#loginOverlay').classList.add('hidden');
-  renderQuote();
-  initAppUI();
-});
-
-/* ================= WEATHER (Open-Meteo, 캐시+5초 이내 표시) ================= */
-const WEATHER_LAT = 37.5665, WEATHER_LNG = 126.9780;
-const WEATHER_CACHE_KEY = 'futsal-weather-cache-v2';
-const WEATHER_CACHE_TTL = 30*60*1000; // 30분
-const WEATHER_FETCH_TIMEOUT = 4500;   // 4.5초
-const weekdayKR = ['일','월','화','수','목','금','토'];
-
-async function fetchWithTimeout(url, ms){
-  const controller = new AbortController();
-  const timer = setTimeout(()=>controller.abort(), ms);
-  try{ return await fetch(url, {signal: controller.signal}); }
-  finally{ clearTimeout(timer); }
-}
-
-function weatherIconFromCode(code){
-  if(code===0) return '☀️';
-  if([1,2].includes(code)) return '🌤️';
-  if(code===3) return '☁️';
-  if([45,48].includes(code)) return '🌫️';
-  if([51,53,55,56,57].includes(code)) return '🌦️';
-  if([61,63,65,66,67,80,81,82].includes(code)) return '🌧️';
-  if([71,73,75,77,85,86].includes(code)) return '🌨️';
-  if([95,96,99].includes(code)) return '⛈️';
-  return '🌡️';
-}
-
-function getWeatherCache(ignoreTtl){
-  try{
-    const raw = localStorage.getItem(WEATHER_CACHE_KEY);
-    if(!raw) return null;
-    const obj = JSON.parse(raw);
-    if(!ignoreTtl && (Date.now() - obj.ts > WEATHER_CACHE_TTL)) return null;
-    return obj;
-  }catch(e){ return null; }
-}
-function saveWeatherCache(data){
-  try{ localStorage.setItem(WEATHER_CACHE_KEY, JSON.stringify({ ts: Date.now(), data })); }catch(e){}
-}
-function setWeatherBadge(state){
-  const el = $('#weatherBadge');
-  if(!el) return;
-  el.textContent = state;
-  el.className = 'weather-badge '+state;
-}
-
-let weekData = { thisWeek: [], nextWeek: [] };
-let hourlyToday = [];
-
-function buildWeekDataFromOpenMeteo(json){
-  const daily = json.daily, hourly = json.hourly;
-  const win = (appData.matchTimeWindow) || { startHour:19, endHour:21 };
-
-  // 시간별 데이터를 날짜별로 정리
-  const hourlyByDate = {};
-  for(let i=0;i<hourly.time.length;i++){
-    const t = hourly.time[i];
-    const dPart = t.slice(0,10).replace(/-/g,'');
-    const hPart = parseInt(t.slice(11,13));
-    if(!hourlyByDate[dPart]) hourlyByDate[dPart] = [];
-    hourlyByDate[dPart].push({
-      hour: hPart,
-      pop: hourly.precipitation_probability[i]||0,
-      rain: hourly.precipitation[i]||0,
-      snow: hourly.snowfall ? (hourly.snowfall[i]||0) : 0,
-      code: hourly.weathercode ? hourly.weathercode[i] : null
-    });
-  }
-  /* 오전(0~11시)/오후(12~23시) 구간에서 대표 시각(오전 9시, 오후 3시)에 가장 가까운 시간의 날씨 코드를 대표값으로 사용 */
-  function pickRepCode(hrs, targetHour, fallback){
-    if(!hrs.length) return fallback;
-    let best = hrs[0];
-    hrs.forEach(h=>{ if(Math.abs(h.hour-targetHour) < Math.abs(best.hour-targetHour)) best = h; });
-    return best.code!=null ? best.code : fallback;
-  }
-
-  const days = daily.time.map((dateStr,i)=>{
-    const dkey = dateStr.replace(/-/g,'');
-    const hrs = (hourlyByDate[dkey]||[]).filter(h=>h.hour>=win.startHour && h.hour<=win.endHour);
-    const matchPop = hrs.length ? Math.max(...hrs.map(h=>h.pop)) : (daily.precipitation_probability_max[i]||0);
-    const matchRain = hrs.length ? hrs.reduce((s,h)=>s+h.rain,0) : (daily.precipitation_sum ? daily.precipitation_sum[i]||0 : 0);
-    const matchSnow = hrs.length ? hrs.reduce((s,h)=>s+h.snow,0) : (daily.snowfall_sum ? daily.snowfall_sum[i]||0 : 0);
-
-    const amHrs = (hourlyByDate[dkey]||[]).filter(h=>h.hour>=0 && h.hour<12);
-    const pmHrs = (hourlyByDate[dkey]||[]).filter(h=>h.hour>=12 && h.hour<24);
-    const amPop = amHrs.length ? Math.max(...amHrs.map(h=>h.pop)) : 0;
-    const pmPop = pmHrs.length ? Math.max(...pmHrs.map(h=>h.pop)) : 0;
-    const amCode = pickRepCode(amHrs, 9, daily.weathercode[i]);
-    const pmCode = pickRepCode(pmHrs, 15, daily.weathercode[i]);
-
-    return {
-      date: dkey,
-      tmax: daily.temperature_2m_max[i],
-      tmin: daily.temperature_2m_min[i],
-      pop: daily.precipitation_probability_max[i]||0,
-      rain: daily.precipitation_sum ? (daily.precipitation_sum[i]||0) : 0,
-      snow: daily.snowfall_sum ? (daily.snowfall_sum[i]||0) : 0,
-      code: daily.weathercode[i],
-      amPop, pmPop, amCode, pmCode,
-      matchPop: Math.round(matchPop),
-      matchRain: Math.round(matchRain*10)/10,
-      matchSnow: Math.round(matchSnow*10)/10,
-      matchWindow: `${win.startHour}~${win.endHour}시`
-    };
-  });
-  const thisWeek = days.slice(0,7);
-  const nextWeek = days.slice(7,14);
-
-  const now = kstNow();
-  const nowH = now.getHours();
-  const todayStr = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}`;
-  const hourly12 = [];
-  for(let i=0;i<hourly.time.length;i++){
-    const t = hourly.time[i]; // "2026-07-21T14:00"
-    const dPart = t.slice(0,10).replace(/-/g,'');
-    const hPart = parseInt(t.slice(11,13));
-    if(dPart===todayStr && hPart>=nowH){
-      hourly12.push({ time: pad(hPart)+'00', pop: hourly.precipitation_probability[i]||0, rn: hourly.precipitation[i]||0 });
-      if(hourly12.length>=12) break;
+    .week-day-grid::-webkit-scrollbar{display:none;}
+    .week-day-chip{min-width:56px;}
+    .venue-row{flex-wrap:wrap;}
+    .mc-status,.mc-type{font-size:11px;padding:4px 8px;}
+    .mc-apply-btn{padding:9px 14px;font-size:12px;}
+    .match-card{padding:12px 14px;}
+    .venue-row select,
+    .venue-row input,
+    .venue-row button{width:100%;max-width:none;flex:1 1 100%;}
+    .admin-week-grid{
+      grid-template-columns:none;
+      grid-auto-flow:column;
+      grid-auto-columns:minmax(56px,1fr);
+      overflow-x:auto;
+      -webkit-overflow-scrolling:touch;
     }
+    .actual-check-grid{grid-template-columns:1fr;}
   }
-  return { thisWeek, nextWeek, hourly: hourly12 };
-}
-
-function applyWeatherData(built, badge){
-  weekData.thisWeek = built.thisWeek;
-  weekData.nextWeek = built.nextWeek;
-  hourlyToday = built.hourly;
-  renderWeekStrip($('#tabNext').classList.contains('active') ? 'nextWeek' : 'thisWeek');
-  renderHourly();
-  setWeatherBadge(badge);
-  if(badge==='LIVE'){
-    $('#weatherStatus').textContent = 'Open-Meteo 실시간 데이터 · 방금 새로고침됨';
-  } else if(badge==='CACHE'){
-    $('#weatherStatus').textContent = '최신 데이터를 불러오지 못해 저장된 날씨를 표시 중입니다.';
-  }
-}
-
-async function fetchOpenMeteo(){
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${WEATHER_LAT}&longitude=${WEATHER_LNG}&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,snowfall_sum&hourly=precipitation_probability,precipitation,snowfall,weathercode&timezone=Asia%2FSeoul&forecast_days=14`;
-  const res = await fetchWithTimeout(url, WEATHER_FETCH_TIMEOUT);
-  if(!res.ok) throw new Error('네트워크 오류 ('+res.status+')');
-  return await res.json();
-}
-
-/* ================= 기상청(KMA) 단기예보 연동 =================
-   Open-Meteo는 해외 예보 모델이라 실제 기상청 수치와 다를 수 있습니다.
-   관리자가 data.go.kr에서 발급받은 API 키를 등록하면, 오늘~모레(단기예보 제공 범위)는
-   실제 기상청 데이터로 대체하고, 그 이후 날짜는 Open-Meteo로 보완합니다. */
-const KMA_NX = 60, KMA_NY = 127; // 서울(중구 인근) 격자좌표
-
-function getKmaBaseDateTime(){
-  const now = kstNow();
-  const times = [2,5,8,11,14,17,20,23];
-  const h = now.getHours(), m = now.getMinutes();
-  let chosen = null;
-  for(let i=times.length-1;i>=0;i--){
-    if(h>times[i] || (h===times[i] && m>=15)){ chosen = times[i]; break; }
-  }
-  const baseDate = new Date(now);
-  if(chosen===null){ chosen = 23; baseDate.setDate(baseDate.getDate()-1); }
-  return { base_date: `${baseDate.getFullYear()}${pad(baseDate.getMonth()+1)}${pad(baseDate.getDate())}`, base_time: `${pad(chosen)}00` };
-}
-function parsePcpToMm(str){
-  if(!str || str==='강수없음') return 0;
-  if(str.includes('mm 미만')) return 0.5;
-  if(str.includes('mm 이상')){ const v=parseFloat(str); return isNaN(v)?30:v; }
-  const m = str.match(/([\d.]+)/);
-  return m ? parseFloat(m[1]) : 0;
-}
-function parseSnoToCm(str){
-  if(!str || str==='적설없음') return 0;
-  if(str.includes('cm 미만')) return 0.5;
-  if(str.includes('cm 이상')){ const v=parseFloat(str); return isNaN(v)?5:v; }
-  const m = str.match(/([\d.]+)/);
-  return m ? parseFloat(m[1]) : 0;
-}
-function kmaToWmoCode(sky, pty){
-  const p = String(pty);
-  if(p==='1') return 61;      // 비
-  if(p==='2') return 66;      // 비/눈
-  if(p==='3') return 71;      // 눈
-  if(p==='4') return 80;      // 소나기
-  if(p==='5'||p==='6'||p==='7') return 71;
-  const s = String(sky);
-  if(s==='1') return 0;  // 맑음
-  if(s==='3') return 2;  // 구름많음
-  if(s==='4') return 3;  // 흐림
-  return 1;
-}
-async function fetchKmaVilageFcst(apiKey){
-  const {base_date, base_time} = getKmaBaseDateTime();
-  const url = `https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getVilageFcst?serviceKey=${encodeURIComponent(apiKey)}&pageNo=1&numOfRows=1000&dataType=JSON&base_date=${base_date}&base_time=${base_time}&nx=${KMA_NX}&ny=${KMA_NY}`;
-  const res = await fetchWithTimeout(url, WEATHER_FETCH_TIMEOUT);
-  if(!res.ok) throw new Error('기상청 네트워크 오류 ('+res.status+')');
-  const json = await res.json();
-  const header = json.response && json.response.header;
-  if(!header || header.resultCode !== '00') throw new Error((header&&header.resultMsg) || '기상청 응답 오류');
-  const items = json.response.body && json.response.body.items && json.response.body.items.item;
-  if(!items || !items.length) throw new Error('기상청 예보 데이터가 비어 있습니다');
-  return items;
-}
-/* KMA 단기예보 원자료를 이 앱의 공통 일별 데이터 구조(Open-Meteo와 동일한 형태)로 변환합니다. */
-function buildKmaDays(items, win){
-  const byDate = {};
-  items.forEach(it=>{
-    if(!byDate[it.fcstDate]) byDate[it.fcstDate] = { slots:{}, tmx:null, tmn:null };
-    if(!byDate[it.fcstDate].slots[it.fcstTime]) byDate[it.fcstDate].slots[it.fcstTime] = {};
-    byDate[it.fcstDate].slots[it.fcstTime][it.category] = it.fcstValue;
-    if(it.category==='TMX') byDate[it.fcstDate].tmx = parseFloat(it.fcstValue);
-    if(it.category==='TMN') byDate[it.fcstDate].tmn = parseFloat(it.fcstValue);
-  });
-  const dateKeys = Object.keys(byDate).sort();
-  return dateKeys.map(dkey=>{
-    const entry = byDate[dkey];
-    const slotHours = Object.keys(entry.slots).map(t=>{
-      const s = entry.slots[t];
-      return {
-        hour: parseInt(t.slice(0,2),10),
-        pop: s.POP!=null ? parseInt(s.POP,10) : 0,
-        rain: parsePcpToMm(s.PCP),
-        snow: parseSnoToCm(s.SNO),
-        code: kmaToWmoCode(s.SKY, s.PTY),
-        tmp: s.TMP!=null ? parseFloat(s.TMP) : null
-      };
-    }).sort((a,b)=>a.hour-b.hour);
-
-    const tmps = slotHours.filter(h=>h.tmp!=null).map(h=>h.tmp);
-    const tmax = entry.tmx!=null ? entry.tmx : (tmps.length?Math.max(...tmps):null);
-    const tmin = entry.tmn!=null ? entry.tmn : (tmps.length?Math.min(...tmps):null);
-
-    const winHrs = slotHours.filter(h=>h.hour>=win.startHour && h.hour<=win.endHour);
-    const matchPop = winHrs.length ? Math.max(...winHrs.map(h=>h.pop)) : (slotHours.length?Math.max(...slotHours.map(h=>h.pop)):0);
-    const matchRain = winHrs.length ? winHrs.reduce((s,h)=>s+h.rain,0) : 0;
-    const matchSnow = winHrs.length ? winHrs.reduce((s,h)=>s+h.snow,0) : 0;
-
-    const amHrs = slotHours.filter(h=>h.hour>=0 && h.hour<12);
-    const pmHrs = slotHours.filter(h=>h.hour>=12 && h.hour<24);
-    const amPop = amHrs.length ? Math.max(...amHrs.map(h=>h.pop)) : 0;
-    const pmPop = pmHrs.length ? Math.max(...pmHrs.map(h=>h.pop)) : 0;
-    const dayPop = slotHours.length ? Math.max(...slotHours.map(h=>h.pop)) : 0;
-    const dayCode = winHrs.length ? winHrs[0].code : (slotHours.length ? slotHours[Math.floor(slotHours.length/2)].code : 1);
-    const pick = (hrs, target)=>{
-      if(!hrs.length) return dayCode;
-      let best = hrs[0];
-      hrs.forEach(h=>{ if(Math.abs(h.hour-target)<Math.abs(best.hour-target)) best = h; });
-      return best.code;
-    };
-
-    return {
-      date: dkey,
-      tmax, tmin,
-      pop: dayPop,
-      rain: slotHours.reduce((s,h)=>s+h.rain,0),
-      snow: slotHours.reduce((s,h)=>s+h.snow,0),
-      code: dayCode,
-      amPop, pmPop,
-      amCode: pick(amHrs, 9),
-      pmCode: pick(pmHrs, 15),
-      matchPop: Math.round(matchPop),
-      matchRain: Math.round(matchRain*10)/10,
-      matchSnow: Math.round(matchSnow*10)/10,
-      matchWindow: `${win.startHour}~${win.endHour}시`,
-      source: 'kma'
-    };
-  });
-}
-
-async function loadWeather(){
-  const btn = $('#weatherRefresh');
-  btn.classList.add('spinning');
-
-  // 1) 유효한 캐시가 있으면 네트워크보다 먼저 즉시 표시
-  const validCache = getWeatherCache(false);
-  if(validCache){
-    applyWeatherData(buildWeekDataFromOpenMeteo(validCache.data), 'CACHE');
-  } else {
-    setWeatherBadge('LOADING');
-    $('#weatherStatus').textContent = '날씨 데이터를 불러오는 중...';
-  }
-
-  // 2) 백그라운드에서 최신 데이터 요청 (최대 4.5초)
-  let kmaDays = null, kmaError = null;
-  // TODO: 정식 배포 전 Supabase Auth 및 서버 측 권한 검증으로 이전 필요 (API 키가 클라이언트에 노출됨)
-  const KMA_DEFAULT_KEY = 'dc7cef750ae468f35bc3d71e59817d0cc938b4c8acd3cd798ad9d06eda94079b';
-  const apiKey = appData.kmaApiKey || KMA_DEFAULT_KEY;
-  if(apiKey){
-    try{
-      const win = (appData.matchTimeWindow) || { startHour:19, endHour:21 };
-      const items = await fetchKmaVilageFcst(apiKey);
-      kmaDays = buildKmaDays(items, win);
-    }catch(e){
-      console.error('KMA fetch failed', e);
-      kmaError = e;
-    }
-  }
-
-  try{
-    const json = await fetchOpenMeteo();
-    saveWeatherCache(json);
-    const built = buildWeekDataFromOpenMeteo(json);
-    if(kmaDays && kmaDays.length){
-      // 기상청 데이터가 있는 날짜는 Open-Meteo 대신 기상청 값으로 교체
-      const kmaByDate = {}; kmaDays.forEach(d=>{ kmaByDate[d.date]=d; });
-      built.thisWeek = built.thisWeek.map(d=> kmaByDate[d.date] || d);
-      built.nextWeek = built.nextWeek.map(d=> kmaByDate[d.date] || d);
-    }
-    applyWeatherData(built, 'LIVE');
-    if(kmaDays && kmaDays.length){
-      $('#weatherStatus').textContent = `기상청 실시간 데이터(오늘~모레) + Open-Meteo 보완 · 방금 새로고침됨`;
-    } else if(apiKey && kmaError){
-      $('#weatherStatus').textContent = `기상청 데이터를 불러오지 못해 Open-Meteo로 표시 중입니다 (${kmaError.message||'오류'})`;
-    }
-  }catch(e){
-    console.error(e);
-    const anyCache = getWeatherCache(true); // 만료되었어도 마지막 정상 데이터 사용
-    if(anyCache){
-      applyWeatherData(buildWeekDataFromOpenMeteo(anyCache.data), 'CACHE');
-    } else {
-      setWeatherBadge('ERROR');
-      $('#weatherStatus').textContent = '날씨 데이터를 불러올 수 없습니다. 잠시 후 새로고침을 눌러 주시기 바랍니다.';
-      renderWeekStrip('thisWeek');
-      renderHourly();
-    }
-  }
-  btn.classList.remove('spinning');
-}
-/* 경기 가능 여부 판정 기준 (공식 기준은 아니고, 실외 풋살 기준으로 임의로 정한 값입니다. 필요하면 조정 가능)
-   하루 전체가 아니라 실제 경기가 열리는 시간대(기본 19~21시, 관리자 도구에서 변경 가능)의 강수·강설만 따집니다.
-   - 낙뢰 코드(95/96/99) 또는 해당 시간대 강설 3cm 이상 또는 강수 10mm 이상 → 경기 불가/실내 추천
-   - 그 외 해당 시간대 강설이 조금이라도 있거나 강수 1mm 이상 → 눈/비 맞으면서 가능
-   - 흐림·박무 계열(2,3,45,48) → 흐리지만 가능
-   - 그 외(맑음) → 무조건 가능 */
-function computePlayability(d){
-  const rain = Math.round((d.matchRain!=null ? d.matchRain : d.rain||0)*10)/10;
-  const snow = Math.round((d.matchSnow!=null ? d.matchSnow : d.snow||0)*10)/10;
-  const pop = d.matchPop!=null ? d.matchPop : d.pop||0;
-  const win = d.matchWindow || '';
-  const code = d.code;
-  const isThunder = [95,96,99].includes(code);
-  if(isThunder || snow>=3 || rain>=10){
-    return { level:'no', icon:'🚫⛈️', label:'경기 불가 또는 실내구장 추천', detail:`${win} 강수확률 ${pop}% · 예상 강수량 ${rain}mm · 강설량 ${snow}cm` };
-  }
-  if(snow>0 || rain>=1){
-    return { level:'wet', icon:'🥶🌧️', label:'눈/비 맞으면서 가능', detail:`${win} 강수확률 ${pop}% · 예상 강수량 ${rain}mm · 강설량 ${snow}cm` };
-  }
-  if([2,3,45,48].includes(code)){
-    return { level:'cloudy', icon:'🙂⛅', label:'흐리지만 가능', detail:`${win} 강수확률 ${pop}% · 예상 강수량 ${rain}mm` };
-  }
-  return { level:'good', icon:'😎☀️', label:'무조건 가능', detail:`${win} 강수확률 ${pop}% · 예상 강수량 ${rain}mm` };
-}
-function showDayVerdict(d){
-  const el = $('#dayVerdict');
-  if(!el) return;
-  const v = computePlayability(d);
-  const dateObj = new Date(d.date.slice(0,4), d.date.slice(4,6)-1, d.date.slice(6,8));
-  el.style.display = 'flex';
-  el.className = 'day-verdict level-'+v.level;
-  el.innerHTML = `
-    <div class="dv-icon">${v.icon}</div>
-    <div class="dv-text">
-      <div class="dv-date">${dateObj.getMonth()+1}월 ${dateObj.getDate()}일 (${weekdayKR[dateObj.getDay()]}) 경기 가능 여부</div>
-      <div class="dv-label">${v.label}</div>
-      <div class="dv-detail">${v.detail} · 자체 기준 예측이니 참고용으로만 확인하시기 바랍니다</div>
-    </div>
-  `;
-}
-function renderWeekStrip(which){
-  const strip = $('#weekStrip');
-  strip.innerHTML='';
-  $('#dayVerdict').style.display = 'none';
-  const todayStr = `${kstNow().getFullYear()}${pad(kstNow().getMonth()+1)}${pad(kstNow().getDate())}`;
-  const list = weekData[which];
-  if(!list || !list.length){ strip.innerHTML = '<div style="grid-column:1/-1;color:var(--muted);font-size:13px;text-align:center;padding:20px;">데이터가 없습니다.</div>'; return; }
-  list.forEach(d=>{
-    const dateObj = new Date(d.date.slice(0,4), d.date.slice(4,6)-1, d.date.slice(6,8));
-    const isToday = d.date===todayStr;
-    const amIcon = weatherIconFromCode(d.amCode!=null?d.amCode:d.code);
-    const pmIcon = weatherIconFromCode(d.pmCode!=null?d.pmCode:d.code);
-    const div = document.createElement('div');
-    div.className = 'day-chip'+(isToday?' today':'');
-    div.innerHTML = `
-      <div class="dow">${isToday?'오늘':weekdayKR[dateObj.getDay()]}</div>
-      <div class="ddate">${dateObj.getMonth()+1}.${dateObj.getDate()}</div>
-      <div class="ampm-row">
-        <div class="ampm-col"><span class="ampm-label">오전</span><span class="ampm-ico">${amIcon}</span><span class="ampm-pop">${d.amPop||0}%</span></div>
-        <div class="ampm-col"><span class="ampm-label">오후</span><span class="ampm-ico">${pmIcon}</span><span class="ampm-pop">${d.pmPop||0}%</span></div>
-      </div>
-      <div class="temps"><span class="max">${isFinite(d.tmax)?Math.round(d.tmax):'-'}°</span> <span class="min">${isFinite(d.tmin)?Math.round(d.tmin):'-'}°</span></div>
-    `;
-    div.addEventListener('click', ()=>showDayVerdict(d));
-    strip.appendChild(div);
-  });
-}
-function renderHourly(){
-  const hourly = $('#hourlyRow');
-  hourly.innerHTML='';
-  if(!hourlyToday.length){ hourly.innerHTML = '<div style="color:var(--muted);font-size:12px;">오늘 남은 시간대의 예보 데이터가 없습니다.</div>'; return; }
-  hourlyToday.forEach(h=>{
-    const cell = document.createElement('div');
-    cell.className='hour-cell';
-    cell.innerHTML = `<div class="t">${h.time.slice(0,2)}시</div><div class="p">${h.pop}%</div><div class="mm">${h.rn}mm</div>`;
-    hourly.appendChild(cell);
-  });
-}
-$('#tabThis').addEventListener('click', ()=>{ $('#tabThis').classList.add('active'); $('#tabNext').classList.remove('active'); renderWeekStrip('thisWeek'); });
-$('#tabNext').addEventListener('click', ()=>{ $('#tabNext').classList.add('active'); $('#tabThis').classList.remove('active'); renderWeekStrip('nextWeek'); });
-$('#weatherRefresh').addEventListener('click', loadWeather);
-
-/* ================= 공유 데이터 저장소 (Supabase) ================= */
-// TODO: 정식 배포 전 Supabase Auth 및 RLS(행 단위 보안)를 도입해 지금의 "누구나 읽기/쓰기 가능" 정책을 좁혀야 함
-const SUPABASE_URL = 'https://ootiqpypoqttjiqjhkio.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_GY9qgB0wVnh2YmYWO9qrTA_OK-chx5W';
-const supabaseClient = (typeof supabase !== 'undefined') ? supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
-const SUPABASE_ROW_ID = 1; // app_state 테이블의 고정 행(row) id — 팀 전체가 공유하는 데이터 한 덩어리
-
-function emptyAppData(){ return { venues:{}, votedDates:[], votes:{}, members:{}, weekAvailability:{}, weekAbsence:{}, weekOverride:{}, actualAttendance:{}, matchGuests:{}, excludedWeeks:[], statAdjustments:{}, favoriteVenues:[], matchTimeWindow:{startHour:19,endHour:21}, kakaoJsKey:'', notice:{title:'',body:'',updatedAt:null}, kmaApiKey:'' }; }
-let appData = emptyAppData();
-
-async function remoteLoad(){
-  try{
-    if(!supabaseClient) throw new Error('Supabase 클라이언트가 초기화되지 않았습니다.');
-    const { data, error } = await supabaseClient
-      .from('app_state')
-      .select('data')
-      .eq('id', SUPABASE_ROW_ID)
-      .single();
-    if(error) throw error;
-    const record = (data && data.data) || {};
-    return {
-      venues: record.venues||{},
-      votedDates: record.votedDates||[],
-      votes: record.votes||{},
-      members: record.members||{},
-      weekAvailability: record.weekAvailability||{},
-      weekAbsence: record.weekAbsence||{},
-      weekOverride: record.weekOverride||{},
-      actualAttendance: record.actualAttendance||{},
-      notice: record.notice || {title:'',body:'',updatedAt:null},
-      kmaApiKey: record.kmaApiKey || '',
-      matchGuests: record.matchGuests || {},
-      excludedWeeks: record.excludedWeeks || [],
-      statAdjustments: record.statAdjustments || {},
-      favoriteVenues: record.favoriteVenues || [],
-      matchTimeWindow: record.matchTimeWindow||{startHour:19,endHour:21},
-      kakaoJsKey: record.kakaoJsKey || ''
-    };
-  }catch(e){
-    console.error('remoteLoad 실패', e);
-    toast('공유 데이터를 불러오지 못했습니다. 잠시 후 다시 시도해 주시기 바랍니다.');
-    return emptyAppData();
-  }
-}
-async function remoteSave(data){
-  try{
-    if(!supabaseClient) throw new Error('Supabase 클라이언트가 초기화되지 않았습니다.');
-    const { error } = await supabaseClient
-      .from('app_state')
-      .update({ data: data, updated_at: new Date().toISOString() })
-      .eq('id', SUPABASE_ROW_ID);
-    if(error) throw error;
-    return true;
-  }catch(e){
-    console.error('remoteSave 실패', e);
-    toast('저장에 실패했습니다. 네트워크 상태를 확인해 주시기 바랍니다.');
-    return false;
-  }
-}
-/* 저장 직전에 항상 최신 데이터를 다시 받아서 병합 → 다른 팀원의 변경을 덮어쓰지 않도록 함 */
-async function mutateAppData(mutator){
-  const fresh = await remoteLoad();
-  mutator(fresh);
-  const ok = await remoteSave(fresh);
-  if(ok) appData = fresh;
-  return fresh;
-}
-async function loadAppData(){ appData = await remoteLoad(); }
-
-/* ================= CALENDAR & VOTES ================= */
-let viewYear, viewMonth;
-let selectedDate = null;
-let adminAttendanceEditDate = null; // 관리자가 현재 "실제 참석"을 편집 중인 날짜
-let map = null, marker = null;
-
-function parseYMD(str){
-  const [y,m,d] = str.split('-').map(Number);
-  return new Date(y, m-1, d);
-}
-function todayStr(){ return fmtDate(new Date()); }
-
-/* 모든 날짜 변경(캘린더 클릭·이전/오늘/다음 버튼)이 이 함수를 통해서만 상태를 바꿉니다. */
-async function setSelectedDate(dateStr){
-  selectedDate = dateStr;
-  syncCalendarWithDate(dateStr);
-  await renderMatchPanel();
-}
-function syncCalendarWithDate(dateStr){
-  const d = parseYMD(dateStr);
-  viewYear = d.getFullYear();
-  viewMonth = d.getMonth();
-  renderCalendar();
-}
-
-function getWeekStart(dateStr){
-  const d = parseYMD(dateStr);
-  d.setDate(d.getDate() - d.getDay()); // 일요일 시작
-  return fmtDate(d);
-}
-function getWeekDates(weekKey){
-  const start = parseYMD(weekKey);
-  const arr = [];
-  for(let i=0;i<7;i++){ const d = new Date(start); d.setDate(d.getDate()+i); arr.push(fmtDate(d)); }
-  return arr;
-}
-/* 선택한 주가 오늘 기준으로 이번 주/다음 주/지난 주 중 어디인지 라벨을 계산합니다. */
-function getWeekLabel(weekKey){
-  const curWeek = getWeekStart(todayStr());
-  const diffDays = Math.round((parseYMD(weekKey) - parseYMD(curWeek)) / 86400000);
-  const diffWeeks = Math.round(diffDays/7);
-  if(diffWeeks === 0) return '이번 주';
-  if(diffWeeks === 1) return '다음 주';
-  if(diffWeeks === -1) return '지난 주';
-  if(diffWeeks > 1) return `${diffWeeks}주 후`;
-  return `${Math.abs(diffWeeks)}주 전`;
-}
-/* weekOverride는 배열이어야 하지만, 과거 버전에서 문자열로 저장된 값이 남아있을 수 있어 항상 이 함수로 정리해서 사용합니다.
-   (문자열을 그대로 펼치면 한 글자씩 분해되어 "NaN.NaN(undefined)" 같은 오류가 나기 때문에 반드시 이 함수를 거칩니다.) */
-function normalizeDateList(val, validDates){
-  let arr;
-  if(Array.isArray(val)) arr = val;
-  else if(typeof val === 'string' && val) arr = [val];
-  else arr = [];
-  arr = arr.filter(d => typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d));
-  if(validDates) arr = arr.filter(d=>validDates.includes(d));
-  return Array.from(new Set(arr));
-}
-/* 특정 주의 가능 인원 수를 집계하고, 확정된 경기 날짜(들)를 계산합니다.
-   - 자동: 단독 1위 날짜가 있으면 자동으로 확정됩니다. 공동 1위(동점)면 관리자가 수동으로 확정하기 전까지는 미확정 상태입니다.
-   - 수동: 관리자가 weekOverride에 추가한 날짜는 투표 결과와 무관하게 항상 확정 목록에 추가됩니다(소수 인원 선택 경기 등, 한 주에 여러 날짜를 확정할 수 있습니다). */
-function getWeekInfo(weekKey){
-  const dates = getWeekDates(weekKey);
-  const avail = (appData.weekAvailability && appData.weekAvailability[weekKey]) || {};
-  const counts = {};
-  dates.forEach(d=>counts[d]=0);
-  Object.values(avail).forEach(arr=>(arr||[]).forEach(d=>{ if(counts[d]!=null) counts[d]++; }));
-  let max = 0;
-  dates.forEach(d=>{ if(counts[d]>max) max=counts[d]; });
-  const topDates = max>0 ? dates.filter(d=>counts[d]===max) : [];
-  const manual = normalizeDateList((appData.weekOverride||{})[weekKey], dates);
-  const autoWinner = (max>0 && topDates.length===1) ? topDates[0] : null;
-  const isTie = topDates.length>1 && manual.length===0;
-  const confirmedDates = Array.from(new Set([...(autoWinner?[autoWinner]:[]), ...manual]));
-  return { dates, avail, counts, max, topDates, isTie, manual, autoWinner, confirmedDates };
-}
-/* 주간 가능 투표(weekAvailability)를 바탕으로 확정된 날짜(들)의 참석/불참을 votes에 자동 반영합니다.
-   (기존 참석 횟수 순위·시상대·캘린더 점 표시가 이 votes 데이터를 그대로 사용하도록 호환성을 유지)
-   - 그 주에 아예 투표하지 않은 승인된 회원도 확정일 기준 "불참"으로 자동 포함되고, 투표해서 확정일을 고르면 "참석"으로 바뀝니다. */
-function resyncWeekDerivedVotes(data, weekKey){
-  const dates = getWeekDates(weekKey);
-  dates.forEach(d=>{ delete data.votes[d]; });
-  const avail = (data.weekAvailability && data.weekAvailability[weekKey]) || {};
-  const counts = {};
-  dates.forEach(d=>counts[d]=0);
-  Object.values(avail).forEach(arr=>(arr||[]).forEach(d=>{ if(counts[d]!=null) counts[d]++; }));
-  let max = 0;
-  dates.forEach(d=>{ if(counts[d]>max) max=counts[d]; });
-  const topDates = max>0 ? dates.filter(d=>counts[d]===max) : [];
-  const manual = normalizeDateList((data.weekOverride||{})[weekKey], dates);
-  if(!data.weekOverride) data.weekOverride = {};
-  data.weekOverride[weekKey] = manual; // 정리된 배열로 다시 저장해서 오염 데이터를 치유
-  const autoWinner = (max>0 && topDates.length===1) ? topDates[0] : null;
-  const confirmedDates = Array.from(new Set([...(autoWinner?[autoWinner]:[]), ...manual]));
-  const approvedNames = Object.keys(data.members||{}).filter(n=>data.members[n].approved);
-  const weekAbsenceMap = (data.weekAbsence && data.weekAbsence[weekKey]) || {};
-  confirmedDates.forEach(winner=>{
-    // "불참(no)"은 그 주 전체 불참을 명시적으로 선언한 사람만 해당합니다.
-    // 다른 날짜에는 투표했지만 확정된 날짜와 일정이 안 맞았던 사람, 아예 투표를 안 한 사람은
-    // "불참"이 아니라 그냥 이 날짜의 집계에서 빠집니다 (미투표는 별도 통계로 관리됩니다).
-    data.votes[winner] = approvedNames
-      .filter(name => (avail[name]||[]).includes(winner) || weekAbsenceMap[name])
-      .map(name => ({
-        name, choice: (avail[name]||[]).includes(winner) ? 'yes' : 'no'
-      }));
-  });
-  dates.forEach(d=>{
-    const hasVotes = data.votes[d] && data.votes[d].length;
-    const hasVenue = data.venues && data.venues[d];
-    if(hasVotes || hasVenue){ if(!data.votedDates.includes(d)) data.votedDates.push(d); }
-    else { data.votedDates = data.votedDates.filter(x=>x!==d); }
-  });
-}
-
-/* 로그인 비밀번호(생일 6자리, YYMMDD)를 기준으로 특정 월/일에 생일인 승인된 회원을 찾습니다. */
-function getBirthdayMembersForDate(month, day){
-  const mm = pad(month), dd = pad(day);
-  return Object.keys(appData.members||{}).filter(n=>{
-    if(!appData.members[n].approved) return false;
-    const b = appData.members[n].birth;
-    if(!b || b.length!==6) return false;
-    return b.slice(2,4)===mm && b.slice(4,6)===dd;
-  });
-}
-function renderCalendar(){
-  const first = new Date(viewYear, viewMonth, 1);
-  const startDow = first.getDay();
-  const daysInMonth = new Date(viewYear, viewMonth+1, 0).getDate();
-  $('#monthLabel').textContent = `${viewYear}.${pad(viewMonth+1)}`;
-  const grid = $('#calGrid');
-  grid.innerHTML='';
-  ['일','월','화','수','목','금','토'].forEach(d=>{ const el=document.createElement('div'); el.className='cal-dow'; el.textContent=d; grid.appendChild(el); });
-  for(let i=0;i<startDow;i++){ const el=document.createElement('div'); el.className='cal-cell empty'; grid.appendChild(el); }
-  const todayS = todayStr();
-  const weekCache = {};
-  const selectedWeekDates = selectedDate ? getWeekDates(getWeekStart(selectedDate)) : [];
-  for(let day=1; day<=daysInMonth; day++){
-    const dateStr = fmtDate(new Date(viewYear, viewMonth, day));
-    const weekKey = getWeekStart(dateStr);
-    if(!weekCache[weekKey]) weekCache[weekKey] = getWeekInfo(weekKey);
-    const info = weekCache[weekKey];
-    const count = info.counts[dateStr] || 0;
-    const isWinner = info.confirmedDates.includes(dateStr);
-    const isPendingTop = info.isTie && info.topDates.includes(dateStr);
-
-    const votesForDay = appData.votes[dateStr] || [];
-    const myVoteForDay = votesForDay.find(v=>v.name===myName);
-    let dotClass = '';
-    if(myVoteForDay){ dotClass = myVoteForDay.choice==='yes' ? 'dot-yes' : 'dot-no'; }
-    const bdayNames = getBirthdayMembersForDate(viewMonth+1, day);
-
-    const isWeekActive = selectedWeekDates.includes(dateStr);
-    const isExactSelected = dateStr === selectedDate;
-
-    const el = document.createElement('div');
-    el.className='cal-cell'+(dateStr===todayS?' today':'')+(isWeekActive?' week-active':'')+(isExactSelected?' selected':'')+(isWinner?' confirmed':'')+(isPendingTop?' pending':'');
-    el.innerHTML = `
-      <div class="d">${day}</div>
-      ${bdayNames.length?`<div class="bday-badge" title="${escapeHtml(bdayNames.join(', '))} 생일">🎂</div>`:''}
-      ${count>0?`<div class="vote-count ${isWinner?'confirmed':(isPendingTop?'pending':'')}">${count}명${isWinner?' 확정':(isPendingTop?' 예정':'')}</div>`:''}
-      ${dotClass?`<div class="dot ${dotClass}"></div>`:''}
-    `;
-    el.addEventListener('click', ()=>setSelectedDate(dateStr));
-    grid.appendChild(el);
-  }
-}
-
-function pieGradient(yes, no){
-  const total = yes+no;
-  if(total===0) return null;
-  const yesPct = (yes/total)*100;
-  return `conic-gradient(var(--pitch) 0% ${yesPct}%, var(--danger) ${yesPct}% 100%)`;
-}
-
-let lastVotesJson = null;
-
-/* 캘린더에서 날짜를 클릭하면 그 날짜가 속한 '주' 전체의 가능일 투표 패널을 보여줍니다. */
-/* 관리자가 실제 참석을 확정한 날짜는 투표 대신 실제 참석 여부를 기준으로 참석/불참을 판단합니다. */
-function getEffectiveVotesForDate(date){
-  const actual = appData.actualAttendance && appData.actualAttendance[date];
-  if(actual && actual.finalized){
-    const approvedNames = getApprovedNonAdminNames();
-    const attendSet = new Set(actual.attendees||[]);
-    return approvedNames.map(name=>({ name, choice: attendSet.has(name) ? 'yes' : 'no' }));
-  }
-  return appData.votes[date] || [];
-}
-/* 투표 결과와 실제 참석을 비교해 노쇼(참석 투표했지만 안 옴)와 번개참석(불참·미투표였지만 실제로 옴)을 계산합니다. */
-function computeNoShowSummary(date){
-  const actual = appData.actualAttendance && appData.actualAttendance[date];
-  if(!actual || !actual.finalized) return null;
-  const votes = appData.votes[date] || [];
-  const attendSet = new Set(actual.attendees||[]);
-  const noShow = votes.filter(v=>v.choice==='yes' && !attendSet.has(v.name)).map(v=>v.name);
-  const votedNames = votes.map(v=>v.name);
-  const suddenFromNo = votes.filter(v=>v.choice==='no' && attendSet.has(v.name)).map(v=>v.name);
-  const approvedNames = getApprovedNonAdminNames();
-  const suddenFromNonVoter = approvedNames.filter(n=>!votedNames.includes(n) && attendSet.has(n));
-  return { noShow, suddenAttend: [...suddenFromNo, ...suddenFromNonVoter], guests: actual.guests||[] };
-}
-
-async function renderMatchPanel(){
-  const panel = $('#matchPanel');
-  if(!selectedDate){ panel.innerHTML = '<div class="match-empty">날짜를 선택하면<br>이번 주 경기일 투표 현황을 확인할 수 있습니다.</div>'; return; }
-
-  const weekKey = getWeekStart(selectedDate);
-  const info = getWeekInfo(weekKey);
-  const { dates, avail, counts, max, topDates, isTie, manual, confirmedDates } = info;
-  lastVotesJson = JSON.stringify(avail);
-
-  const approvedNames = getApprovedNonAdminNames();
-  const absenceMap = (appData.weekAbsence && appData.weekAbsence[weekKey]) || {};
-  const absentNames = approvedNames.filter(n=>absenceMap[n]);
-  const availableNames = approvedNames.filter(n=>!absenceMap[n] && (avail[n]||[]).length>0);
-  const notVoted = approvedNames.filter(n=>!absenceMap[n] && (!avail[n] || avail[n].length===0));
-  const admin = isAdminUser();
-  const iAmAbsent = !!absenceMap[myName];
-  const iAmInjured = isCurrentlyInjured(myName);
-  const notVotedHtml = `
-    <div class="not-voted-row">
-      <span class="label">미투표 인원 (${notVoted.length}명)</span>
-      <div class="not-voted-list">${notVoted.length? notVoted.map(n=>`<span class="nv-chip">${escapeHtml(n)}</span>`).join('') : '<span class="nv-empty">모두 투표했어요 🎉</span>'}</div>
-    </div>
-    <div class="not-voted-row">
-      <span class="label">불참자 현황 (${absentNames.length}명)</span>
-      <div class="not-voted-list">${absentNames.length? absentNames.map(n=>`<span class="nv-chip">${escapeHtml(n)}</span>`).join('') : '<span class="nv-empty">불참 선언한 인원이 없습니다</span>'}</div>
-    </div>
-  `;
-
-  const isSelectedConfirmed = confirmedDates.includes(selectedDate);
-  const s0 = parseYMD(dates[0]), s6 = parseYMD(dates[6]);
-  const rangeLabel = `${s0.getMonth()+1}.${s0.getDate()}(${weekdayKR[0]}) ~ ${s6.getMonth()+1}.${s6.getDate()}(${weekdayKR[6]})`;
-  const weekLabel = getWeekLabel(weekKey);
-
-  let banner;
-  if(isSelectedConfirmed){
-    const isManualDate = manual.includes(selectedDate);
-    banner = `<div class="confirm-banner">🏆 이 날짜는 확정된 경기입니다${isManualDate?' (관리자 지정)':''}</div>`;
-  } else if(isTie){
-    const labels = topDates.map(d=>{ const o=parseYMD(d); return `${o.getMonth()+1}.${o.getDate()}(${weekdayKR[o.getDay()]})`; }).join(', ');
-    banner = `<div class="confirm-banner tie">⚖️ 공동 1위로 확정 예정: <b>${labels}</b> · 각 ${max}명 참여 (동점이라 추가 투표를 기다리고 있습니다)</div>`;
-  } else {
-    banner = `<div class="past-notice">아직 ${weekLabel} 투표가 없습니다.<br>가능한 날짜를 선택하거나, ${weekLabel} 전체 불참을 선택해 주시기 바랍니다.</div>`;
-  }
-
-  /* 확정된 경기의 참석률/참석·불참 명단은 그대로 유지 (읽기 전용, 별도 참석/불참 버튼은 없음 — 날짜 선택이 곧 참석 여부입니다) */
-  let confirmedSummaryHtml = '';
-  if(isSelectedConfirmed){
-    const actualRecord = appData.actualAttendance && appData.actualAttendance[selectedDate];
-    const isFinalized = actualRecord && actualRecord.finalized;
-    const effVotes = getEffectiveVotesForDate(selectedDate);
-    const yesList = effVotes.filter(v=>v.choice==='yes');
-    const noList = effVotes.filter(v=>v.choice==='no');
-    const guests = (isFinalized && actualRecord.guests) || [];
-    const grad = pieGradient(yesList.length + guests.length, noList.length);
-    const total = yesList.length + guests.length + noList.length;
-    const weekRate = total ? Math.round((yesList.length+guests.length)/total*100) : null;
-    const noShowSummary = isFinalized ? computeNoShowSummary(selectedDate) : null;
-    confirmedSummaryHtml = `
-      ${isFinalized ? `<div class="confirm-banner" style="background:rgba(61,220,132,0.1);border-color:rgba(61,220,132,0.4);color:var(--pitch);">✅ 실제 참석 체크 완료</div>` : ''}
-      ${weekRate!=null ? `<div class="week-rate-big">${weekLabel} 참석률 <b>${weekRate}%</b> <span class="wr-sub">(${yesList.length+guests.length}/${total}명${isFinalized?' · 실제 참석 기준':' · 투표 기준'})</span></div>` : ''}
-      <div class="pie-row">
-        ${grad ? `<div class="pie" style="background:${grad};"></div>` : `<div class="pie" style="background:var(--surface-2);"></div>`}
-        <div class="pie-legend">
-          ${total? `
-            <div class="li"><span class="sw yes"></span>참석 ${Math.round((yesList.length+guests.length)/total*100)}% (${yesList.length+guests.length}명)</div>
-            <div class="li"><span class="sw no"></span>불참 ${Math.round(noList.length/total*100)}% (${noList.length}명)</div>
-          ` : `<div class="pie-empty">아직 투표가 없습니다.</div>`}
-        </div>
-      </div>
-      <div class="voter-lists">
-        <div class="voter-col yes"><h4>참석 명단</h4>${(yesList.length||guests.length)? [...yesList.map(v=>`<div class="voter-name">${escapeHtml(v.name)}</div>`), ...guests.map(g=>`<div class="voter-name">${escapeHtml(g)} <span style="color:var(--muted);font-size:10px;">(게스트)</span></div>`)].join('') : '<div class="voter-empty">아직 없음</div>'}</div>
-        <div class="voter-col no"><h4>불참 명단</h4>${noList.length? noList.map(v=>`<div class="voter-name">${escapeHtml(v.name)}</div>`).join('') : '<div class="voter-empty">아직 없음</div>'}</div>
-      </div>
-      ${noShowSummary && (noShowSummary.noShow.length || noShowSummary.suddenAttend.length) ? `
-      <div class="noshow-summary">
-        ${noShowSummary.noShow.length? `<div class="ns-row"><span class="ns-label noshow">노쇼</span>${noShowSummary.noShow.map(n=>`<span class="nv-chip">${escapeHtml(n)}</span>`).join('')}</div>` : ''}
-        ${noShowSummary.suddenAttend.length? `<div class="ns-row"><span class="ns-label sudden">번개참석</span>${noShowSummary.suddenAttend.map(n=>`<span class="nv-chip">${escapeHtml(n)}</span>`).join('')}</div>` : ''}
-      </div>` : ''}
-    `;
-  }
-
-  /* 날짜 선택(가로 요일칩) 대신, 세로로 나열된 날짜 목록에서 직접 선택합니다.
-     선택하면 그 날짜의 명단에 본인 이름이 바로 추가 또는 제거됩니다. */
-  const myAvail = avail[myName] || [];
-  const dayVoteListHtml = dates.map((d,i)=>{
-    const dObj = parseYMD(d);
-    const isPast = d < todayStr();
-    const picked = myAvail.includes(d);
-    const isConfirmedDay = confirmedDates.includes(d);
-    const isTieTop = isTie && topDates.includes(d);
-    const names = Object.keys(avail).filter(n=>(avail[n]||[]).includes(d));
-    const disabled = isPast || iAmAbsent || iAmInjured;
-    return `
-      <div class="da-row ${isConfirmedDay?'confirmed':''} ${isTieTop?'tie':''} ${picked?'picked':''} ${disabled?'disabled':''}" data-date="${d}">
-        <div class="da-head">
-          <span class="da-date">${dObj.getMonth()+1}.${dObj.getDate()}(${weekdayKR[i]})</span>
-          <span class="da-count">${counts[d]}명</span>
-          ${isConfirmedDay?'<span class="wbadge">확정</span>':(isTieTop?'<span class="wbadge tie">예정</span>':'')}
-        </div>
-        <div class="da-names">${names.length? names.map(n=>`<span class="nv-chip ${n===myName?'me':''}">${escapeHtml(n)}</span>`).join('') : '<span class="nv-empty">없음</span>'}</div>
-      </div>
-    `;
-  }).join('');
-
-  const mainHtml = `
-    <div class="match-head">
-      <div class="match-date">${weekLabel}<span class="sub">${rangeLabel}</span></div>
-    </div>
-    ${banner}
-    ${confirmedSummaryHtml}
-    ${iAmInjured ? `<div class="confirm-banner" style="background:rgba(255,93,93,0.1);border-color:rgba(255,93,93,0.4);color:var(--danger);">🤕 부상 중에는 투표할 수 없습니다. (복귀 예정일: ${escapeHtml(appData.members[myName].injuryEnd)})</div>` : ''}
-    <div class="week-summary-row">
-      <span>참여 의사 ${availableNames.length}명</span><span class="dot-sep">|</span>
-      <span>불참 ${absentNames.length}명</span><span class="dot-sep">|</span>
-      <span>미투표 ${notVoted.length}명</span>
-    </div>
-    <button class="absence-btn ${iAmAbsent?'active':''}" id="absenceBtn" ${iAmInjured?'disabled':''}>${iAmAbsent?`✕ ${weekLabel} 불참 취소`:`${weekLabel} 전체 불참`}</button>
-    ${notVotedHtml}
-    <div class="daily-attend-block">
-      <div class="label">날짜 선택(누르면 이름이 추가 또는 제거됩니다)</div>
-      <div class="daily-attend-list">${dayVoteListHtml}</div>
-    </div>
-  `;
-
-  /* 관리자 전용: 이번 주 전체 날짜의 확정 상태를 한눈에 보고 여러 날짜를 확정/해제할 수 있는 보조 패널 (항상 표시) */
-  let adminHtml = '';
-  if(admin){
-    const adminChips = dates.map((d,i)=>{
-      const isPast = d < todayStr();
-      const isConfirmed = confirmedDates.includes(d);
-      const isManualDate = manual.includes(d);
-      const dObj = parseYMD(d);
-      let btn = '';
-      if(!isPast){
-        if(isConfirmed && isManualDate) btn = `<button class="wconfirm-btn off" data-confirm="${d}">해제</button>`;
-        else if(!isConfirmed) btn = `<button class="wconfirm-btn" data-confirm="${d}">확정</button>`;
-      } else if(isConfirmed){
-        const finalized = appData.actualAttendance && appData.actualAttendance[d] && appData.actualAttendance[d].finalized;
-        btn = `<button class="wconfirm-btn actual ${finalized?'done':''}" data-actual="${d}">${finalized?'✓ 참석체크됨':'실제 참석'}</button>`;
-      }
-      return `
-        <div class="admin-week-chip ${isConfirmed?'winner':''}">
-          <span class="wdow">${weekdayKR[i]}</span><span class="wdate">${dObj.getDate()}</span><span class="wcount">${counts[d]}명</span>
-          ${btn}
-        </div>
-      `;
-    }).join('');
-    adminHtml = `
-      <div class="admin-week-manage">
-        <div class="label">관리자: ${weekLabel} 확정 관리 (${s0.getMonth()+1}.${s0.getDate()} ~ ${s6.getMonth()+1}.${s6.getDate()})</div>
-        <div class="admin-week-grid">${adminChips}</div>
-      </div>
-    `;
-
-    /* 실제 참석 체크 편집기: 지난 확정 경기에 대해서만 열 수 있습니다 */
-    if(adminAttendanceEditDate && dates.includes(adminAttendanceEditDate)){
-      const editDate = adminAttendanceEditDate;
-      const editVotes = appData.votes[editDate] || [];
-      const existingActual = appData.actualAttendance && appData.actualAttendance[editDate];
-      const attendSet = new Set(existingActual ? existingActual.attendees : editVotes.filter(v=>v.choice==='yes').map(v=>v.name));
-      const approvedNamesForEdit = getApprovedNonAdminNames();
-      const eObj = parseYMD(editDate);
-      const checklistHtml = approvedNamesForEdit.map(n=>`
-        <label class="actual-check-row">
-          <input type="checkbox" class="actual-check" data-name="${escapeHtml(n)}" ${attendSet.has(n)?'checked':''}>
-          <span>${escapeHtml(n)}</span>
-        </label>
-      `).join('');
-      const guestListStr = existingActual && existingActual.guests
-        ? existingActual.guests.join(', ')
-        : ((appData.matchGuests && appData.matchGuests[editDate]) || []).join(', ');
-      adminHtml += `
-        <div class="actual-attend-editor">
-          <div class="label">실제 참석 체크 — ${eObj.getMonth()+1}.${eObj.getDate()}(${weekdayKR[eObj.getDay()]})</div>
-          <div class="actual-check-grid">${checklistHtml}</div>
-          <input type="text" id="actualGuestInput" placeholder="용병/게스트 이름 (쉼표로 구분)" value="${escapeHtml(guestListStr)}">
-          <div class="admin-row">
-            <button id="saveActualBtn">저장</button>
-            <button id="cancelActualBtn" class="danger">취소</button>
-          </div>
-        </div>
-      `;
-    }
-  }
-
-  panel.innerHTML = mainHtml + adminHtml;
-
-  panel.querySelectorAll('.da-row:not(.disabled)').forEach(el=>{
-    el.addEventListener('click', ()=>toggleWeekDay(el.dataset.date));
-  });
-  panel.querySelectorAll('.wconfirm-btn[data-confirm]').forEach(btn=>{
-    btn.addEventListener('click', (e)=>{ e.stopPropagation(); adminToggleConfirmDate(weekKey, btn.dataset.confirm); });
-  });
-  panel.querySelectorAll('.wconfirm-btn[data-actual]').forEach(btn=>{
-    btn.addEventListener('click', (e)=>{
-      e.stopPropagation();
-      adminAttendanceEditDate = (adminAttendanceEditDate===btn.dataset.actual) ? null : btn.dataset.actual;
-      renderMatchPanel();
-    });
-  });
-  const saveActualBtn = panel.querySelector('#saveActualBtn');
-  if(saveActualBtn) saveActualBtn.addEventListener('click', ()=>adminSaveActualAttendance(adminAttendanceEditDate));
-  const cancelActualBtn = panel.querySelector('#cancelActualBtn');
-  if(cancelActualBtn) cancelActualBtn.addEventListener('click', ()=>{ adminAttendanceEditDate = null; renderMatchPanel(); });
-  const absenceBtn = panel.querySelector('#absenceBtn');
-  if(absenceBtn) absenceBtn.addEventListener('click', ()=>{
-    if(iAmAbsent) cancelWeekAbsence(weekKey); else declareWeekAbsence(weekKey);
-  });
-}
-
-/* 관리자가 실제 참석 체크리스트 + 게스트 명단을 저장 (경기 종료 후 실제 참석 인원 확정) */
-async function adminSaveActualAttendance(date){
-  if(!requireAdmin() || !date) return;
-  const checkboxes = document.querySelectorAll('.actual-check');
-  const attendees = [];
-  checkboxes.forEach(cb=>{ if(cb.checked) attendees.push(cb.dataset.name); });
-  const guestInput = document.querySelector('#actualGuestInput');
-  const guests = guestInput ? guestInput.value.split(/[,，]/).map(s=>s.trim()).filter(Boolean) : [];
-  await mutateAppData(data=>{
-    if(!data.actualAttendance) data.actualAttendance = {};
-    data.actualAttendance[date] = { attendees, guests, finalized:true, savedAt: Date.now() };
-  });
-  adminAttendanceEditDate = null;
-  renderCalendar();
-  await renderMatchPanel();
-  computeAttendanceStats();
-  renderMatchStats();
-  toast('실제 참석 현황을 저장했습니다.');
-}
-
-/* 관리자가 특정 날짜를 확정/해제 토글 (한 주에 여러 날짜를 동시에 확정할 수 있습니다) */
-async function adminToggleConfirmDate(weekKey, dateStr){
-  if(!requireAdmin()) return;
-  await mutateAppData(data=>{
-    if(!data.weekOverride) data.weekOverride = {};
-    let list = normalizeDateList(data.weekOverride[weekKey], getWeekDates(weekKey));
-    if(list.includes(dateStr)){ list = list.filter(x=>x!==dateStr); }
-    else { list = [...list, dateStr]; }
-    data.weekOverride[weekKey] = list;
-    resyncWeekDerivedVotes(data, weekKey);
-  });
-  renderCalendar();
-  await renderMatchPanel();
-  computeAttendanceStats();
-  renderMatchStats();
-  renderMatchVenueConfirmedHint();
-  toast('확정 상태를 변경했습니다.');
-}
-
-/* 주간 가능일 복수선택 토글: 이미 선택했으면 해제, 아니면 추가 */
-async function toggleWeekDay(dateStr){
-  if(dateStr < todayStr()){ toast('지난 날짜는 선택할 수 없습니다.'); return; }
-  if(isCurrentlyInjured(myName)){ toast(`부상 중에는 투표할 수 없습니다. (복귀 예정일: ${appData.members[myName].injuryEnd})`); return; }
-  const weekKey = getWeekStart(dateStr);
-  let added = true;
-  await mutateAppData(data=>{
-    if(!data.weekAvailability) data.weekAvailability = {};
-    if(!data.weekAvailability[weekKey]) data.weekAvailability[weekKey] = {};
-    let mine = data.weekAvailability[weekKey][myName] || [];
-    if(mine.includes(dateStr)){ mine = mine.filter(x=>x!==dateStr); added = false; }
-    else { mine = [...mine, dateStr].sort(); }
-    data.weekAvailability[weekKey][myName] = mine;
-    // 날짜를 선택하면 "이번 주 불참" 상태는 자동으로 해제됩니다(둘은 동시에 될 수 없습니다)
-    if(added){
-      if(!data.weekAbsence) data.weekAbsence = {};
-      if(data.weekAbsence[weekKey]) delete data.weekAbsence[weekKey][myName];
-    }
-    resyncWeekDerivedVotes(data, weekKey);
-  });
-  toast(added ? '가능한 날짜로 선택했습니다.' : '선택을 해제했습니다.');
-  renderCalendar();
-  await renderMatchPanel();
-  computeAttendanceStats();
-  renderMatchStats();
-}
-
-/* 이번 주 전체 불참 선언: 날짜 복수선택과 동시에 할 수 없어서, 선언하면 그 주의 가능일 선택은 모두 지워집니다. */
-async function declareWeekAbsence(weekKey){
-  if(isCurrentlyInjured(myName)){ toast(`부상 중에는 투표할 수 없습니다. (복귀 예정일: ${appData.members[myName].injuryEnd})`); return; }
-  await mutateAppData(data=>{
-    if(!data.weekAbsence) data.weekAbsence = {};
-    if(!data.weekAbsence[weekKey]) data.weekAbsence[weekKey] = {};
-    data.weekAbsence[weekKey][myName] = true;
-    if(!data.weekAvailability) data.weekAvailability = {};
-    if(!data.weekAvailability[weekKey]) data.weekAvailability[weekKey] = {};
-    data.weekAvailability[weekKey][myName] = [];
-    resyncWeekDerivedVotes(data, weekKey);
-  });
-  toast('이번 주는 불참으로 등록했습니다.');
-  renderCalendar();
-  await renderMatchPanel();
-  computeAttendanceStats();
-  renderMatchStats();
-}
-/* 불참 선언 취소(다시 날짜를 고를 수 있는 상태로) */
-async function cancelWeekAbsence(weekKey){
-  await mutateAppData(data=>{
-    if(data.weekAbsence && data.weekAbsence[weekKey]) delete data.weekAbsence[weekKey][myName];
-  });
-  renderCalendar();
-  await renderMatchPanel();
-}
-
-/* 실시간 갱신: 20초마다 확인해 변경되면 자동 반영 (투표 + 멤버 명단)
-   (JSONBin.io 무료 요청 건수를 아끼기 위해 너무 짧은 주기로는 확인하지 않아요) */
-setInterval(async ()=>{
-  const fresh = await remoteLoad();
-  appData.members = fresh.members;
-  renderMemberList();
-  if(selectedDate){
-    const weekKey = getWeekStart(selectedDate);
-    const freshJson = JSON.stringify((fresh.weekAvailability||{})[weekKey] || {});
-    if(freshJson !== lastVotesJson){
-      appData = fresh;
-      lastVotesJson = freshJson;
-      renderCalendar();
-      await renderMatchPanel();
-    }
-  }
-}, 20000);
-
-$('#calRefresh').addEventListener('click', async ()=>{
-  const btn = $('#calRefresh');
-  btn.classList.add('spinning');
-  await loadAppData();
-  renderCalendar();
-  if(selectedDate) await renderMatchPanel();
-  computeAttendanceStats();
-  renderMatchStats();
-  btn.classList.remove('spinning');
-  toast('캘린더와 투표 현황을 새로고침했습니다.');
-});
-
-/* ---------- 참석률 순위 ---------- */
-let lastNaturalStats = {};
-let lastNaturalMissCounts = {};
-let lastStatPeriodInfo = {};
-function computeAttendanceStats(){
-  const excludedWeeks = new Set(appData.excludedWeeks || []);
-  const validDateKeys = Object.keys(appData.votes)
-    .filter(k=>/^\d{4}-\d{2}-\d{2}$/.test(k) && !excludedWeeks.has(getWeekStart(k)));
-  const stats = {};
-  validDateKeys.forEach(date=>{
-    getEffectiveVotesForDate(date).forEach(v=>{
-      if(v.name === ADMIN_NAME) return; // 관리자는 선수가 아니라 운영 계정이므로 모든 순위 통계에서 제외합니다.
-      if(isInjuredOnDate(v.name, date)) return; // 부상 기간 중인 날짜는 참석/불참 통계에서 제외합니다.
-      if(!stats[v.name]) stats[v.name] = {yes:0, no:0, total:0};
-      stats[v.name].total++;
-      if(v.choice==='yes') stats[v.name].yes++; else stats[v.name].no++;
-    });
-  });
-
-  // 투표 미실시 횟수: 열렸던 전체 주(week) 중, 명시적으로 "불참 선언"도 하지 않고 날짜도 하나도 고르지 않은 횟수
-  // - 아직 오지 않은 미래 주(예: 다음 주 이후)는 투표 기간이 끝나지 않았으므로 "미투표"로 판단하지 않고,
-  //   오늘이 속한 주까지만(과거~이번 주) 집계합니다.
-  // - 관리자가 "미투표 통계 제외 주간"으로 지정한 주는 시험운영 등으로 팀 순위 전체(참석·미투표·불참) 집계에서 건너뜁니다.
-  const currentWeekKey = getWeekStart(todayStr());
-  const weekKeys = Object.keys(appData.weekAvailability||{})
-    .filter(wk=>wk<=currentWeekKey && !excludedWeeks.has(wk));
-  const approvedNames = getApprovedNonAdminNames();
-  const missCounts = {};
-  approvedNames.forEach(n=>missCounts[n]=0);
-  weekKeys.forEach(wk=>{
-    const avail = appData.weekAvailability[wk] || {};
-    const absence = (appData.weekAbsence && appData.weekAbsence[wk]) || {};
-    approvedNames.forEach(n=>{
-      if(isInjuredDuringWeek(n, wk)) return; // 부상 기간과 겹치는 주는 미투표로 집계하지 않습니다.
-      const arr = avail[n];
-      if(absence[n]) return; // 명시적으로 불참을 선언한 건 "미투표"가 아니에요
-      if(!arr || arr.length===0) missCounts[n]++;
-    });
-  });
-
-  // 관리자 도구(순위 횟수 수동 조정)에서 "현재 자동 집계" 참고용으로 보여주기 위해 조정 전 값과 집계 기간을 저장해둡니다.
-  lastNaturalStats = JSON.parse(JSON.stringify(stats));
-  lastNaturalMissCounts = { ...missCounts };
-  const sortedMatchDates = [...validDateKeys].sort();
-  const sortedWeekKeys = [...weekKeys].sort();
-  lastStatPeriodInfo = {
-    today: todayStr(),
-    matchCount: sortedMatchDates.length,
-    earliestMatchDate: sortedMatchDates[0] || null,
-    latestMatchDate: sortedMatchDates[sortedMatchDates.length-1] || null,
-    weekCount: sortedWeekKeys.length,
-    earliestWeek: sortedWeekKeys[0] || null,
-    currentWeekKey: currentWeekKey
-  };
-
-  // 관리자가 수동으로 보정한 값(순위 횟수 수동 조정)을 자연 집계 위에 더합니다.
-  const adj = appData.statAdjustments || {};
-  Object.keys(adj).forEach(name=>{
-    if(name===ADMIN_NAME) return;
-    if(!stats[name]) stats[name] = {yes:0, no:0, total:0};
-  });
-  Object.keys(stats).forEach(name=>{
-    const a = adj[name] || {};
-    stats[name].yes = Math.max(0, stats[name].yes + (a.yes||0));
-    stats[name].no = Math.max(0, stats[name].no + (a.no||0));
-    stats[name].total = stats[name].yes + stats[name].no;
-  });
-  approvedNames.forEach(n=>{
-    const a = adj[n] || {};
-    missCounts[n] = Math.max(0, (missCounts[n]||0) + (a.missed||0));
-  });
-
-  // 4-1. 참석 순위
-  const attendList = Object.keys(stats).map(name=>({
-    name, yes: stats[name].yes, total: stats[name].total, rate: stats[name].yes/stats[name].total
-  })).sort((a,b)=> b.yes-a.yes || b.rate-a.rate || b.total-a.total || a.name.localeCompare(b.name,'ko'));
-  renderGenericPodium('#podiumAttend', attendList, 'yes', '참석', '회');
-  renderGenericRankList('#rankListAttend', '#rankEmptyAttend', attendList, 'yes', '회');
-
-  // 4-2. 미투표자 순위
-  const missList = approvedNames.map(name=>({ name, missed: missCounts[name] }))
-    .filter(r=>weekKeys.length>0 && r.missed>0)
-    .sort((a,b)=> b.missed-a.missed || a.name.localeCompare(b.name,'ko'));
-  renderGenericPodium('#podiumMiss', missList, 'missed', '미투표', '회');
-  renderGenericRankList('#rankListMiss', '#rankEmptyMiss', missList, 'missed', '회');
-
-  // 4-3. 불참 순위
-  const noShowList = Object.keys(stats).map(name=>({ name, no: stats[name].no, total: stats[name].total }))
-    .filter(r=>r.no>0)
-    .sort((a,b)=> b.no-a.no || a.name.localeCompare(b.name,'ko'));
-  renderGenericPodium('#podiumNoShow', noShowList, 'no', '불참', '회');
-  renderGenericRankList('#rankListNoShow', '#rankEmptyNoShow', noShowList, 'no', '회');
-
-  const mine = stats[myName];
-  const myRank = attendList.findIndex(r=>r.name===myName);
-  const medal = myRank===0?'🥇':myRank===1?'🥈':myRank===2?'🥉':'';
-  const rateTag = $('#myRateTag');
-  const ratePie = $('#myRatePie');
-  if(rateTag){
-    rateTag.textContent = mine ? `내 참석 ${mine.yes}회 (${Math.round(mine.yes/mine.total*100)}%) · ${myRank+1}위 ${medal}` : '참석 기록 없음';
-  }
-  if(ratePie){
-    if(mine){
-      const pct = Math.round(mine.yes/mine.total*100);
-      ratePie.style.background = `conic-gradient(var(--pitch) 0% ${pct}%, var(--surface-2) ${pct}% 100%)`;
-    } else {
-      ratePie.style.background = 'var(--surface-2)';
-    }
-  }
-}
-// TODO: 정식 배포 전 Supabase Auth 및 서버 측 권한 검증으로 이전 필요 (관리자 계정/생일이 하드코딩됨)
-const ADMIN_NAME = '관리자';
-/* 투표/출석 관련 통계에서는 관리자 계정을 인원수에서 제외합니다 (관리자는 선수가 아니라 운영 계정이므로). */
-function getApprovedNonAdminNames(){
-  return Object.keys(appData.members||{}).filter(n=>appData.members[n].approved && n!==ADMIN_NAME);
-}
-const ADMIN_BIRTH = '260402';
-function isAdminUser(){ return myName===ADMIN_NAME && myBirth===ADMIN_BIRTH; }
-function isAdmin(){ return isAdminUser(); } // 하위 호환용 별칭
-function requireAdmin(){
-  if(!isAdminUser()){ toast('관리자만 사용할 수 있는 기능입니다.'); return false; }
-  return true;
-}
-function updateAdminVisibility(){
-  const show = isAdminUser();
-  const eyebrow = $('#adminSectionEyebrow');
-  const panel = $('#adminPanel');
-  const badge = $('#adminBadge');
-  const tabBtn = $('#adminTabBtn');
-  if(badge) badge.style.display = show ? 'inline-block' : 'none';
-  if(eyebrow) eyebrow.style.display = show ? 'flex' : 'none';
-  if(panel) panel.style.display = show ? 'block' : 'none';
-  if(tabBtn) tabBtn.style.display = show ? 'flex' : 'none';
-  if(show){
-    populateMatchWindowSelects();
-    renderAdminMemberTable();
-    renderAdminPendingTable();
-    const notice = appData.notice || {};
-    const nt = $('#noticeTitleInput'), nb = $('#noticeBodyInput');
-    if(nt) nt.value = notice.title || '';
-    if(nb) nb.value = notice.body || '';
-    populateMatchVenuePresetSelect();
-    const dateInput = $('#matchVenueDateInput');
-    if(dateInput){
-      const cur = dateInput.value;
-      const curIsConfirmed = !!(cur && appData.votes[cur] && appData.votes[cur].length>0);
-      const nearest = findNearestUpcomingConfirmedDate();
-      const hasConfirmed = Object.keys(appData.votes||{}).some(d=>/^\d{4}-\d{2}-\d{2}$/.test(d) && d>=todayStr() && (appData.votes[d]||[]).length>0);
-      if(!cur || (!curIsConfirmed && hasConfirmed)){
-        dateInput.value = nearest;
-        loadMatchVenueTimeEditorForDate(nearest);
-      }
-    }
-    renderMatchVenueConfirmedHint();
-    const kmaInput = $('#kmaApiKeyInput');
-    if(kmaInput) kmaInput.value = appData.kmaApiKey || '';
-    renderExcludeWeekList();
-    renderStatAdjustTable();
-    updateFavVenueBtn();
-  }
-}
-function populateMatchWindowSelects(){
-  const startSel = $('#matchStartHour'), endSel = $('#matchEndHour');
-  if(!startSel || !endSel) return;
-  if(!startSel.options.length){
-    for(let h=0; h<24; h++){ startSel.innerHTML += `<option value="${h}">${pad(h)}</option>`; endSel.innerHTML += `<option value="${h}">${pad(h)}</option>`; }
-  }
-  const win = appData.matchTimeWindow || { startHour:19, endHour:21 };
-  startSel.value = String(win.startHour);
-  endSel.value = String(win.endHour);
-}
-$('#saveMatchWindowBtn').addEventListener('click', async ()=>{
-  if(!requireAdmin()) return;
-  const startHour = parseInt($('#matchStartHour').value);
-  const endHour = parseInt($('#matchEndHour').value);
-  if(endHour < startHour){ toast('종료 시각이 시작 시각보다 빠를 수 없습니다.'); return; }
-  await mutateAppData(data=>{ data.matchTimeWindow = { startHour, endHour }; });
-  toast('경기 시간대를 저장했습니다. 날씨 새로고침 시 반영됩니다.');
-  loadWeather();
-});
-
-$('#saveNoticeBtn').addEventListener('click', async ()=>{
-  if(!requireAdmin()) return;
-  const title = $('#noticeTitleInput').value.trim();
-  const body = $('#noticeBodyInput').value.trim();
-  if(!title && !body){ toast('제목이나 내용을 입력해 주시기 바랍니다.'); return; }
-  await mutateAppData(data=>{ data.notice = { title, body, updatedAt: Date.now() }; });
-  renderNoticeCard();
-  toast('공지사항을 저장했습니다.');
-});
-$('#clearNoticeBtn').addEventListener('click', async ()=>{
-  if(!requireAdmin()) return;
-  if(!confirm('공지사항을 삭제하시겠습니까?')) return;
-  await mutateAppData(data=>{ data.notice = { title:'', body:'', updatedAt:null }; });
-  $('#noticeTitleInput').value = '';
-  $('#noticeBodyInput').value = '';
-  renderNoticeCard();
-  toast('공지사항을 삭제했습니다.');
-});
-
-$('#saveKmaKeyBtn').addEventListener('click', async ()=>{
-  if(!requireAdmin()) return;
-  const key = $('#kmaApiKeyInput').value.trim();
-  if(!key){ $('#kmaKeyStatus').textContent = '키를 입력해 주시기 바랍니다.'; $('#kmaKeyStatus').style.color='var(--danger)'; return; }
-  await mutateAppData(data=>{ data.kmaApiKey = key; });
-  $('#kmaKeyStatus').style.color = 'var(--pitch)';
-  $('#kmaKeyStatus').textContent = '저장했습니다. 새로고침하면 반영됩니다.';
-  toast('기상청 API 키를 저장했습니다.');
-  loadWeather();
-});
-$('#clearKmaKeyBtn').addEventListener('click', async ()=>{
-  if(!requireAdmin()) return;
-  if(!confirm('기상청 API 키를 삭제하시겠습니까? 이후 날씨는 다시 Open-Meteo만 사용합니다.')) return;
-  await mutateAppData(data=>{ data.kmaApiKey = ''; });
-  $('#kmaApiKeyInput').value = '';
-  $('#kmaKeyStatus').textContent = '삭제했습니다.';
-  $('#kmaKeyStatus').style.color = 'var(--muted)';
-  toast('기상청 API 키를 삭제했습니다.');
-  loadWeather();
-});
-
-async function adminDeleteMember(name){
-  if(!requireAdmin()) return;
-  if(name === myName){ toast('본인 계정은 삭제할 수 없습니다.'); return; }
-  if(!confirm(`'${name}' 회원을 삭제하시겠습니까?\n이 회원의 모든 투표 기록도 함께 삭제되며 되돌릴 수 없습니다.`)) return;
-  await mutateAppData(data=>{
-    if(data.members) delete data.members[name];
-    Object.keys(data.votes||{}).forEach(date=>{
-      data.votes[date] = (data.votes[date]||[]).filter(v=>v.name!==name);
-      if(data.votes[date].length===0) delete data.votes[date];
-    });
-    data.votedDates = (data.votedDates||[]).filter(date=> (data.votes[date] && data.votes[date].length) || data.venues[date]);
-  });
-  renderMemberList();
-  renderAdminMemberTable();
-  renderAdminPendingTable();
-  renderCalendar();
-  computeAttendanceStats();
-  if(selectedDate) await renderMatchPanel();
-  toast(`'${name}' 회원과 투표 기록을 삭제했습니다.`);
-}
-async function adminApproveMember(name){
-  if(!requireAdmin()) return;
-  if(!confirm(`'${name}' 님의 가입을 승인하시겠습니까?`)) return;
-  await mutateAppData(data=>{
-    if(data.members && data.members[name]) data.members[name].approved = true;
-  });
-  renderMemberList();
-  renderAdminMemberTable();
-  renderAdminPendingTable();
-  toast(`'${name}' 님의 가입을 승인했습니다.`);
-}
-async function adminRejectMember(name){
-  if(!requireAdmin()) return;
-  if(!confirm(`'${name}' 님의 가입 신청을 거절하시겠습니까? 신청 정보가 삭제됩니다.`)) return;
-  await mutateAppData(data=>{ if(data.members) delete data.members[name]; });
-  renderAdminPendingTable();
-  toast(`'${name}' 님의 가입 신청을 거절했습니다.`);
-}
-
-/* 부상 기간(injuryStart~injuryEnd)에 기반한 판정 함수들. 관리자뿐 아니라 본인도 설정할 수 있습니다. */
-function isCurrentlyInjured(name){
-  const m = appData.members && appData.members[name];
-  if(!m || !m.injuryStart || !m.injuryEnd) return false;
-  const t = todayStr();
-  return t>=m.injuryStart && t<=m.injuryEnd;
-}
-function isInjuredOnDate(name, dateStr){
-  const m = appData.members && appData.members[name];
-  if(!m || !m.injuryStart || !m.injuryEnd) return false;
-  return dateStr>=m.injuryStart && dateStr<=m.injuryEnd;
-}
-function isInjuredDuringWeek(name, weekKey){
-  const m = appData.members && appData.members[name];
-  if(!m || !m.injuryStart || !m.injuryEnd) return false;
-  return getWeekDates(weekKey).some(d=>d>=m.injuryStart && d<=m.injuryEnd);
-}
-async function setInjuryPeriod(name, startDate, endDate){
-  await mutateAppData(data=>{
-    if(data.members && data.members[name]){
-      data.members[name].injuryStart = startDate || '';
-      data.members[name].injuryEnd = endDate || '';
-    }
-  });
-  renderMemberList();
-  renderAdminMemberTable();
-  computeAttendanceStats();
-}
-
-function renderMemberList(){
-  const strip = $('#memberStrip');
-  if(!strip) return;
-  const names = Object.keys(appData.members||{}).filter(n=>appData.members[n].approved).sort((a,b)=>a.localeCompare(b,'ko'));
-  if(!names.length){ strip.innerHTML = '<span style="font-size:12px;color:var(--muted);">아직 승인된 멤버가 없습니다.</span>'; return; }
-  const admin = isAdminUser();
-  strip.innerHTML = names.map(name=>{
-    const m = appData.members[name] || {};
-    const statusClass = m.status==='online' ? 'online' : 'offline';
-    const injured = isCurrentlyInjured(name);
-    const injuryBadge = injured ? `<span class="rest-badge injury" title="복귀 예정일: ${escapeHtml(m.injuryEnd)}">🤕 부상</span>` : '';
-    return `<div class="member-chip ${name===myName?'me':''}"><span class="dot ${statusClass}"></span>${escapeHtml(name)}${m.birth?`<span class="b">${escapeHtml(m.birth)}</span>`:''}${injuryBadge}${admin && name!==myName?`<button class="member-del" data-name="${escapeHtml(name)}" title="멤버 삭제">✕</button>`:''}</div>`;
-  }).join('');
-  if(admin){
-    strip.querySelectorAll('.member-del').forEach(btn=>{
-      btn.addEventListener('click', (e)=>{ e.stopPropagation(); adminDeleteMember(btn.dataset.name); });
-    });
-  }
-  renderMemberModal(); // 팝업이 열려있는 동안에도 최신 상태로 갱신
-}
-
-/* 팀 멤버가 많아져도 스크롤 없이 한눈에 보이도록, 터치(클릭) 시 팝업으로 전체 명단을 보여줍니다. */
-function renderMemberModal(){
-  const listEl = $('#memberModalList');
-  if(!listEl) return;
-  const names = Object.keys(appData.members||{}).filter(n=>appData.members[n].approved).sort((a,b)=>a.localeCompare(b,'ko'));
-  if(!names.length){
-    listEl.innerHTML = '<div class="rank-empty">아직 승인된 멤버가 없습니다.</div>';
-    return;
-  }
-  listEl.innerHTML = names.map(name=>{
-    const m = appData.members[name] || {};
-    const statusClass = m.status==='online' ? 'online' : 'offline';
-    const injured = isCurrentlyInjured(name);
-    const injuryBadge = injured ? `<span class="rest-badge injury" title="복귀 예정일: ${escapeHtml(m.injuryEnd)}">🤕 부상</span>` : '';
-    return `
-      <div class="member-modal-row">
-        <span class="dot ${statusClass}"></span>
-        <span class="nm ${name===myName?'me':''}">${escapeHtml(name)}</span>
-        ${injuryBadge}
-        <span class="bd">${escapeHtml(m.birth||'')}</span>
-      </div>
-    `;
-  }).join('');
-}
-function openMemberModal(){
-  const backdrop = $('#memberModalBackdrop');
-  if(!backdrop) return;
-  renderMemberModal();
-  backdrop.style.display = 'flex';
-}
-function closeMemberModal(){
-  const backdrop = $('#memberModalBackdrop');
-  if(backdrop) backdrop.style.display = 'none';
-}
-const memberViewAllBtn = $('#memberViewAllBtn');
-if(memberViewAllBtn) memberViewAllBtn.addEventListener('click', openMemberModal);
-const memberStripEl = $('#memberStrip');
-if(memberStripEl) memberStripEl.addEventListener('click', openMemberModal);
-const closeMemberModalBtn = $('#closeMemberModalBtn');
-if(closeMemberModalBtn) closeMemberModalBtn.addEventListener('click', closeMemberModal);
-const memberModalBackdrop = $('#memberModalBackdrop');
-if(memberModalBackdrop) memberModalBackdrop.addEventListener('click', (e)=>{
-  if(e.target === memberModalBackdrop) closeMemberModal(); // 배경(바깥) 클릭 시에만 닫힘, 카드 안쪽 클릭은 유지
-});
-document.addEventListener('keydown', (e)=>{
-  if(e.key === 'Escape') closeMemberModal();
-});
-
-/* 관리자가 참석·미투표·불참 횟수를 자동 집계 위에 수동으로 더하거나 뺄 수 있게 합니다. */
-function renderStatAdjustTable(){
-  const el = $('#statAdjustTable');
-  const periodEl = $('#statPeriodInfo');
-  if(!el) return;
-  if(!requireAdminSilent()){ el.innerHTML=''; if(periodEl) periodEl.textContent=''; return; }
-  if(periodEl){
-    const p = lastStatPeriodInfo || {};
-    if(p.matchCount){
-      const wLabel = p.earliestWeek ? `${p.earliestWeek} 주 ~ ${p.currentWeekKey} 주(이번 주)` : '아직 없음';
-      periodEl.innerHTML = `📅 오늘(${p.today}) 기준 집계 범위<br>· 참석/불참: 확정된 경기 ${p.earliestMatchDate} ~ ${p.latestMatchDate} (총 ${p.matchCount}경기, 미래에 확정된 경기가 있다면 포함)<br>· 미투표: ${wLabel} (${p.weekCount}주간, 아직 안 지난 미래 주는 제외)`;
-    } else {
-      periodEl.textContent = `📅 오늘(${p.today}) 기준 — 아직 집계할 확정 경기가 없습니다.`;
-    }
-  }
-  const names = getApprovedNonAdminNames().sort((a,b)=>a.localeCompare(b,'ko'));
-  if(!names.length){ el.innerHTML = '<div class="rank-empty">승인된 회원이 없습니다.</div>'; return; }
-  const adj = appData.statAdjustments || {};
-  el.innerHTML = names.map(name=>{
-    const a = adj[name] || {};
-    const natYes = (lastNaturalStats[name] && lastNaturalStats[name].yes) || 0;
-    const natNo = (lastNaturalStats[name] && lastNaturalStats[name].no) || 0;
-    const natMiss = lastNaturalMissCounts[name] || 0;
-    return `
-      <div class="stat-adjust-row">
-        <span class="n">${escapeHtml(name)}</span>
-        <div class="stat-adjust-fields">
-          <label>참석<span class="nat">자동 ${natYes}</span><input type="number" class="adj-yes" data-name="${escapeHtml(name)}" value="${a.yes||0}"></label>
-          <label>미투표<span class="nat">자동 ${natMiss}</span><input type="number" class="adj-missed" data-name="${escapeHtml(name)}" value="${a.missed||0}"></label>
-          <label>불참<span class="nat">자동 ${natNo}</span><input type="number" class="adj-no" data-name="${escapeHtml(name)}" value="${a.no||0}"></label>
-        </div>
-        <button type="button" data-action="stat-save" data-name="${escapeHtml(name)}">저장</button>
-      </div>
-    `;
-  }).join('');
-  el.querySelectorAll('button[data-action="stat-save"]').forEach(btn=>{
-    btn.addEventListener('click', async ()=>{
-      const name = btn.dataset.name;
-      const row = btn.closest('.stat-adjust-row');
-      const yes = parseInt(row.querySelector('.adj-yes').value, 10) || 0;
-      const missed = parseInt(row.querySelector('.adj-missed').value, 10) || 0;
-      const no = parseInt(row.querySelector('.adj-no').value, 10) || 0;
-      await mutateAppData(data=>{
-        if(!data.statAdjustments) data.statAdjustments = {};
-        if(yes===0 && missed===0 && no===0){ delete data.statAdjustments[name]; }
-        else { data.statAdjustments[name] = { yes, missed, no }; }
-      });
-      computeAttendanceStats();
-      renderMatchStats();
-      toast(`'${name}' 님의 순위 조정값을 저장했습니다.`);
-    });
-  });
-}
-
-function renderAdminMemberTable(){
-  const el = $('#adminMemberTable');
-  if(!el) return;
-  if(!requireAdminSilent()){ el.innerHTML=''; return; }
-  const names = Object.keys(appData.members||{}).filter(n=>appData.members[n].approved).sort((a,b)=>a.localeCompare(b,'ko'));
-  if(!names.length){ el.innerHTML = '<div class="rank-empty">승인된 회원이 없습니다.</div>'; return; }
-  el.innerHTML = names.map(name=>{
-    const m = appData.members[name] || {};
-    const isSelf = name===myName;
-    const injured = isCurrentlyInjured(name);
-    return `
-      <div class="admin-member-row">
-        <span class="n">${escapeHtml(name)}</span>
-        <span class="bday">${escapeHtml(m.birth||'-')}</span>
-        <button type="button" data-action="delete" data-name="${escapeHtml(name)}" ${isSelf?'disabled title="본인은 삭제할 수 없습니다"':''}>삭제</button>
-      </div>
-      <div class="admin-injury-row" data-name="${escapeHtml(name)}">
-        <span class="il">${injured?`🤕 부상 중 (~${escapeHtml(m.injuryEnd)})`:'부상 기간'}</span>
-        <input type="date" class="injury-start" data-name="${escapeHtml(name)}" value="${escapeHtml(m.injuryStart||'')}">
-        <span>~</span>
-        <input type="date" class="injury-end" data-name="${escapeHtml(name)}" value="${escapeHtml(m.injuryEnd||'')}">
-        <button type="button" data-action="injury-save" data-name="${escapeHtml(name)}">설정</button>
-        <button type="button" class="ghost" data-action="injury-clear" data-name="${escapeHtml(name)}">해제</button>
-      </div>
-    `;
-  }).join('');
-  el.querySelectorAll('button[data-action="delete"]').forEach(btn=>{
-    btn.addEventListener('click', ()=>adminDeleteMember(btn.dataset.name));
-  });
-  el.querySelectorAll('button[data-action="injury-save"]').forEach(btn=>{
-    btn.addEventListener('click', async ()=>{
-      const name = btn.dataset.name;
-      const row = btn.closest('.admin-injury-row');
-      const start = row.querySelector('.injury-start').value;
-      const end = row.querySelector('.injury-end').value;
-      if(!start || !end){ toast('시작일과 종료일을 모두 선택해 주시기 바랍니다.'); return; }
-      if(end < start){ toast('종료일이 시작일보다 빠를 수 없습니다.'); return; }
-      await setInjuryPeriod(name, start, end);
-      toast(`'${name}' 님의 부상 기간을 설정했습니다.`);
-    });
-  });
-  el.querySelectorAll('button[data-action="injury-clear"]').forEach(btn=>{
-    btn.addEventListener('click', async ()=>{
-      const name = btn.dataset.name;
-      await setInjuryPeriod(name, '', '');
-      toast(`'${name}' 님의 부상 상태를 해제했습니다.`);
-    });
-  });
-}
-function renderAdminPendingTable(){
-  const el = $('#adminPendingTable');
-  const countEl = $('#pendingCount');
-  if(!el || !requireAdminSilent()) return;
-  const names = Object.keys(appData.members||{}).filter(n=>!appData.members[n].approved).sort((a,b)=>a.localeCompare(b,'ko'));
-  if(countEl) countEl.textContent = names.length ? `${names.length}건` : '';
-  if(!names.length){ el.innerHTML = '<div class="rank-empty">승인 대기 중인 가입 신청이 없습니다.</div>'; return; }
-  el.innerHTML = names.map(name=>{
-    const m = appData.members[name] || {};
-    return `
-      <div class="pending-row">
-        <span class="n">${escapeHtml(name)}</span>
-        <span class="bday">${escapeHtml(m.birth||'-')}</span>
-        <button class="approve-btn" data-name="${escapeHtml(name)}">승인</button>
-        <button class="reject-btn" data-name="${escapeHtml(name)}">거절</button>
-      </div>
-    `;
-  }).join('');
-  el.querySelectorAll('.approve-btn').forEach(btn=>{
-    btn.addEventListener('click', ()=>adminApproveMember(btn.dataset.name));
-  });
-  el.querySelectorAll('.reject-btn').forEach(btn=>{
-    btn.addEventListener('click', ()=>adminRejectMember(btn.dataset.name));
-  });
-}
-function requireAdminSilent(){ return isAdminUser(); }
-
-$('#resetDateVotesBtn').addEventListener('click', async ()=>{
-  if(!requireAdmin()) return;
-  if(!selectedDate){ toast('먼저 캘린더에서 날짜를 선택해 주시기 바랍니다.'); return; }
-  const weekKey = getWeekStart(selectedDate);
-  if(!confirm(`선택하신 날짜가 속한 주(${weekKey} 시작)의 가능일 투표를 초기화하시겠습니까? 경기장 정보는 유지됩니다.`)) return;
-  await mutateAppData(data=>{
-    if(data.weekAvailability) delete data.weekAvailability[weekKey];
-    if(data.weekOverride) delete data.weekOverride[weekKey];
-    resyncWeekDerivedVotes(data, weekKey);
-  });
-  renderCalendar();
-  await renderMatchPanel();
-  computeAttendanceStats();
-  renderMatchStats();
-  toast('선택한 주의 투표를 초기화했습니다.');
-});
-$('#resetAllVotesBtn').addEventListener('click', async ()=>{
-  if(!requireAdmin()) return;
-  const warn = '⚠️ 경고: 전체 투표 초기화를 진행하면 지금까지 쌓인 모든 주간 가능일 투표와 확정 기록이 전부 삭제됩니다.\n\n이전 데이터는 복구할 수 없습니다. 정말 초기화하시겠습니까?';
-  if(!confirm(warn)) return;
-  await mutateAppData(data=>{
-    data.weekAvailability = {};
-    data.weekOverride = {};
-    data.votes = {};
-    data.votedDates = Object.keys(data.venues||{});
-  });
-  renderCalendar();
-  if(selectedDate) await renderMatchPanel();
-  computeAttendanceStats();
-  renderMatchStats();
-  toast('모든 투표 기록을 초기화했습니다.');
-});
-
-/* ---------- 경기 진행 기록 (월별 확정 횟수 · 누적 진행 횟수) ---------- */
-function computeMatchStats(){
-  // appData.votes의 키는 (동점이 아닌 한) 확정된 경기 날짜만 존재합니다.
-  const confirmedDates = Object.keys(appData.votes||{}).filter(d=>/^\d{4}-\d{2}-\d{2}$/.test(d) && (appData.votes[d]||[]).length>0).sort();
-  const todayS = todayStr();
-  const played = confirmedDates.filter(d=>d<=todayS);
-  const upcoming = confirmedDates.filter(d=>d>todayS);
-  const byMonth = {};
-  played.forEach(d=>{ const key=d.slice(0,7); byMonth[key]=(byMonth[key]||0)+1; });
-  const months = Object.keys(byMonth).sort().reverse();
-  return { totalPlayed: played.length, upcomingCount: upcoming.length, byMonth, months };
-}
-function renderMatchStats(){
-  renderHeroMatch();
-  renderNoticeCard();
-  tryRenderHomeTab();
-  checkMatchConfirmedNotification();
-  checkVoteDeadlineReminder();
-  if(allVenuePinsPlaced) applyConfirmedVenueMarker();
-  const el = $('#matchStatsCard');
-  if(!el) return;
-  const stats = computeMatchStats();
-  const thisMonthKey = todayStr().slice(0,7);
-  const thisMonthCount = stats.byMonth[thisMonthKey] || 0;
-  el.innerHTML = `
-    <div class="stats-top">
-      <div class="stats-box">
-        <div class="stats-big">${stats.totalPlayed}</div>
-        <div class="stats-label">총 누적 경기 진행 횟수</div>
-      </div>
-      <div class="stats-box">
-        <div class="stats-big small">${thisMonthCount}</div>
-        <div class="stats-label">이번 달(${thisMonthKey.replace('-','.')}) 경기 횟수</div>
-      </div>
-      ${stats.upcomingCount? `
-      <div class="stats-box">
-        <div class="stats-big small">${stats.upcomingCount}</div>
-        <div class="stats-label">예정된 확정 경기</div>
-      </div>` : ''}
-    </div>
-    <div class="stats-history">
-      <div class="stats-history-label">월별 진행 기록</div>
-      <div class="stats-history-list">
-        ${stats.months.length? stats.months.map(m=>`<div class="smh-row"><span>${m.replace('-','.')}</span><span>${stats.byMonth[m]}회</span></div>`).join('') : '<div class="rank-empty">아직 진행된 경기가 없습니다.</div>'}
-      </div>
-    </div>
-  `;
-}
-
-/* 최상단 히어로 카드: 오늘 이후로 가장 가까운 확정 경기를 D-day와 함께 보여줍니다. */
-function renderHeroMatch(){
-  const el = $('#heroMatchCard');
-  if(!el) return;
-  const todayS = todayStr();
-  const confirmedDates = Object.keys(appData.votes||{})
-    .filter(d=>/^\d{4}-\d{2}-\d{2}$/.test(d) && d>=todayS && (appData.votes[d]||[]).length>0)
-    .sort();
-  if(!confirmedDates.length){
-    el.className = 'hero-match-card empty';
-    el.innerHTML = '아직 확정된 예정 경기가 없습니다.<br>캘린더에서 주간 투표를 진행해 보세요.';
-    return;
-  }
-  const date = confirmedDates[0];
-  const dObj = parseYMD(date);
-  const diffDays = Math.round((dObj - parseYMD(todayS)) / 86400000);
-  const ddayLabel = diffDays===0 ? 'D-DAY' : `D-${diffDays}`;
-  // 관리자가 "실제 참석 체크"나 이 카드에서 직접 인원을 추가/제외했으면 그 결과를 우선 사용합니다.
-  const effVotes = getEffectiveVotesForDate(date);
-  const yesList = effVotes.filter(v=>v.choice==='yes');
-  const guestNames = (appData.matchGuests && appData.matchGuests[date]) || [];
-  const venue = getVenueInfo(date);
-  const approvedTotal = getApprovedNonAdminNames().length;
-  const totalAttending = yesList.length + guestNames.length;
-  const admin = isAdminUser();
-
-  const avatarPalette = ['#3ddc84','#6db8ff','#ffd76b','#ff8fa3','#c9a0ff','#ff9d5c'];
-  const avatarColor = (name)=>{
-    let h=0; for(let i=0;i<name.length;i++) h = (h*31 + name.charCodeAt(i)) % avatarPalette.length;
-    return avatarPalette[h];
-  };
-  const maxShow = 5;
-  const attendeeChips = [
-    ...yesList.map(v=>({ name:v.name, isGuest:false })),
-    ...guestNames.map(n=>({ name:n, isGuest:true }))
-  ];
-  const shown = attendeeChips.slice(0, maxShow);
-  const overflow = attendeeChips.length - shown.length;
-  const avatarsHtml = shown.map(p=>`<div class="avatar-circle ${p.isGuest?'guest':''}" style="background:${avatarColor(p.name)};" title="${escapeHtml(p.name)}${p.isGuest?' (용병)':''}">${escapeHtml(p.name.charAt(0))}</div>`).join('')
-    + (overflow>0 ? `<div class="avatar-circle more">+${overflow}</div>` : '');
-
-  // 관리자만: 참석 인원 옆에 제외(✕) 버튼, 그리고 갑자기 오게 된 사람을 추가하는 선택창을 보여줍니다.
-  // 여기서 뺀/더한 결과는 팀 순위(참여횟수)에도 그대로 반영됩니다.
-  const attendeeNames = new Set(yesList.map(v=>v.name));
-  const notAttendingApproved = getApprovedNonAdminNames().filter(n=>!attendeeNames.has(n));
-  const adminAddControl = admin ? `
-    <div class="hero-admin-add-row">
-      <select id="heroAddAttendeeSelect">
-        <option value="">갑자기 오는 인원 추가...</option>
-        ${notAttendingApproved.map(n=>`<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('')}
-      </select>
-      <button id="heroAddAttendeeBtn">추가</button>
-    </div>
-  ` : '';
-
-  el.className = 'hero-match-card';
-  el.innerHTML = `
-    <div class="hero-top">
-      <span class="hero-dday">${ddayLabel}</span>
-      <span class="hero-label">확정 경기</span>
-    </div>
-    <div class="hero-main-row">
-      <div class="hero-left">
-        <div class="hero-date">${dObj.getMonth()+1}.${dObj.getDate()}(${weekdayKR[dObj.getDay()]})</div>
-        ${venue && venue.time ? `<div class="hero-time">${escapeHtml(venue.time)}</div>` : ''}
-        ${venue ? `<div class="hero-venue">📍 ${escapeHtml(venue.name)}${venue.address?`<div class="addr">${escapeHtml(venue.address)}</div>`:''}</div>` : `<div class="hero-venue" style="color:var(--muted);">경기장 정보가 아직 등록되지 않았습니다</div>`}
-      </div>
-      <div class="hero-right">
-        <div class="hero-count-label">참석 현황</div>
-        <div class="hero-count-big">${totalAttending}<span class="of">/${approvedTotal}명</span></div>
-        <div class="hero-avatars">${avatarsHtml}</div>
-      </div>
-    </div>
-    <div class="hero-attendee-list">${attendeeChips.length? attendeeChips.map(p=>`<span class="nv-chip">${escapeHtml(p.name)}${p.isGuest?' <span class="guest-tag">용병</span>':''}${admin?` <button class="chip-remove-btn" data-name="${escapeHtml(p.name)}" data-guest="${p.isGuest?'1':'0'}" title="제외">✕</button>`:''}</span>`).join('') : '<span class="nv-empty">아직 참석자가 없습니다</span>'}</div>
-    ${adminAddControl}
-    ${venue && venue.link ? `<button class="hero-link-btn" id="heroLinkBtn" data-link="${escapeHtml(venue.link)}">🔗 경기 링크</button>` : ''}
-  `;
-  const linkBtn = $('#heroLinkBtn');
-  if(linkBtn){
-    linkBtn.addEventListener('click', ()=>{
-      window.open(linkBtn.dataset.link, '_blank', 'noopener');
-    });
-  }
-  if(admin){
-    el.querySelectorAll('.chip-remove-btn').forEach(btn=>{
-      btn.addEventListener('click', ()=>{
-        if(btn.dataset.guest==='1') adminRemoveMatchGuest(date, btn.dataset.name);
-        else adminModifyAttendance(date, btn.dataset.name, 'remove');
-      });
-    });
-    const addBtn = $('#heroAddAttendeeBtn');
-    if(addBtn) addBtn.addEventListener('click', ()=>{
-      const sel = $('#heroAddAttendeeSelect');
-      if(sel && sel.value) adminModifyAttendance(date, sel.value, 'add');
-    });
-  }
-}
-
-/* 확정 경기에서 관리자가 인원을 직접 추가/제외합니다 (선수가 갑자기 못 오거나, 갑자기 오게 된 경우).
-   내부적으로는 "실제 참석 체크"와 같은 데이터(actualAttendance)를 사용해서, 팀 순위의 참여횟수 집계에도
-   바로 반영됩니다. */
-async function adminModifyAttendance(date, name, action){
-  if(!requireAdmin()) return;
-  await mutateAppData(data=>{
-    const approvedNames = Object.keys(data.members||{}).filter(n=>data.members[n].approved);
-    const existing = data.actualAttendance && data.actualAttendance[date];
-    let current = (existing && existing.finalized)
-      ? [...existing.attendees]
-      : (data.votes[date]||[]).filter(v=>v.choice==='yes').map(v=>v.name).filter(n=>approvedNames.includes(n));
-    const existingGuests = (existing && existing.finalized) ? (existing.guests||[]) : ((data.matchGuests && data.matchGuests[date]) || []);
-    if(action==='remove'){ current = current.filter(n=>n!==name); }
-    else if(!current.includes(name)){ current.push(name); }
-    if(!data.actualAttendance) data.actualAttendance = {};
-    data.actualAttendance[date] = { attendees: current, guests: existingGuests, finalized: true, savedAt: Date.now() };
-  });
-  renderMatchStats();
-  computeAttendanceStats();
-  toast(action==='remove' ? `'${name}' 님을 참석 명단에서 제외했습니다.` : `'${name}' 님을 참석 명단에 추가했습니다.`);
-}
-/* 홈 카드에서 용병을 바로 제외할 때 사용 (사전 등록된 용병 명단과 확정된 실제 참석 명단 둘 다 갱신) */
-async function adminRemoveMatchGuest(date, name){
-  if(!requireAdmin()) return;
-  await mutateAppData(data=>{
-    if(data.matchGuests && data.matchGuests[date]){
-      data.matchGuests[date] = data.matchGuests[date].filter(n=>n!==name);
-      if(!data.matchGuests[date].length) delete data.matchGuests[date];
-    }
-    const existing = data.actualAttendance && data.actualAttendance[date];
-    if(existing && existing.finalized){
-      existing.guests = (existing.guests||[]).filter(n=>n!==name);
-    }
-  });
-  renderMatchStats();
-  toast(`'${name}' 님(용병)을 참석 명단에서 제외했습니다.`);
-}
-
-/* 관리자가 등록한 공지사항 1건을 표시합니다. */
-function renderNoticeCard(){
-  const el = $('#noticeCard');
-  if(!el) return;
-  const notice = appData.notice;
-  if(!notice || (!notice.title && !notice.body)){
-    el.style.display = 'none';
-    return;
-  }
-  el.style.display = 'block';
-  const dateStr = notice.updatedAt ? new Date(notice.updatedAt).toLocaleDateString('ko-KR').replace(/\. /g,'.').replace(/\.$/,'') : '';
-  el.innerHTML = `
-    <div class="nc-top"><span class="nc-tag">중요</span><span class="nc-title">${escapeHtml(notice.title||'공지사항')}</span><span class="nc-chevron">›</span></div>
-    ${notice.body?`<div class="nc-body">${escapeHtml(notice.body)}</div>`:''}
-    ${dateStr?`<div class="nc-date">${dateStr}</div>`:''}
-  `;
-}
-
-function renderGenericRankList(listSel, emptySel, list, metricKey, unit){
-  const rankList = $(listSel);
-  const rankEmpty = $(emptySel);
-  if(!rankList) return;
-  if(!list.length){ if(rankEmpty) rankEmpty.style.display='block'; rankList.innerHTML=''; return; }
-  if(rankEmpty) rankEmpty.style.display='none';
-  const maxV = list[0][metricKey] || 1;
-  const rest = list.slice(3);
-  if(!rest.length){ rankList.innerHTML = '<div class="rank-empty">4위 이하 기록이 아직 없습니다.</div>'; return; }
-  rankList.innerHTML = rest.map((r,i)=>`
-    <div class="rank-row">
-      <div class="no">${i+4}</div>
-      <div class="name">${escapeHtml(r.name)}</div>
-      <div class="bar-wrap"><div class="bar" style="width:${Math.round((r[metricKey]/maxV)*100)}%;"></div></div>
-      <div class="pct">${r[metricKey]}${unit||''}</div>
-    </div>
-  `).join('');
-}
-function renderGenericPodium(sel, list, metricKey, metricLabel, unit){
-  const podium = $(sel);
-  if(!podium) return;
-  if(!list.length){ podium.innerHTML=''; return; }
-  const order = [1,0,2]; // 2등-1등-3등 순서로 배치
-  const classes = ['silver','gold','bronze'];
-  const medals = ['🥈','🥇','🥉'];
-  podium.innerHTML = order.map((idx,pos)=>{
-    const r = list[idx];
-    if(!r) return '';
-    return `
-      <div class="podium-col ${classes[pos]}">
-        <div class="medal">${medals[pos]}</div>
-        <div class="pname">${escapeHtml(r.name)}</div>
-        <div class="prate">${metricLabel} ${r[metricKey]}${unit||''}</div>
-        <div class="bar">${idx+1}위</div>
-      </div>
-    `;
-  }).join('');
-}
-$('#rankRefresh').addEventListener('click', async ()=>{
-  const btn = $('#rankRefresh');
-  btn.classList.add('spinning');
-  await loadAppData();
-  computeAttendanceStats();
-  renderMatchStats();
-  btn.classList.remove('spinning');
-  toast('참석 횟수 순위를 새로고침했습니다.');
-});
-
-/* ---------- Map (venue input moved here) ---------- */
-const FUTSAL_VENUES = [
-  {name:'서울 강남 도곡에프씨(중대부고 운동장)', address:'서울특별시 강남구 선릉로 207'},
-  {name:'서울 강동 송파 풋살장', address:'서울특별시 송파구 풍납동 403-2'},
-  {name:'서울 강북 아크 풋살 스타디움', address:'서울특별시 도봉구 도봉로110라길 69-6, 4층'},
-  {name:'서울 강서 KBS 스포츠월드', address:'서울특별시 강서구 공항대로 376'},
-  {name:'서울 광진 리더짐 풋살장', address:'서울특별시 광진구 구의로 28, 6층'},
-  {name:'서울 노원 염광 운동장', address:'서울특별시 노원구 월계로45가길 9'},
-  {name:'서울 노원 하라 풋살장', address:'서울특별시 노원구 동일로 1323'},
-  {name:'서울 논현 누리풋볼클럽', address:'서울특별시 강남구 논현로 748, 지하 1층'},
-  {name:'서울 도봉 라온 풋살장', address:'서울특별시 도봉구 방학동 553-2'},
-  {name:'서울 도봉 루다 풋살장', address:'서울특별시 도봉구 방학로 223'},
-  {name:'서울 서대문 HIP 풋살그라운드 충정로점', address:'서울특별시 서대문구 경기대로9길 24'},
-  {name:'서울 서대문 돌산구장', address:'서울특별시 서대문구 홍은동 10-305'},
-  {name:'서울 서초 서동원 축구아카데미', address:'서울특별시 서초구 청계산로 41'},
-  {name:'서울 성북 서경대 풋살파크', address:'서울특별시 성북구 서경로 118, 수인관'},
-  {name:'서울 송파 천마 풋살파크', address:'서울특별시 송파구 성내천로29길 31'},
-  {name:'서울 수유 마이그라운드 풋살장', address:'서울특별시 강북구 도봉로 342, 옥상층'},
-  {name:'서울 어반풋볼파크 강서점', address:'서울특별시 강서구 내발산동 755-1'},
-  {name:'서울 영등포 SKY 풋살파크', address:'서울특별시 영등포구 선유로43길 19'},
-  {name:'서울 영등포 남서울상가 SKY 풋살파크', address:'서울특별시 영등포구 영중로14길 11, 3층 옥상'},
-  {name:'서울 영등포 더에프필드', address:'서울특별시 영등포구 선유로 138'},
-  {name:'서울 용산 아디다스 더베이스', address:'서울특별시 용산구 한강대로23길 55'},
-  {name:'서울 은평 롯데몰 풋살장', address:'서울특별시 은평구 통일로 1050'},
-  {name:'서울 잠실 랩스풋볼', address:'서울특별시 송파구 올림픽로8길 21'},
-  {name:'서울 지니 풋살파크 용두동점', address:'서울특별시 동대문구 왕산로 68'},
-  {name:'서울 지니 풋살파크 중화점', address:'서울특별시 중랑구 봉화산로 56'},
-  {name:'서울 짐앤조이 2호점 풋살파크', address:'서울특별시 성동구 자동차시장1길 96, 11층 옥상'},
-  {name:'서울 화곡 스트리트 풋살파크', address:'서울특별시 강서구 화곡로 142'},
-  {name:'플랩 스타디움 가산 디지털엠파이어', address:'서울특별시 금천구 범안로 1130, 디지털엠파이어 옥상'},
-  {name:'플랩 스타디움 가산 마리오', address:'서울특별시 금천구 벚꽃로 266, 마리오아울렛 3관 4층'},
-  {name:'플랩 스타디움 가산 벽산디지털밸리 6차', address:'서울특별시 금천구 가산디지털1로 219'},
-  {name:'플랩 스타디움 가산 코오롱테크노밸리', address:'서울특별시 금천구 디지털로9길 56, 코오롱테크노밸리 옥상'}
-];
-function findVenuePreset(name){ return FUTSAL_VENUES.find(v=>v.name===name); }
-/* appData.venues[date]는 과거엔 문자열이었고 지금은 {name, address} 객체입니다. 둘 다 지원합니다. */
-function getVenueInfo(dateStr){
-  const raw = appData.venues[dateStr];
-  if(!raw) return null;
-  if(typeof raw === 'string'){ const preset = findVenuePreset(raw); return { name: raw, address: preset ? preset.address : '' }; }
-  return raw;
-}
-function populateVenuePresetSelect(){
-  const sel = $('#venuePresetSelect');
-  if(!sel) return;
-  const prevValue = sel.value;
-  const favSet = new Set(appData.favoriteVenues || []);
-  const favVenues = FUTSAL_VENUES.filter(v=>favSet.has(v.name));
-  const restVenues = FUTSAL_VENUES.filter(v=>!favSet.has(v.name));
-  let html = '<option value="">목록에서 선택</option>';
-  if(favVenues.length){
-    html += `<optgroup label="⭐ 자주 쓰는 경기장">${favVenues.map(v=>`<option value="${escapeHtml(v.name)}">⭐ ${escapeHtml(v.name)}</option>`).join('')}</optgroup>`;
-  }
-  html += `<optgroup label="전체 경기장">${restVenues.map(v=>`<option value="${escapeHtml(v.name)}">${escapeHtml(v.name)}</option>`).join('')}</optgroup>`;
-  sel.innerHTML = html;
-  if(prevValue) sel.value = prevValue;
-}
-populateVenuePresetSelect();
-$('#venuePresetSelect').addEventListener('change', ()=>{
-  const name = $('#venuePresetSelect').value;
-  if(!name) return;
-  $('#venueInput').value = name;
-  lookupVenueOnMap();
-});
-
-/* 관리자만 볼 수 있는 즐겨찾기(자주 쓰는 경기장) 토글 버튼 */
-function updateFavVenueBtn(){
-  const btn = $('#favVenueBtn');
-  if(!btn) return;
-  if(!isAdminUser()){ btn.style.display='none'; return; }
-  const name = $('#venueInput').value.trim();
-  const preset = findVenuePreset(name);
-  if(!preset){ btn.style.display='none'; return; }
-  btn.style.display = 'inline-block';
-  const isFav = (appData.favoriteVenues||[]).includes(preset.name);
-  btn.textContent = isFav ? '★' : '☆';
-  btn.classList.toggle('on', isFav);
-}
-/* 즐겨찾기 저장이 다른 사람의 동시 저장(투표 등)과 겹치면 그 사이에 값이 유실될 수 있어서,
-   저장 후 다시 불러와 실제로 반영됐는지 확인하고, 안 됐으면 짧게 기다렸다가 다시 시도합니다. */
-async function setFavoriteVenueRobust(name, shouldBeFavorite){
-  for(let attempt=0; attempt<3; attempt++){
-    await mutateAppData(data=>{
-      if(!data.favoriteVenues) data.favoriteVenues = [];
-      const has = data.favoriteVenues.includes(name);
-      if(shouldBeFavorite && !has) data.favoriteVenues.push(name);
-      if(!shouldBeFavorite && has) data.favoriteVenues = data.favoriteVenues.filter(n=>n!==name);
-    });
-    const check = await remoteLoad();
-    const nowHas = (check.favoriteVenues||[]).includes(name);
-    if(nowHas === shouldBeFavorite){ appData = check; return true; }
-    await new Promise(r=>setTimeout(r, 300 + attempt*300));
-  }
-  console.error('[즐겨찾기] 3회 재시도에도 반영되지 않았습니다:', name);
-  return false;
-}
-$('#favVenueBtn').addEventListener('click', async ()=>{
-  if(!requireAdmin()) return;
-  const name = $('#venueInput').value.trim();
-  const preset = findVenuePreset(name);
-  if(!preset) return;
-  const willBeFavorite = !(appData.favoriteVenues||[]).includes(preset.name);
-  const ok = await setFavoriteVenueRobust(preset.name, willBeFavorite);
-  populateVenuePresetSelect();
-  updateFavVenueBtn();
-  if(venuePinObjects[preset.name]){
-    const isFavNow = (appData.favoriteVenues||[]).includes(preset.name);
-    setVenueStarBadge(preset.name, isFavNow);
-    refreshVenuePinStyle(preset.name, currentHighlightedVenueName===preset.name);
-  }
-  if(!ok){
-    toast('즐겨찾기 저장에 실패했습니다. 잠시 후 다시 시도해 주시기 바랍니다.');
-  } else {
-    toast(willBeFavorite ? '즐겨찾기에 추가했습니다.' : '즐겨찾기에서 제거했습니다.');
-  }
-});
-$('#copyVenueAddressBtn').addEventListener('click', ()=>{
-  const text = $('#venueAddressText').textContent;
-  if(!text) return;
-  navigator.clipboard.writeText(text).then(()=>toast('주소를 복사했습니다.')).catch(()=>toast('복사에 실패했어요. 직접 선택해서 복사해 주시기 바랍니다.'));
-});
-window.copyVenueAddress = function(addr){
-  if(!addr) return;
-  navigator.clipboard.writeText(addr).then(()=>toast('주소를 복사했습니다.')).catch(()=>toast('복사에 실패했어요.'));
-};
-
-/* 지도 탭은 조회 전용입니다. 확정 경기의 공식 경기장은 관리자 도구에서만 저장할 수 있습니다. */
-$('#lookupVenueBtn').addEventListener('click', ()=>lookupVenueOnMap());
-$('#venueInput').addEventListener('keydown', (e)=>{ if(e.key==='Enter') lookupVenueOnMap(); });
-async function lookupVenueOnMap(){
-  const name = $('#venueInput').value.trim();
-  if(!name){ toast('경기장 이름을 입력하거나 목록에서 선택해 주시기 바랍니다.'); return; }
-  const preset = findVenuePreset(name);
-  const info = { name, address: preset ? preset.address : '' };
-  await showVenueOnMap(info);
-}
-
-/* 지도 렌더링의 핵심 로직 (직접 검색과 "기본 경기장 자동 표시"가 공통으로 사용합니다) */
-async function showVenueOnMap(info){
-  if(location.protocol === 'file:'){
-    toast('파일을 직접 열어서는(file://) 경기장 검색이 동작하지 않습니다. 로컬 서버나 실제 배포 주소에서 열어주시기 바랍니다.');
-    return;
-  }
-  const ok = await ensureKakaoReady();
-  if(!ok) return;
-
-  $('#mapEmpty').style.display='none';
-  $('#map').style.display='block';
-  $('#mapFullscreenBtn').style.display='block';
-  if(!map){
-    map = new kakao.maps.Map($('#map'), { center: new kakao.maps.LatLng(37.5665,126.9780), level: 8 });
-  }
-  await renderAllVenuePins(); // 목록에 있는 모든 경기장 핀을 먼저 준비합니다 (첫 실행 후에는 캐시되어 즉시 완료됨).
-  await placeVenueMarker(info);
-
-  const addrRow = $('#venueAddressRow');
-  if(info.address){
-    addrRow.style.display = 'flex';
-    $('#venueAddressText').textContent = info.address;
-  } else {
-    addrRow.style.display = 'none';
-  }
-  updateFavVenueBtn();
-}
-
-/* 목록에 있는 모든 경기장을 이름표와 함께 지도에 항상 표시합니다.
-   한 번 좌표를 찾은 경기장은 세션 동안 캐시해서, 지도를 다시 열 때마다 다시 검색하지 않습니다.
-   각 경기장의 마커/이름표 객체를 보관해뒀다가, 선택된 경기장만 강조 스타일로 바꿔 재사용합니다
-   (같은 위치에 마커가 두 개 겹치는 것을 방지). */
-let allVenuePinsPlaced = false;
-const venueGeocodeCache = {};
-const venuePinObjects = {}; // { 이름: { overlay, el, pos, address, type, expanded } }
-let currentExpandedVenue = null;
-let confirmedVenueName = null; // 실제 확정 경기의 경기장 이름 (일치하는 핀을 축구공으로 표시)
-
-/* 경기장 마다: 평소엔 아이콘+이름만 작게 보이고, 터치하면 주소와 복사 버튼이 펼쳐집니다.
-   다른 경기장을 터치하거나 지도 빈 곳을 터치하면 자동으로 닫힙니다.
-   아이콘으로 종류를 구분합니다: 📍 일반 경기장 / ⭐ 즐겨찾기 / ⚽ 확정 경기 경기장(가장 눈에 띄게)
-   주의: 카카오맵 CustomOverlay는 content의 크기가 나중에 바뀌어도 자동으로 다시 계산해주지 않아서,
-   내용을 바꿀 때마다 setContent()를 다시 호출해 강제로 재계산시킵니다 (안 하면 좁은 폭에 텍스트가
-   세로로 끼거나, 아예 안 보이는 문제가 생깁니다). */
-function venueIconFor(type){
-  if(type==='confirmed') return '⚽';
-  if(type==='favorite') return '⭐';
-  return '📍';
-}
-function renderVenuePinContent(name){
-  const obj = venuePinObjects[name];
-  if(!obj) return;
-  const icon = venueIconFor(obj.type);
-  obj.el.className = `venue-pin ${obj.type}${obj.expanded?' expanded':''}`;
-  if(obj.expanded){
-    obj.el.innerHTML = `
-      <div class="vp-head">${icon} <b>${escapeHtml(name)}</b></div>
-      ${obj.address ? `<div class="vp-addr">${escapeHtml(obj.address)}</div><button type="button" class="vp-copy">주소 복사</button>` : '<div class="vp-addr">등록된 주소가 없습니다</div>'}
-    `;
-    const copyBtn = obj.el.querySelector('.vp-copy');
-    if(copyBtn) copyBtn.addEventListener('click', (e)=>{ e.stopPropagation(); window.copyVenueAddress(obj.address); });
-  } else {
-    obj.el.innerHTML = `${icon} <span class="vp-name">${escapeHtml(name)}</span>`;
-  }
-  // 카카오맵이 새 크기를 다시 계산하도록 강제합니다.
-  if(obj.overlay) obj.overlay.setContent(obj.el);
-}
-function collapseAllVenuePins(){
-  if(currentExpandedVenue){
-    const prev = currentExpandedVenue;
-    currentExpandedVenue = null;
-    const obj = venuePinObjects[prev];
-    if(obj){ obj.expanded = false; renderVenuePinContent(prev); }
-  }
-}
-function expandVenuePin(name){
-  if(!venuePinObjects[name]) return;
-  collapseAllVenuePins();
-  currentExpandedVenue = name;
-  venuePinObjects[name].expanded = true;
-  renderVenuePinContent(name);
-  map.setCenter(venuePinObjects[name].pos);
-}
-
-async function renderAllVenuePins(){
-  if(!map || allVenuePinsPlaced) return;
-  allVenuePinsPlaced = true;
-  for(const v of FUTSAL_VENUES){
-    let coords = venueGeocodeCache[v.name];
-    if(!coords){
-      coords = await kakaoGeocode(v.address, true);
-      if(coords) venueGeocodeCache[v.name] = coords;
-    }
-    if(!coords) continue;
-    const pos = new kakao.maps.LatLng(coords.lat, coords.lng);
-    const isFav = (appData.favoriteVenues||[]).includes(v.name);
-    const el = document.createElement('div');
-    el.addEventListener('click', (e)=>{
-      e.stopPropagation();
-      const obj = venuePinObjects[v.name];
-      if(obj.expanded){ collapseAllVenuePins(); } else { expandVenuePin(v.name); }
-    });
-    const overlay = new kakao.maps.CustomOverlay({
-      position: pos, content: el, yAnchor: 1, xAnchor: 0.5,
-      zIndex: isFav ? 3 : 2
-    });
-    overlay.setMap(map);
-    venuePinObjects[v.name] = { overlay, el, pos, address: v.address, type: isFav?'favorite':'regular', expanded:false };
-    renderVenuePinContent(v.name);
-  }
-  // 지도 빈 공간을 누르면 열려있던 상세정보를 닫습니다.
-  kakao.maps.event.addListener(map, 'click', ()=>{ collapseAllVenuePins(); });
-  applyConfirmedVenueMarker();
-}
-
-/* 홈 화면과 동일한 "가장 가까운 확정 경기"의 경기장을 ⚽ 아이콘으로 확실하게 구분해서 표시합니다. */
-function applyConfirmedVenueMarker(){
-  const todayS = todayStr();
-  const confirmedDates = Object.keys(appData.votes||{})
-    .filter(d=>/^\d{4}-\d{2}-\d{2}$/.test(d) && d>=todayS && (appData.votes[d]||[]).length>0)
-    .sort();
-  const nearest = confirmedDates[0];
-  const venue = nearest ? getVenueInfo(nearest) : null;
-  const newConfirmedName = (venue && venuePinObjects[venue.name]) ? venue.name : null;
-  if(confirmedVenueName && confirmedVenueName !== newConfirmedName && venuePinObjects[confirmedVenueName]){
-    const prevObj = venuePinObjects[confirmedVenueName];
-    prevObj.type = (appData.favoriteVenues||[]).includes(confirmedVenueName) ? 'favorite' : 'regular';
-    renderVenuePinContent(confirmedVenueName);
-  }
-  confirmedVenueName = newConfirmedName;
-  if(confirmedVenueName){
-    const obj = venuePinObjects[confirmedVenueName];
-    obj.type = 'confirmed';
-    renderVenuePinContent(confirmedVenueName);
-  }
-}
-/* 즐겨찾기 토글 시, 지도를 다시 그리지 않고 해당 핀의 아이콘만 바로 바꿉니다. */
-function setVenueStarBadge(name, on){
-  const obj = venuePinObjects[name];
-  if(!obj) return;
-  if(obj.type !== 'confirmed'){ obj.type = on ? 'favorite' : 'regular'; }
-  renderVenuePinContent(name);
-}
-function refreshVenuePinStyle(){ /* 강조 스타일은 이제 아이콘 종류(type)로만 구분하므로 별도 처리가 필요 없습니다. */ }
-
-/* 지도 탭을 처음 열었을 때: 홈 화면과 동일하게 "가장 가까운 확정 경기"의 경기장을 기본으로 보여줍니다.
-   경기장 선택 UI는 그대로 남아있어서, 다른 경기장을 직접 검색해서 볼 수도 있습니다. */
-let mapDefaultLoaded = false;
-async function loadDefaultMapVenue(force){
-  if(mapDefaultLoaded && !force) return;
-  if(typeof appData==='undefined' || !appData) return;
-  const todayS = todayStr();
-  const confirmedDates = Object.keys(appData.votes||{})
-    .filter(d=>/^\d{4}-\d{2}-\d{2}$/.test(d) && d>=todayS && (appData.votes[d]||[]).length>0)
-    .sort();
-  const nearest = confirmedDates[0];
-  if(!nearest) return; // 확정된 예정 경기가 없으면 기존처럼 빈 상태로 둡니다.
-  const venue = getVenueInfo(nearest);
-  if(!venue || !venue.name) return;
-  mapDefaultLoaded = true;
-  const sel = $('#venuePresetSelect');
-  const input = $('#venueInput');
-  if(sel) sel.value = findVenuePreset(venue.name) ? venue.name : '';
-  if(input) input.value = venue.name;
-  await showVenueOnMap({ name: venue.name, address: venue.address || '' });
-}
-
-/* ---------- 관리자 도구: 경기장 선택 및 경기시간 기입 ---------- */
-/* 관리자 도구 상단에 지금 실제로 확정된 경기일이 무엇인지 명확히 보여줍니다.
-   (경기가 확정되기 전에 저장한 날짜와 실제 확정일이 어긋나는 것을 방지하기 위함) */
-function renderMatchVenueConfirmedHint(){
-  const el = $('#matchVenueConfirmedHint');
-  if(!el) return;
-  const nearest = findNearestUpcomingConfirmedDate();
-  const hasConfirmed = Object.keys(appData.votes||{}).some(d=>/^\d{4}-\d{2}-\d{2}$/.test(d) && d>=todayStr() && (appData.votes[d]||[]).length>0);
-  if(hasConfirmed){
-    const o = parseYMD(nearest);
-    el.textContent = `현재 실제로 확정된 다음 경기일: ${o.getMonth()+1}.${o.getDate()}(${weekdayKR[o.getDay()]}) — 아래 날짜가 이 날짜와 같아야 홈 화면에 반영됩니다.`;
-  } else {
-    el.textContent = '현재 확정된 예정 경기가 없습니다. 먼저 캘린더에서 주간 투표를 확정한 뒤 입력해 주시기 바랍니다.';
-  }
-}
-function populateMatchVenuePresetSelect(){
-  const sel = $('#matchVenuePresetSelect');
-  if(!sel || sel.options.length>1) return;
-  FUTSAL_VENUES.forEach(v=>{ sel.innerHTML += `<option value="${escapeHtml(v.name)}">${escapeHtml(v.name)}</option>`; });
-}
-function findNearestUpcomingConfirmedDate(){
-  const todayS = todayStr();
-  const confirmedDates = Object.keys(appData.votes||{})
-    .filter(d=>/^\d{4}-\d{2}-\d{2}$/.test(d) && d>=todayS && (appData.votes[d]||[]).length>0)
-    .sort();
-  return confirmedDates[0] || todayS;
-}
-let pendingMatchGuests = []; // 현재 편집 중인 날짜의 용병 명단 (저장 버튼을 눌러야 실제로 반영됨)
-function renderMatchVenueGuestList(){
-  const el = $('#matchVenueGuestList');
-  if(!el) return;
-  if(!pendingMatchGuests.length){
-    el.innerHTML = '<span class="empty-hint">등록된 용병이 없습니다.</span>';
-    return;
-  }
-  el.innerHTML = pendingMatchGuests.map((name, i)=>
-    `<span class="guest-chip">${escapeHtml(name)}<button type="button" data-idx="${i}" title="삭제">✕</button></span>`
-  ).join('');
-  el.querySelectorAll('button[data-idx]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      pendingMatchGuests.splice(parseInt(btn.dataset.idx,10), 1);
-      renderMatchVenueGuestList();
-    });
-  });
-}
-function addPendingMatchGuest(){
-  const input = $('#matchVenueGuestNameInput');
-  if(!input) return;
-  const name = input.value.trim();
-  if(!name){ toast('용병 이름을 입력해 주시기 바랍니다.'); return; }
-  if(pendingMatchGuests.includes(name)){ toast('이미 추가된 이름입니다.'); return; }
-  pendingMatchGuests.push(name);
-  input.value = '';
-  renderMatchVenueGuestList();
-  input.focus();
-}
-$('#addMatchVenueGuestBtn').addEventListener('click', addPendingMatchGuest);
-$('#matchVenueGuestNameInput').addEventListener('keydown', (e)=>{
-  if(e.key==='Enter'){ e.preventDefault(); addPendingMatchGuest(); }
-});
-
-/* ---------- 미투표 통계 제외 주간 (시험운영 기간 등) ---------- */
-function renderExcludeWeekList(){
-  const el = $('#excludeWeekList');
-  if(!el) return;
-  const weeks = [...(appData.excludedWeeks || [])].sort();
-  if(!weeks.length){
-    el.innerHTML = '<span class="empty-hint">제외된 주간이 없습니다.</span>';
-    return;
-  }
-  el.innerHTML = weeks.map(wk=>{
-    const dates = getWeekDates(wk);
-    const s = parseYMD(dates[0]), e = parseYMD(dates[6]);
-    const label = `${s.getMonth()+1}.${s.getDate()} ~ ${e.getMonth()+1}.${e.getDate()}`;
-    return `<span class="guest-chip">${escapeHtml(label)}<button type="button" data-week="${wk}" title="제외 해제">✕</button></span>`;
-  }).join('');
-  el.querySelectorAll('button[data-week]').forEach(btn=>{
-    btn.addEventListener('click', async ()=>{
-      const wk = btn.dataset.week;
-      await mutateAppData(data=>{
-        data.excludedWeeks = (data.excludedWeeks || []).filter(w=>w!==wk);
-      });
-      renderExcludeWeekList();
-      computeAttendanceStats();
-      toast('제외 해제했습니다. 다시 팀 순위 통계에 포함됩니다.');
-    });
-  });
-}
-$('#addExcludeWeekBtn').addEventListener('click', async ()=>{
-  if(!requireAdmin()) return;
-  const dateInput = $('#excludeWeekDateInput');
-  const dateVal = dateInput.value;
-  if(!dateVal){ toast('날짜를 선택해 주시기 바랍니다.'); return; }
-  const weekKey = getWeekStart(dateVal);
-  if((appData.excludedWeeks||[]).includes(weekKey)){ toast('이미 제외된 주간입니다.'); return; }
-  await mutateAppData(data=>{
-    if(!data.excludedWeeks) data.excludedWeeks = [];
-    data.excludedWeeks.push(weekKey);
-  });
-  dateInput.value = '';
-  renderExcludeWeekList();
-  computeAttendanceStats();
-  toast('해당 주간을 팀 순위 통계에서 제외했습니다.');
-});
-
-function loadMatchVenueTimeEditorForDate(dateStr){
-  const info = getVenueInfo(dateStr);
-  const sel = $('#matchVenuePresetSelect');
-  if(sel) sel.value = (info && findVenuePreset(info.name)) ? info.name : '';
-  const timeInput = $('#matchVenueTimeInput');
-  if(timeInput) timeInput.value = info && info.time ? info.time : '';
-  const linkInput = $('#matchVenueLinkInput');
-  if(linkInput) linkInput.value = info && info.link ? info.link : '';
-  pendingMatchGuests = [...((appData.matchGuests && appData.matchGuests[dateStr]) || [])];
-  renderMatchVenueGuestList();
-}
-/* 관리자가 입력한 링크를 정리합니다. http(s):// 로 시작하지 않으면 https:// 를 붙여 정상적인 링크로 저장합니다. */
-function normalizeMatchLink(raw){
-  const v = (raw||'').trim();
-  if(!v) return '';
-  if(/^https?:\/\//i.test(v)) return v;
-  return 'https://' + v;
-}
-$('#matchVenueDateInput').addEventListener('change', (e)=>{
-  if(e.target.value) loadMatchVenueTimeEditorForDate(e.target.value);
-});
-$('#saveMatchVenueTimeBtn').addEventListener('click', async ()=>{
-  if(!requireAdmin()) return;
-  const statusEl = $('#matchVenueTimeStatus');
-  const dateStr = $('#matchVenueDateInput').value;
-  const venueName = $('#matchVenuePresetSelect').value;
-  const timeStr = $('#matchVenueTimeInput').value.trim();
-  const linkRaw = $('#matchVenueLinkInput').value.trim();
-  if(!dateStr){ statusEl.textContent = '날짜를 선택해 주시기 바랍니다.'; statusEl.style.color='var(--danger)'; return; }
-  if(!venueName){ statusEl.textContent = '경기장을 선택해 주시기 바랍니다.'; statusEl.style.color='var(--danger)'; return; }
-  let link = '';
-  if(linkRaw){
-    link = normalizeMatchLink(linkRaw);
-    try{ new URL(link); }catch(e){ statusEl.textContent = '경기 링크 형식이 올바르지 않습니다.'; statusEl.style.color='var(--danger)'; return; }
-  }
-  const guests = [...pendingMatchGuests];
-  const preset = findVenuePreset(venueName);
-  const isActuallyConfirmed = !!(appData.votes[dateStr] && appData.votes[dateStr].length>0);
-  await mutateAppData(data=>{
-    data.venues[dateStr] = { name: venueName, address: preset ? preset.address : '', time: timeStr, link };
-    if(!data.matchGuests) data.matchGuests = {};
-    if(guests.length) data.matchGuests[dateStr] = guests;
-    else delete data.matchGuests[dateStr];
-  });
-  renderCalendar();
-  renderMatchStats();
-  renderMatchVenueConfirmedHint();
-  if(!isActuallyConfirmed){
-    statusEl.style.color = 'var(--amber)';
-    statusEl.textContent = '저장했지만, 이 날짜는 아직 실제로 확정된 경기일이 아닙니다. 홈 화면에는 표시되지 않을 수 있습니다.';
-  } else {
-    statusEl.style.color = 'var(--pitch)';
-    statusEl.textContent = '저장했습니다.';
-  }
-  toast('경기장/시간/링크/용병 정보를 저장했습니다.');
-});
-
-
-function hideMap(){
-  $('#mapEmpty').style.display='block'; $('#map').style.display='none'; $('#mapFullscreenBtn').style.display='none';
-  if(marker){ marker.setMap(null); marker = null; }
-}
-
-// TODO: 정식 배포 전 Supabase Auth 및 서버 측 권한 검증으로 이전 필요 (클라이언트에 API 키 노출)
-const KAKAO_JS_KEY = '120b5bb6ea3f8f79aa298231e1a6c04e';
-let kakaoReady = false;
-let kakaoLoadFailed = false;
-
-/* 카카오맵 SDK는 네이버와 달리 인증 실패를 콜백으로 알려주지 않고, 등록되지 않은 도메인에서는
-   자체적으로 경고창을 띄우며 로드를 마치지 않습니다. 그래서 일정 시간 안에 로드가 끝나지 않으면
-   실패로 간주하는 타임아웃 방식으로 감지합니다. */
-function loadKakaoScript(){
-  return new Promise((resolve, reject)=>{
-    if(window.kakao && window.kakao.maps && window.kakao.maps.Map){ resolve(); return; }
-    if(window.kakao && window.kakao.maps && window.kakao.maps.load){ kakao.maps.load(resolve); return; }
-    const s = document.createElement('script');
-    s.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${encodeURIComponent(KAKAO_JS_KEY)}&autoload=false&libraries=services`;
-    s.onload = ()=>{
-      try{ kakao.maps.load(resolve); }catch(e){ reject(e); }
-    };
-    s.onerror = ()=>reject(new Error('스크립트 로드 실패'));
-    document.head.appendChild(s);
-  });
-}
-async function ensureKakaoReady(){
-  if(kakaoLoadFailed){ $('#mapConfigBox').style.display='block'; return false; }
-  if(kakaoReady) return true;
-  try{
-    await Promise.race([
-      loadKakaoScript(),
-      new Promise((_,rej)=>setTimeout(()=>rej(new Error('타임아웃')), 5000))
-    ]);
-    kakaoReady = true;
-    $('#mapConfigBox').style.display='none';
-    return true;
-  }catch(e){
-    kakaoLoadFailed = true;
-    $('#mapConfigBox').style.display='block';
-    toast('카카오맵을 불러오지 못했습니다. 등록된 도메인에서 열었는지 확인해 주시기 바랍니다.');
-    return false;
-  }
-}
-
-/* 지도 전체화면 / 축소
-   아이폰 사파리(홈 화면 추가 포함)는 임의의 요소에 대한 네이티브 전체화면 API를 지원하지 않아서,
-   화면 전체를 덮는 CSS 클래스를 직접 토글하는 방식으로 구현했습니다. 모든 환경에서 동일하게 동작합니다. */
-function isMapFullscreen(){
-  const el = $('#mapWrap');
-  return !!(el && el.classList.contains('map-fullscreen-mode'));
-}
-function setMapFullscreen(on){
-  const el = $('#mapWrap');
-  const btn = $('#mapFullscreenBtn');
-  if(!el) return;
-  el.classList.toggle('map-fullscreen-mode', on);
-  document.body.classList.toggle('map-fullscreen-open', on);
-  if(btn) btn.textContent = on ? '✕ 닫기' : '⤢ 전체화면';
-  setTimeout(()=>{
-    try{ if(map) map.relayout(); }catch(e){}
-    const focusName = currentExpandedVenue || confirmedVenueName;
-    if(map && focusName && venuePinObjects[focusName]){ map.setCenter(venuePinObjects[focusName].pos); }
-  }, 100);
-}
-$('#mapFullscreenBtn').addEventListener('click', ()=>{
-  setMapFullscreen(!isMapFullscreen());
-});
-document.addEventListener('keydown', (e)=>{
-  if(e.key === 'Escape' && isMapFullscreen()) setMapFullscreen(false);
-});
-
-/* 주소가 있으면 정확한 주소 검색(Geocoder)을, 없으면 이름으로 장소 검색(Places)을 사용합니다. */
-function kakaoGeocode(query, isAddress){
-  return new Promise((resolve)=>{
-    if(!window.kakao || !kakao.maps || !kakao.maps.services){
-      console.error('카카오맵 services 라이브러리가 로드되지 않았습니다. (libraries=services 파라미터 또는 콘솔의 로컬 API 활성화 여부를 확인해주세요)');
-      resolve(null);
-      return;
-    }
-    if(isAddress){
-      const geocoder = new kakao.maps.services.Geocoder();
-      geocoder.addressSearch(query, (result, status)=>{
-        console.log('[카카오 주소검색]', query, 'status:', status, result);
-        if(status === kakao.maps.services.Status.OK && result[0]){
-          resolve({ lat: parseFloat(result[0].y), lng: parseFloat(result[0].x) });
-        } else { resolve(null); }
-      });
-    } else {
-      const places = new kakao.maps.services.Places();
-      places.keywordSearch(query, (result, status)=>{
-        console.log('[카카오 키워드검색]', query, 'status:', status, result);
-        if(status === kakao.maps.services.Status.OK && result[0]){
-          resolve({ lat: parseFloat(result[0].y), lng: parseFloat(result[0].x) });
-        } else { resolve(null); }
-      });
-    }
-  });
-}
-
-let adhocVenueOverlay = null; // 목록에 없는 경기장을 직접 검색했을 때 쓰는 임시 핀
-async function placeVenueMarker(info){
-  // 이전에 열려있던 임시(목록 외 검색) 핀은 정리합니다.
-  if(adhocVenueOverlay){ adhocVenueOverlay.setMap(null); adhocVenueOverlay = null; }
-
-  // 목록에 있는 경기장이면, 이미 지도에 찍혀있는 핀을 그대로 펼쳐서 보여줍니다.
-  const existing = venuePinObjects[info.name];
-  if(existing){
-    expandVenuePin(info.name);
-    map.setLevel(3);
-    return;
-  }
-
-  // 목록에 없는 경기장(직접 검색)은 임시 핀을 새로 만듭니다.
-  let coords = null;
-  // 1) 주소가 있으면 정확한 주소로 먼저 검색합니다.
-  if(info.address){
-    coords = await kakaoGeocode(info.address, true);
-  }
-  // 2) 주소 검색이 실패했거나 주소가 없으면, 장소 이름으로 다시 검색합니다.
-  //    (등록된 주소 표기가 카카오 주소 데이터와 정확히 일치하지 않아도 이름으로는 찾히는 경우가 많습니다)
-  if(!coords){
-    coords = await kakaoGeocode(info.name + ' 서울', false);
-  }
-  if(!coords){ toast('경기장 위치를 찾지 못했습니다. 이름/주소를 확인해 주시기 바랍니다.'); return; }
-  const pos = new kakao.maps.LatLng(coords.lat, coords.lng);
-  map.setCenter(pos);
-  map.setLevel(3);
-  collapseAllVenuePins();
-  const el = document.createElement('div');
-  el.className = 'venue-pin regular expanded';
-  el.innerHTML = `
-    <div class="vp-head">📍 <b>${escapeHtml(info.name)}</b></div>
-    ${info.address ? `<div class="vp-addr">${escapeHtml(info.address)}</div><button type="button" class="vp-copy">주소 복사</button>` : '<div class="vp-addr">등록된 주소가 없습니다</div>'}
-  `;
-  const copyBtn = el.querySelector('.vp-copy');
-  if(copyBtn) copyBtn.addEventListener('click', (e)=>{ e.stopPropagation(); window.copyVenueAddress(info.address); });
-  el.addEventListener('click', (e)=>e.stopPropagation());
-  adhocVenueOverlay = new kakao.maps.CustomOverlay({ position: pos, content: el, yAnchor: 1, xAnchor: 0.5, zIndex: 5 });
-  adhocVenueOverlay.setMap(map);
-}
-
-/* ---------- Init ---------- */
-$('#prevMonth').addEventListener('click', ()=>{ viewMonth--; if(viewMonth<0){viewMonth=11; viewYear--;} renderCalendar(); });
-$('#nextMonth').addEventListener('click', ()=>{ viewMonth++; if(viewMonth>11){viewMonth=0; viewYear++;} renderCalendar(); });
-
-function shiftSelectedDate(days){
-  const base = selectedDate ? parseYMD(selectedDate) : new Date();
-  base.setDate(base.getDate()+days);
-  setSelectedDate(fmtDate(base));
-}
-$('#dateNavPrev').addEventListener('click', ()=>shiftSelectedDate(-1));
-$('#dateNavToday').addEventListener('click', ()=>setSelectedDate(todayStr()));
-$('#dateNavNext').addEventListener('click', ()=>shiftSelectedDate(1));
-
-$('#logoutBtn').addEventListener('click', async ()=>{
-  if(!confirm('로그아웃하시겠습니까?\n자동 로그인은 해제되며, "아이디 및 참석코드 저장"을 체크해 두었다면 아이디와 참석코드는 그대로 유지됩니다.')) return;
-  if(myName){
-    await mutateAppData(data=>{
-      if(!data.members) data.members = {};
-      if(data.members[myName]) data.members[myName].status = 'offline';
-    });
-  }
-  try{ clearLoginSessionOnly(); }catch(e){}
-  window.location.reload();
-});
-
-(async function initLogin(){
-  // 저장된 아이디/참석코드를 화면에 먼저 채워둡니다 (자동 로그인 성공 여부와 무관하게 항상 표시)
-  const rememberPref = getLocalRememberPref();
-  $('#rememberIdChk').checked = rememberPref;
-  const savedCode = getLocalCode();
-  if(savedCode) $('#loginAccessCode').value = savedCode;
-  const stored = getLocalName();
-  if(stored) $('#loginId').value = stored;
-
-  const storedBirth = getLocalBirth();
-  if(stored && storedBirth){
-    const result = await loginOrValidate(stored, storedBirth);
-    if(!result.ok){
-      $('#loginId').value = stored;
-      if(result.pending){
-        // 승인 대기 중: 기기에 저장된 정보는 유지하고 안내만 표시
-        $('#loginError').style.color = 'var(--amber)';
-        $('#loginError').textContent = result.message;
-      } else {
-        // 저장된 정보가 더 이상 유효하지 않음 → 다시 로그인하도록 안내
-        clearLocalLogin();
-        $('#loginError').style.color = 'var(--danger)';
-        $('#loginError').textContent = '저장된 로그인 정보가 유효하지 않습니다. 다시 로그인해 주십시오.';
-      }
-      return;
-    }
-    myName = stored;
-    myBirth = storedBirth;
-    appData = result.data;
-    $('#loginId').value = stored;
-    $('#nameTag').textContent = myName;
-    $('#birthTag').textContent = `(${myBirth})`;
-    $('#adminBadge').style.display = isAdmin() ? 'inline-block' : 'none';
-    $('#loginOverlay').classList.add('hidden');
-    initAppUI();
-  }
-})();
-
-/* ---------- 홈 섹션(모바일 첫 화면) 미니 위젯 렌더링 ---------- */
-function renderHomeTab(){
-  if(typeof appData==='undefined' || !appData || !myName) return;
-
-  const voteCard = document.getElementById('homeVoteCard');
-  if(voteCard){
-    const thisWeekKey = getWeekStart(todayStr());
-    const nextWeekDate = parseYMD(thisWeekKey);
-    nextWeekDate.setDate(nextWeekDate.getDate()+7);
-    const weekKey = fmtDate(nextWeekDate);
-    const info = getWeekInfo(weekKey);
-    const sorted = info.dates.map(d=>({d, c: info.counts[d]||0})).filter(x=>x.c>0).sort((a,b)=>b.c-a.c).slice(0,3);
-    const label = getWeekLabel(weekKey);
-    let rowsHtml;
-    if(!sorted.length){
-      rowsHtml = `<div class="rank-empty">아직 ${escapeHtml(label)} 투표가 없습니다.</div>`;
-    } else {
-      const maxC = sorted[0].c || 1;
-      rowsHtml = sorted.map(x=>{
-        const o = parseYMD(x.d);
-        const isConf = info.confirmedDates.includes(x.d);
-        return `<div class="home-vote-row"><span class="hv-date">${o.getMonth()+1}.${o.getDate()}(${weekdayKR[o.getDay()]})${isConf?' 🏆':''}</span><div class="hv-bar-wrap"><div class="hv-bar" style="width:${Math.round(x.c/maxC*100)}%;"></div></div><span class="hv-count">${x.c}표</span></div>`;
-      }).join('');
-    }
-    voteCard.innerHTML = `
-      <div class="hero-top"><span class="hero-label">${escapeHtml(label)} 투표 현황</span></div>
-      ${rowsHtml}
-      <button class="home-goto-btn" id="homeGotoCalBtn">투표하러 가기</button>
-    `;
-    const gotoBtn = document.getElementById('homeGotoCalBtn');
-    if(gotoBtn) gotoBtn.addEventListener('click', ()=>{
-      const calBtn = document.querySelector('.mobile-tabbar .tab-btn[data-tab="calendar"]');
-      if(calBtn) calBtn.click();
-      if(typeof setSelectedDate==='function') setSelectedDate(weekKey);
-    });
-  }
-
-  const wMini = document.getElementById('homeWeatherMini');
-  if(wMini){
-    if(typeof weekData!=='undefined' && weekData.thisWeek && weekData.thisWeek.length){
-      const today = weekData.thisWeek[0];
-      const amIcon = typeof weatherIconFromCode==='function' ? weatherIconFromCode(today.amCode!=null?today.amCode:today.code) : '☀️';
-      const pmIcon = typeof weatherIconFromCode==='function' ? weatherIconFromCode(today.pmCode!=null?today.pmCode:today.code) : '☀️';
-      wMini.innerHTML = `
-        <div class="hm-label">날씨 정보 <span>›</span></div>
-        <div class="hm-ampm-row">
-          <div class="hm-ampm-col"><span class="hm-ampm-lb">오전</span><span class="hm-ampm-ico">${amIcon}</span><span class="hm-ampm-pop">${today.amPop||0}%</span></div>
-          <div class="hm-ampm-col"><span class="hm-ampm-lb">오후</span><span class="hm-ampm-ico">${pmIcon}</span><span class="hm-ampm-pop">${today.pmPop||0}%</span></div>
-        </div>
-        <div class="hm-sub">${isFinite(today.tmax)?Math.round(today.tmax):'-'}° / ${isFinite(today.tmin)?Math.round(today.tmin):'-'}°</div>
-      `;
-    } else {
-      wMini.innerHTML = `<div class="hm-label">날씨 정보 <span>›</span></div><div class="hm-sub">불러오는 중...</div>`;
-    }
-    wMini.onclick = ()=>{ const b = document.querySelector('.mobile-tabbar .tab-btn[data-tab="weather"]'); if(b) b.click(); };
-  }
-
-  const bMini = document.getElementById('homeBdayMini');
-  if(bMini){
-    const now = new Date();
-    const curMonth = now.getMonth()+1;
-    const curDay = now.getDate();
-    const approvedNames = Object.keys(appData.members||{}).filter(n=>appData.members[n].approved);
-    const monthBdays = approvedNames.map(n=>{
-      const b = appData.members[n].birth;
-      if(!b || b.length!==6) return null;
-      const mm = parseInt(b.slice(2,4),10);
-      const dd = parseInt(b.slice(4,6),10);
-      if(mm !== curMonth) return null;
-      return { n, day: dd };
-    }).filter(Boolean).sort((a,b)=>a.day-b.day);
-
-    if(monthBdays.length){
-      const upcoming = monthBdays.find(x=>x.day>=curDay) || monthBdays[0];
-      const isToday = upcoming.day===curDay;
-      bMini.innerHTML = `
-        <div class="hm-label">이번 달 생일 <span>›</span></div>
-        <div class="hm-main" style="font-size:16px;">🎂🎉 ${escapeHtml(upcoming.n)}</div>
-        <div class="hm-sub">${curMonth}.${upcoming.day}${monthBdays.length>1?` 외 ${monthBdays.length-1}명`:''}</div>
-        <div class="hm-bday-msg">${isToday?`${escapeHtml(upcoming.n)}님, 생일을 축하합니다! 🎂🎉`:'생일을 축하합니다! 🎉'}</div>
-      `;
-    } else {
-      bMini.innerHTML = `<div class="hm-label">이번 달 생일 <span>›</span></div><div class="hm-sub">이번 달 생일자가 없습니다</div>`;
-    }
-    bMini.onclick = ()=>{ const b = document.querySelector('.mobile-tabbar .tab-btn[data-tab="records"]'); if(b) b.click(); };
-  }
-
-  const recentCard = document.getElementById('homeRecentCard');
-  if(recentCard){
-    const todayS = todayStr();
-    const played = Object.keys(appData.votes||{})
-      .filter(d=>/^\d{4}-\d{2}-\d{2}$/.test(d) && d<=todayS && (appData.votes[d]||[]).length>0)
-      .sort().reverse().slice(0,5);
-    if(!played.length){
-      recentCard.innerHTML = '<div class="rank-empty">아직 진행된 경기가 없습니다.</div>';
-    } else {
-      recentCard.innerHTML = played.map(d=>{
-        const o = parseYMD(d);
-        const venue = getVenueInfo(d);
-        const venueLabel = venue ? `${escapeHtml(venue.name)}${venue.time?` · ${escapeHtml(venue.time)}`:''}` : '경기장 미등록';
-        return `<div class="home-recent-row"><span class="hr-date">${o.getMonth()+1}.${o.getDate()}(${weekdayKR[o.getDay()]})</span><span class="hr-venue" title="${escapeHtml(venueLabel)}">${venueLabel}</span></div>`;
-      }).join('');
-    }
-  }
-}
-function tryRenderHomeTab(){
-  try{ renderHomeTab(); }catch(e){ console.error(e); }
-}
-
-/* ---------- 모바일 하단 탭 전환 (768px 이하에서만 시각적으로 의미가 있지만, 클래스 토글 자체는 항상 동작) ---------- */
-function setActiveMobileSection(tabKey){
-  document.querySelectorAll('.mobile-tabbar .tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab===tabKey));
-  document.querySelectorAll('.app-section').forEach(s=>s.classList.remove('mobile-active'));
-  const idMap = { home:'sectionHome', weather:'sectionWeather', calendar:'sectionCalendar', matches:'sectionMatches', map:'sectionMap', records:'sectionRecords', admin:'sectionAdmin' };
-  const sec = document.getElementById(idMap[tabKey] || '');
-  if(sec) sec.classList.add('mobile-active');
-  window.scrollTo({top:0, behavior:'instant'});
-  if(tabKey==='home') tryRenderHomeTab();
-  if(tabKey==='map') loadDefaultMapVenue();
-  if(tabKey==='matches') initMatchesTabOnce();
-}
-document.querySelectorAll('.mobile-tabbar .tab-btn').forEach(btn=>{
-  btn.addEventListener('click', ()=>setActiveMobileSection(btn.dataset.tab));
-});
-setActiveMobileSection('home'); // 모바일 폭에서 기본으로 보일 탭
-
-/* ================= PWA 설치 & 알림 ================= */
-if('serviceWorker' in navigator){
-  window.addEventListener('load', ()=>{
-    navigator.serviceWorker.register('./sw.js').catch(e=>console.error('SW 등록 실패', e));
-  });
-}
-
-const NOTIFY_DISMISS_KEY = 'futsal-notify-dismissed';
-const NOTIFY_LAST_CONFIRMED_KEY = 'futsal-notify-last-confirmed';
-const NOTIFY_LAST_VOTE_REMINDER_KEY = 'futsal-notify-last-vote-reminder-date';
-
-function isNotificationSupported(){ return typeof Notification !== 'undefined'; }
-
-async function sendLocalNotification(title, options){
-  if(!isNotificationSupported() || Notification.permission !== 'granted') return;
-  try{
-    if('serviceWorker' in navigator){
-      const reg = await navigator.serviceWorker.ready;
-      reg.showNotification(title, options);
-    } else {
-      new Notification(title, options);
-    }
-  }catch(e){ console.error(e); }
-}
-
-function updateNotifyBanner(){
-  const banner = document.getElementById('notifyBanner');
-  if(!banner) return;
-  if(!isNotificationSupported() || Notification.permission !== 'default' || localStorage.getItem(NOTIFY_DISMISS_KEY)==='1'){
-    banner.style.display = 'none';
-    return;
-  }
-  banner.style.display = 'flex';
-}
-
-const notifyEnableBtn = document.getElementById('notifyEnableBtn');
-if(notifyEnableBtn) notifyEnableBtn.addEventListener('click', async ()=>{
-  if(!isNotificationSupported()){ toast('이 브라우저는 알림 기능을 지원하지 않습니다.'); return; }
-  const perm = await Notification.requestPermission();
-  if(perm === 'granted'){
-    toast('알림이 켜졌습니다.');
-    sendLocalNotification('공생관 알림이 켜졌습니다', { body:'경기 확정, 투표 마감 소식을 알려드리겠습니다.', icon:'./assets/icon-192.png' });
-  } else {
-    toast('알림이 차단되었습니다. 브라우저 설정에서 변경할 수 있습니다.');
-  }
-  updateNotifyBanner();
-});
-const notifyDismissBtn = document.getElementById('notifyDismissBtn');
-if(notifyDismissBtn) notifyDismissBtn.addEventListener('click', ()=>{
-  localStorage.setItem(NOTIFY_DISMISS_KEY, '1');
-  updateNotifyBanner();
-});
-
-/* 경기 확정 알림: 마지막으로 확인했던 확정 경기일과 지금 실제 확정된 경기일이 다르면(=새로 확정됨) 알려줍니다.
-   주의: 서버가 없어 실시간 푸시는 아니며, 이 브라우저에서 앱을 열거나 새로고침했을 때만 확인합니다. */
-function checkMatchConfirmedNotification(){
-  if(!isNotificationSupported() || Notification.permission!=='granted') return;
-  if(typeof appData==='undefined' || !appData) return;
-  const todayS = todayStr();
-  const confirmedDates = Object.keys(appData.votes||{})
-    .filter(d=>/^\d{4}-\d{2}-\d{2}$/.test(d) && d>=todayS && (appData.votes[d]||[]).length>0)
-    .sort();
-  const nearest = confirmedDates[0];
-  if(!nearest) return;
-  const lastSeen = localStorage.getItem(NOTIFY_LAST_CONFIRMED_KEY);
-  if(lastSeen === nearest) return;
-  localStorage.setItem(NOTIFY_LAST_CONFIRMED_KEY, nearest);
-  if(lastSeen === null) return; // 최초 방문에서는 알리지 않고 기준값만 저장합니다.
-  const o = parseYMD(nearest);
-  const venue = getVenueInfo(nearest);
-  sendLocalNotification('⚽ 경기가 확정되었습니다', {
-    body: `${o.getMonth()+1}.${o.getDate()}(${weekdayKR[o.getDay()]})${venue?' · '+venue.name:''}`,
-    icon: './assets/icon-192.png',
-    tag: 'match-confirmed'
-  });
-}
-
-/* 투표 마감 리마인드: 이번 주가 아직 확정되지 않았고, 내가 가능일 선택도 불참 선언도 안 했으면
-   목요일부터 하루 한 번만 알려줍니다. */
-function checkVoteDeadlineReminder(){
-  if(!isNotificationSupported() || Notification.permission!=='granted') return;
-  if(typeof myName==='undefined' || !myName) return;
-  const now = kstNow();
-  if(now.getDay() < 4) return; // 목(4)·금(5)·토(6)요일에만 리마인드
-  const todayS = todayStr();
-  if(localStorage.getItem(NOTIFY_LAST_VOTE_REMINDER_KEY) === todayS) return;
-
-  const weekKey = getWeekStart(todayS);
-  const info = getWeekInfo(weekKey);
-  if(info.confirmedDates && info.confirmedDates.length) return; // 이미 확정되었으면 리마인드하지 않음
-  const myAvail = (info.avail && info.avail[myName]) || [];
-  const absenceMap = (appData.weekAbsence && appData.weekAbsence[weekKey]) || {};
-  if(myAvail.length>0 || absenceMap[myName]) return; // 이미 응답함
-
-  localStorage.setItem(NOTIFY_LAST_VOTE_REMINDER_KEY, todayS);
-  sendLocalNotification('🗳️ 아직 이번 주 투표를 하지 않으셨습니다', {
-    body: '경기 날짜 투표 마감이 다가옵니다. 앱을 열어 참석 가능한 날짜를 선택해 주세요.',
-    icon: './assets/icon-192.png',
-    tag: 'vote-reminder'
-  });
-}
-
-/* ================= 경기 탭 (플랩풋볼, Supabase public.plab_matches 조회 전용) =================
-   ⚠️ 이 섹션은 GitHub Actions/fetch-plab.js/Supabase 테이블 구조를 전혀 건드리지 않고,
-   이미 저장되어 있는 plab_matches 테이블을 "읽기 전용"으로 조회만 합니다.
-   즐겨찾기는 지도 탭에서 관리자가 지정한 appData.favoriteVenues(Supabase 공유 데이터)를 그대로 사용합니다. */
-
-let selectedMatchDate = null; // YYYY-MM-DD
-let matchTimeFilter = 'all';  // all | morning | afternoon | evening
-let matchFavOnly = false;
-let matchesTabInited = false;
-let lastMatchRows = [];
-let matchVisibleCount = 10;
-const MATCHES_PER_PAGE = 10;
-
-/* 오늘부터 14일치 날짜 목록 (KST 기준) */
-function buildMatchDateList(){
-  const base = kstNow();
-  const list = [];
-  for(let i=0;i<14;i++){
-    const d = new Date(base.getFullYear(), base.getMonth(), base.getDate()+i);
-    list.push(fmtDate(d));
-  }
-  return list;
-}
-
-function renderMatchDateScroller(){
-  const el = $('#matchDateScroll');
-  if(!el) return;
-  const dates = buildMatchDateList();
-  const todayS = todayStr();
-  el.innerHTML = dates.map(d=>{
-    const o = parseYMD(d);
-    const isToday = d===todayS;
-    const label = isToday ? '오늘' : weekdayKR[o.getDay()];
-    return `<div class="match-date-chip ${d===selectedMatchDate?'active':''}" data-date="${d}">
-      <span class="md-label">${label}</span>
-      <span class="md-date">${o.getMonth()+1}/${o.getDate()}</span>
-    </div>`;
-  }).join('');
-  el.querySelectorAll('.match-date-chip').forEach(chip=>{
-    chip.addEventListener('click', ()=>{
-      selectedMatchDate = chip.dataset.date;
-      matchVisibleCount = MATCHES_PER_PAGE;
-      renderMatchDateScroller();
-      loadMatchesForSelectedDate();
-    });
-  });
-}
-
-/* 모집 상태 판정: Supabase에는 apply_status가 'available'(모집중) 또는 'hurry'(마감임박)만
-   저장되어 있습니다 ('full'은 fetch-plab.js에서 애초에 저장하지 않습니다). */
-function getMatchStatus(row){
-  if(row.apply_status === 'available') return 'open';
-  if(row.apply_status === 'hurry') return 'closing';
-  return 'full'; // 예상 밖의 값이 들어온 경우를 위한 방어적 처리
-}
-function matchStatusLabel(status){
-  if(status==='full') return { text:'🔴 마감', cls:'status-full' };
-  if(status==='closing') return { text:'🟠 마감임박', cls:'status-closing' };
-  return { text:'🟢 모집중', cls:'status-open' };
-}
-function matchTimePeriod(timeStr){
-  if(!timeStr) return null;
-  const h = parseInt(String(timeStr).split(':')[0], 10);
-  if(isNaN(h)) return null;
-  if(h < 12) return 'morning';
-  if(h < 18) return 'afternoon';
-  return 'evening';
-}
-
-async function loadMatchesForSelectedDate(){
-  const listEl = $('#matchListContainer');
-  const countEl = $('#matchCountText');
-  const updatedEl = $('#matchUpdatedText');
-  if(!listEl) return;
-  if(!supabaseClient){ listEl.innerHTML = '<div class="rank-empty">Supabase에 연결되어 있지 않습니다.</div>'; return; }
-  listEl.innerHTML = '<div class="match-loading">경기 정보를 불러오는 중...</div>';
-
-  try{
-    const { data, error } = await supabaseClient
-      .from('plab_matches')
-      .select('*')
-      .eq('match_date', selectedMatchDate)
-      .order('match_time', { ascending: true });
-    if(error) throw error;
-
-    lastMatchRows = data || [];
-    // 모집 상태 판정 기준이 맞는지 확인할 수 있도록, 실제로 어떤 apply_status 값들이 들어오는지 로그로 남깁니다.
-    const uniqueStatuses = [...new Set(lastMatchRows.map(r=>r.apply_status))];
-    console.log('[경기 탭] 이 날짜에서 발견된 apply_status 값들:', uniqueStatuses);
-    if(updatedEl){
-      const latest = lastMatchRows.reduce((acc,r)=> (r.updated_at && (!acc || r.updated_at>acc)) ? r.updated_at : acc, null);
-      updatedEl.textContent = latest ? `마지막 업데이트 · ${new Date(latest).toLocaleString('ko-KR')}` : '';
-    }
-    renderMatchList();
-  }catch(e){
-    console.error('[경기 탭] plab_matches 조회 실패', e);
-    listEl.innerHTML = '<div class="rank-empty">경기 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주시기 바랍니다.</div>';
-    if(countEl) countEl.textContent = '-';
-    if(updatedEl) updatedEl.textContent = '';
-  }
-}
-
-function renderMatchList(){
-  const listEl = $('#matchListContainer');
-  const countEl = $('#matchCountText');
-  if(!listEl) return;
-  const favSet = new Set(appData.favoriteVenues || []);
-
-  let rows = lastMatchRows.filter(r=>{
-    if(matchTimeFilter !== 'all' && matchTimePeriod(r.match_time) !== matchTimeFilter) return false;
-    if(matchFavOnly){
-      // 즐겨찾기 경기장명과 완전히 일치하지 않을 수 있어(플랩 표기 차이), 부분 포함까지 함께 확인합니다.
-      const hit = [...favSet].some(fav => r.stadium_name && (r.stadium_name===fav || r.stadium_name.includes(fav) || fav.includes(r.stadium_name)));
-      if(!hit) return false;
-    }
-    return true;
-  });
-
-  // 화면에 보이는(필터링된) 경기 수를 그대로 표시합니다 — 필터 적용 전 전체 수를 보여주면 실제 목록과 안 맞아 보입니다.
-  if(countEl){
-    const dObj = selectedMatchDate ? parseYMD(selectedMatchDate) : null;
-    const isToday = selectedMatchDate === todayStr();
-    const dayLabel = dObj ? (isToday ? '오늘 경기' : `${dObj.getMonth()+1}.${dObj.getDate()}(${weekdayKR[dObj.getDay()]}) 경기`) : '경기';
-    countEl.innerHTML = `<span class="mc-count-label">${escapeHtml(dayLabel)}</span><span class="mc-count-num">${rows.length}경기</span>`;
-  }
-
-  if(!rows.length){
-    listEl.innerHTML = '<div class="rank-empty">오늘은 등록된 경기가 없습니다.</div>';
-    return;
-  }
-
-  if(matchVisibleCount < MATCHES_PER_PAGE) matchVisibleCount = MATCHES_PER_PAGE;
-  const shownRows = rows.slice(0, matchVisibleCount);
-  const remaining = rows.length - shownRows.length;
-
-  const cardsHtml = shownRows.map(r=>{
-    const status = getMatchStatus(r);
-    const label = matchStatusLabel(status);
-    const timeStr = r.match_time ? String(r.match_time).slice(0,5) : '-';
-
-    // 경기 형식(player_count, 예: "6vs6")과 실시간 모집 인원(confirm_count/max_player_cnt)을
-    // 계산 없이 실제 저장된 값 그대로 하나의 뱃지로 보여줍니다.
-    const formatText = r.player_count ? String(r.player_count) : '';
-    const countText = (r.confirm_count != null && r.max_player_cnt != null)
-      ? `${r.confirm_count}/${r.max_player_cnt}명`
-      : '';
-    const typeParts = [formatText, countText].filter(Boolean).join(' · ');
-    const typeHtml = typeParts ? `<span class="mc-type">👥 ${escapeHtml(typeParts)}</span>` : '';
-    // level(급수)·gender(성별)도 저장되어 있으면 보조 정보로 함께 보여줍니다.
-    const extraTags = [r.level, r.gender].filter(Boolean);
-    const extraTagsHtml = extraTags.length
-      ? `<div class="mc-tags-row">${extraTags.map(t=>`<span class="mc-tag">${escapeHtml(String(t))}</span>`).join('')}</div>`
-      : '';
-
-    return `
-      <div class="match-card">
-        <div class="mc-top-row">
-          <span class="mc-time">${escapeHtml(timeStr)}</span>
-          <span class="mc-venue">📍 ${escapeHtml(r.stadium_name || '경기장 미정')}</span>
-        </div>
-        ${extraTagsHtml}
-        <div class="mc-status-row">
-          <span class="mc-status ${label.cls}">${label.text}</span>
-          ${typeHtml}
-        </div>
-        <div class="mc-action-row">
-          <button type="button" class="mc-apply-btn" data-url="${escapeHtml(r.match_url||'')}">신청하기 →</button>
-        </div>
-      </div>
-    `;
-  }).join('');
-
-  const moreHtml = remaining > 0
-    ? `<button type="button" class="match-more-btn" id="matchMoreBtn">더 많은 경기 보기 (${remaining}경기 더)</button>`
-    : '';
-
-  listEl.innerHTML = cardsHtml + moreHtml;
-
-  listEl.querySelectorAll('.mc-apply-btn').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      if(btn.dataset.url) window.open(btn.dataset.url, '_blank', 'noopener');
-    });
-  });
-  const moreBtn = $('#matchMoreBtn');
-  if(moreBtn) moreBtn.addEventListener('click', ()=>{
-    matchVisibleCount += MATCHES_PER_PAGE;
-    renderMatchList();
-  });
-}
-
-function initMatchesTabOnce(){
-  if(matchesTabInited) return;
-  if(!$('#matchDateScroll')) return; // 아직 로그인 전 등, DOM이 없을 수 있음
-  matchesTabInited = true;
-  selectedMatchDate = todayStr();
-  renderMatchDateScroller();
-  loadMatchesForSelectedDate();
-
-  $('#matchFilterRow').querySelectorAll('.mf-chip[data-filter-time]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      matchTimeFilter = btn.dataset.filterTime;
-      matchVisibleCount = MATCHES_PER_PAGE;
-      $('#matchFilterRow').querySelectorAll('.mf-chip[data-filter-time]').forEach(b=>b.classList.toggle('active', b===btn));
-      renderMatchList();
-    });
-  });
-  const favBtn = $('#matchFavFilterBtn');
-  if(favBtn) favBtn.addEventListener('click', ()=>{
-    matchFavOnly = !matchFavOnly;
-    matchVisibleCount = MATCHES_PER_PAGE;
-    favBtn.classList.toggle('active', matchFavOnly);
-    renderMatchList();
-  });
-  const refreshBtn = $('#matchRefreshBtn');
-  if(refreshBtn) refreshBtn.addEventListener('click', async ()=>{
-    // GitHub Actions를 실행하는 게 아니라, Supabase에 이미 저장된 최신 데이터를 다시 조회만 합니다.
-    refreshBtn.disabled = true;
-    const orig = refreshBtn.textContent;
-    refreshBtn.textContent = '불러오는 중...';
-    matchVisibleCount = MATCHES_PER_PAGE;
-    await loadMatchesForSelectedDate();
-    refreshBtn.disabled = false;
-    refreshBtn.textContent = orig;
-    toast('최신 경기 정보를 불러왔습니다.');
-  });
-}
