@@ -2103,19 +2103,31 @@ function updateFavVenueBtn(){
   btn.textContent = isFav ? '★' : '☆';
   btn.classList.toggle('on', isFav);
 }
+/* 즐겨찾기 저장이 다른 사람의 동시 저장(투표 등)과 겹치면 그 사이에 값이 유실될 수 있어서,
+   저장 후 다시 불러와 실제로 반영됐는지 확인하고, 안 됐으면 짧게 기다렸다가 다시 시도합니다. */
+async function setFavoriteVenueRobust(name, shouldBeFavorite){
+  for(let attempt=0; attempt<3; attempt++){
+    await mutateAppData(data=>{
+      if(!data.favoriteVenues) data.favoriteVenues = [];
+      const has = data.favoriteVenues.includes(name);
+      if(shouldBeFavorite && !has) data.favoriteVenues.push(name);
+      if(!shouldBeFavorite && has) data.favoriteVenues = data.favoriteVenues.filter(n=>n!==name);
+    });
+    const check = await remoteLoad();
+    const nowHas = (check.favoriteVenues||[]).includes(name);
+    if(nowHas === shouldBeFavorite){ appData = check; return true; }
+    await new Promise(r=>setTimeout(r, 300 + attempt*300));
+  }
+  console.error('[즐겨찾기] 3회 재시도에도 반영되지 않았습니다:', name);
+  return false;
+}
 $('#favVenueBtn').addEventListener('click', async ()=>{
   if(!requireAdmin()) return;
   const name = $('#venueInput').value.trim();
   const preset = findVenuePreset(name);
   if(!preset) return;
-  await mutateAppData(data=>{
-    if(!data.favoriteVenues) data.favoriteVenues = [];
-    if(data.favoriteVenues.includes(preset.name)){
-      data.favoriteVenues = data.favoriteVenues.filter(n=>n!==preset.name);
-    } else {
-      data.favoriteVenues.push(preset.name);
-    }
-  });
+  const willBeFavorite = !(appData.favoriteVenues||[]).includes(preset.name);
+  const ok = await setFavoriteVenueRobust(preset.name, willBeFavorite);
   populateVenuePresetSelect();
   updateFavVenueBtn();
   if(venuePinObjects[preset.name]){
@@ -2123,7 +2135,11 @@ $('#favVenueBtn').addEventListener('click', async ()=>{
     setVenueStarBadge(preset.name, isFavNow);
     refreshVenuePinStyle(preset.name, currentHighlightedVenueName===preset.name);
   }
-  toast((appData.favoriteVenues||[]).includes(preset.name) ? '즐겨찾기에 추가했습니다.' : '즐겨찾기에서 제거했습니다.');
+  if(!ok){
+    toast('즐겨찾기 저장에 실패했습니다. 잠시 후 다시 시도해 주시기 바랍니다.');
+  } else {
+    toast(willBeFavorite ? '즐겨찾기에 추가했습니다.' : '즐겨찾기에서 제거했습니다.');
+  }
 });
 $('#copyVenueAddressBtn').addEventListener('click', ()=>{
   const text = $('#venueAddressText').textContent;
@@ -2957,18 +2973,12 @@ function renderMatchDateScroller(){
   });
 }
 
-/* 모집 상태 판정: apply_status가 'full'이면 마감, 아니면 참여인원/정원 비율로 마감임박을 판정합니다.
-   (플랩 API의 apply_status 값 종류를 정확히 확인하지 못해, 인원수 기반으로도 보정하도록 만들었습니다.
-   실제 데이터로 확인해보시고 기준이 다르면 이 함수만 조정하면 됩니다.) */
+/* 모집 상태 판정: Supabase에는 apply_status가 'available'(모집중) 또는 'hurry'(마감임박)만
+   저장되어 있습니다 ('full'은 fetch-plab.js에서 애초에 저장하지 않습니다). */
 function getMatchStatus(row){
-  if(row.apply_status === 'full') return 'full';
-  const max = row.max_player_cnt;
-  const cur = row.confirm_count ?? row.player_count;
-  if(max && cur != null){
-    if(cur >= max) return 'full';
-    if(cur / max >= 0.8) return 'closing';
-  }
-  return 'open';
+  if(row.apply_status === 'available') return 'open';
+  if(row.apply_status === 'hurry') return 'closing';
+  return 'full'; // 예상 밖의 값이 들어온 경우를 위한 방어적 처리
 }
 function matchStatusLabel(status){
   if(status==='full') return { text:'🔴 마감', cls:'status-full' };
@@ -3050,8 +3060,14 @@ function renderMatchList(){
     const label = matchStatusLabel(status);
     const timeStr = r.match_time ? String(r.match_time).slice(0,5) : '-';
 
-    // 경기 종류(6:6 등)는 계산하지 않고, plab_matches의 실제 type 컬럼 값을 그대로 사용합니다.
-    const typeHtml = r.type ? `<span class="mc-type">👥 ${escapeHtml(String(r.type))}</span>` : '';
+    // 경기 형식(player_count, 예: "6vs6")과 실시간 모집 인원(confirm_count/max_player_cnt)을
+    // 계산 없이 실제 저장된 값 그대로 하나의 뱃지로 보여줍니다.
+    const formatText = r.player_count ? String(r.player_count) : '';
+    const countText = (r.confirm_count != null && r.max_player_cnt != null)
+      ? `${r.confirm_count}/${r.max_player_cnt}명`
+      : '';
+    const typeParts = [formatText, countText].filter(Boolean).join(' · ');
+    const typeHtml = typeParts ? `<span class="mc-type">👥 ${escapeHtml(typeParts)}</span>` : '';
     // level(급수)·gender(성별)도 저장되어 있으면 보조 정보로 함께 보여줍니다.
     const extraTags = [r.level, r.gender].filter(Boolean);
     const extraTagsHtml = extraTags.length
