@@ -680,4 +680,9 @@
     .admin-week-grid{
       grid-template-columns:none;
       grid-auto-flow:column;
-      grid-auto-columns:minmax(
+      grid-auto-columns:minmax(56px,1fr);
+      overflow-x:auto;
+      -webkit-overflow-scrolling:touch;
+    }
+    .actual-check-grid{grid-template-columns:1fr;}
+  }
