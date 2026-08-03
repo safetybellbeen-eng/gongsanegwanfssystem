@@ -403,11 +403,12 @@
   .match-card .mc-status.status-open{background:rgba(61,220,132,0.15);color:var(--pitch);}
   .match-card .mc-status.status-closing{background:rgba(255,176,32,0.15);color:var(--amber);}
   .match-card .mc-status.status-full{background:rgba(255,93,93,0.15);color:var(--danger);}
-  .mc-type{display:inline-flex;align-items:center;gap:4px;background:rgba(109,184,255,0.15);color:#6db8ff;border-radius:8px;padding:5px 10px;font-size:12px;font-weight:700;white-space:nowrap;}
+  .mc-type{flex-shrink:0;display:inline-flex;align-items:center;gap:4px;background:rgba(109,184,255,0.15);color:#6db8ff;border-radius:8px;padding:5px 10px;font-size:12px;font-weight:700;white-space:nowrap;}
   .mc-tags-row{display:flex;gap:6px;margin-bottom:10px;}
   .mc-tag{background:var(--surface);border:1px solid var(--line);color:var(--muted);border-radius:7px;padding:3px 9px;font-size:11px;font-weight:600;}
-  .mc-bottom-row{display:flex;align-items:center;justify-content:space-between;gap:10px;}
-  .mc-apply-btn{flex-shrink:0;background:var(--pitch);color:#0b1410;border:none;border-radius:10px;padding:11px 18px;font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap;}
+  .mc-bottom-row{display:flex;align-items:center;gap:8px;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px;}
+  .mc-bottom-row::-webkit-scrollbar{height:3px;}
+  .mc-apply-btn{flex-shrink:0;margin-left:auto;background:var(--pitch);color:#0b1410;border:none;border-radius:10px;padding:11px 18px;font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap;}
   .mc-apply-btn:hover{filter:brightness(1.05);}
   .match-loading{text-align:center;color:var(--muted);font-size:13px;padding:30px 0;}
   .match-more-btn{display:block;width:100%;margin-top:8px;background:var(--surface-2);border:1px dashed var(--line);color:var(--text);border-radius:12px;padding:13px;font-size:13px;font-weight:600;cursor:pointer;}
@@ -666,6 +667,9 @@
     .week-day-grid::-webkit-scrollbar{display:none;}
     .week-day-chip{min-width:56px;}
     .venue-row{flex-wrap:wrap;}
+    .mc-status,.mc-type{font-size:11px;padding:4px 8px;}
+    .mc-apply-btn{padding:9px 14px;font-size:12px;}
+    .match-card{padding:12px 14px;}
     .venue-row select,
     .venue-row input,
     .venue-row button{width:100%;max-width:none;flex:1 1 100%;}
