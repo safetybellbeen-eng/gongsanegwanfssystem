@@ -3094,11 +3094,21 @@ function renderMatchList(){
       ? `<div class="mc-tags-row">${extraTags.map(t=>`<span class="mc-tag">${escapeHtml(String(t))}</span>`).join('')}</div>`
       : '';
 
+    const isFav = [...favSet].some(fav=>{
+      const normalize = (s)=> String(s||'').replace(/\s+/g, '');
+      const a = normalize(r.stadium_name), b = normalize(fav);
+      return a && b && (a===b || a.includes(b) || b.includes(a));
+    });
+    const favBtnHtml = isAdminUser()
+      ? `<button type="button" class="mc-fav-btn ${isFav?'on':''}" data-venue="${escapeHtml(r.stadium_name||'')}" title="이 경기장 즐겨찾기">${isFav?'★':'☆'}</button>`
+      : '';
+
     return `
       <div class="match-card">
         <div class="mc-top-row">
           <span class="mc-time">${escapeHtml(timeStr)}</span>
           <span class="mc-venue">📍 ${escapeHtml(r.stadium_name || '경기장 미정')}</span>
+          ${favBtnHtml}
         </div>
         ${extraTagsHtml}
         <div class="mc-status-row">
@@ -3121,6 +3131,23 @@ function renderMatchList(){
   listEl.querySelectorAll('.mc-apply-btn').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       if(btn.dataset.url) window.open(btn.dataset.url, '_blank', 'noopener');
+    });
+  });
+  listEl.querySelectorAll('.mc-fav-btn').forEach(btn=>{
+    btn.addEventListener('click', async (e)=>{
+      e.stopPropagation();
+      const venueName = btn.dataset.venue;
+      if(!venueName) return;
+      const willBeFavorite = !btn.classList.contains('on');
+      btn.disabled = true;
+      const ok = await setFavoriteVenueRobust(venueName, willBeFavorite);
+      btn.disabled = false;
+      if(ok){
+        toast(willBeFavorite ? `'${venueName}' 즐겨찾기에 추가했습니다.` : `'${venueName}' 즐겨찾기에서 제거했습니다.`);
+        renderMatchList();
+      } else {
+        toast('즐겨찾기 저장에 실패했습니다. 잠시 후 다시 시도해 주시기 바랍니다.');
+      }
     });
   });
   const moreBtn = $('#matchMoreBtn');
