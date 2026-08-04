@@ -1222,7 +1222,11 @@ async function cancelWeekAbsence(weekKey){
 }
 
 /* 실시간 갱신: 20초마다 확인해 변경되면 자동 반영 (투표 + 멤버 명단)
-   (JSONBin.io 무료 요청 건수를 아끼기 위해 너무 짧은 주기로는 확인하지 않아요) */
+   (JSONBin.io 무료 요청 건수를 아끼기 위해 너무 짧은 주기로는 확인하지 않아요)
+   ⚠️ 예전에는 변경 감지 시 appData 전체를 통째로 교체했는데, 그러면 하필 그 사이에 다른 곳에서
+   저장한 값(즐겨찾기 등)이 이 스냅샷엔 아직 없어서 화면에서 순간적으로 사라지는 문제가 있었습니다.
+   이제는 이 주기적 갱신이 실제로 관여하는 투표 관련 필드만 선택적으로 갱신하고, 나머지 필드는
+   그대로 둡니다. */
 setInterval(async ()=>{
   const fresh = await remoteLoad();
   appData.members = fresh.members;
@@ -1231,7 +1235,11 @@ setInterval(async ()=>{
     const weekKey = getWeekStart(selectedDate);
     const freshJson = JSON.stringify((fresh.weekAvailability||{})[weekKey] || {});
     if(freshJson !== lastVotesJson){
-      appData = fresh;
+      appData.weekAvailability = fresh.weekAvailability;
+      appData.weekAbsence = fresh.weekAbsence;
+      appData.weekOverride = fresh.weekOverride;
+      appData.votes = fresh.votes;
+      appData.votedDates = fresh.votedDates;
       lastVotesJson = freshJson;
       renderCalendar();
       await renderMatchPanel();
@@ -2929,7 +2937,7 @@ function checkVoteDeadlineReminder(){
    즐겨찾기는 지도 탭에서 관리자가 지정한 appData.favoriteVenues(Supabase 공유 데이터)를 그대로 사용합니다. */
 
 let selectedMatchDate = null; // YYYY-MM-DD
-let matchTimeFilter = 'all';  // all | morning | afternoon | evening
+let matchTimeFilter = 'evening';  // all | morning | afternoon | evening (기본은 저녁 19시 이후)
 let matchFavOnly = false;
 let matchesTabInited = false;
 let lastMatchRows = [];
@@ -2988,7 +2996,7 @@ function matchTimePeriod(timeStr){
   const h = parseInt(String(timeStr).split(':')[0], 10);
   if(isNaN(h)) return null;
   if(h < 12) return 'morning';
-  if(h < 18) return 'afternoon';
+  if(h < 19) return 'afternoon';
   return 'evening';
 }
 
@@ -3037,8 +3045,14 @@ function renderMatchList(){
   let rows = lastMatchRows.filter(r=>{
     if(matchTimeFilter !== 'all' && matchTimePeriod(r.match_time) !== matchTimeFilter) return false;
     if(matchFavOnly){
-      // 즐겨찾기 경기장명과 완전히 일치하지 않을 수 있어(플랩 표기 차이), 부분 포함까지 함께 확인합니다.
-      const hit = [...favSet].some(fav => r.stadium_name && (r.stadium_name===fav || r.stadium_name.includes(fav) || fav.includes(r.stadium_name)));
+      // 즐겨찾기 경기장명과 완전히 일치하지 않을 수 있어(플랩 표기 차이), 공백을 무시하고
+      // 부분 포함까지 함께 확인합니다. (예: "가산 벽산디지털밸리" vs "가산벽산디지털밸리")
+      const normalize = (s)=> String(s||'').replace(/\s+/g, '');
+      const stadiumNorm = normalize(r.stadium_name);
+      const hit = [...favSet].some(fav=>{
+        const favNorm = normalize(fav);
+        return stadiumNorm && favNorm && (stadiumNorm===favNorm || stadiumNorm.includes(favNorm) || favNorm.includes(stadiumNorm));
+      });
       if(!hit) return false;
     }
     return true;
