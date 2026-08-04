@@ -116,7 +116,16 @@ async function loginOrValidate(name, birth){
 async function initAppUI(){
   const now = new Date();
   viewYear = now.getFullYear(); viewMonth = now.getMonth();
-  await loadFavoriteVenues(); // 지도 핀/경기 탭 필터가 즐겨찾기를 바로 반영할 수 있도록 먼저 불러옵니다.
+  // ⚠️ favorite_venues 테이블이 아직 Supabase에 없거나 네트워크가 늦어도, 이 한 단계 때문에
+  // 로그인 이후 화면 전체가 멈추면 안 되므로 이중으로 안전장치를 둡니다: try/catch + 시간 제한.
+  try{
+    await Promise.race([
+      loadFavoriteVenues(),
+      new Promise(resolve=>setTimeout(resolve, 3000)) // 3초 넘으면 그냥 넘어감
+    ]);
+  }catch(e){
+    console.error('[즐겨찾기] 초기 로드 중 오류(무시하고 계속 진행):', e);
+  }
   populateVenuePresetSelect();
   renderCalendar();
   renderMemberList();
@@ -2089,7 +2098,6 @@ function populateVenuePresetSelect(){
   sel.innerHTML = html;
   if(prevValue) sel.value = prevValue;
 }
-populateVenuePresetSelect();
 $('#venuePresetSelect').addEventListener('change', ()=>{
   const name = $('#venuePresetSelect').value;
   if(!name) return;
