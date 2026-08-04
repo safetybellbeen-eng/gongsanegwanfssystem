@@ -821,7 +821,7 @@ function resyncWeekDerivedVotes(data, weekKey){
   data.weekOverride[weekKey] = manual; // 정리된 배열로 다시 저장해서 오염 데이터를 치유
   const autoWinner = (max>0 && topDates.length===1) ? topDates[0] : null;
   const confirmedDates = Array.from(new Set([...(autoWinner?[autoWinner]:[]), ...manual]));
-  const approvedNames = Object.keys(data.members||{}).filter(n=>data.members[n].approved);
+  const approvedNames = Object.keys(data.members||{}).filter(n=>data.members[n].approved && n!==ADMIN_NAME);
   const weekAbsenceMap = (data.weekAbsence && data.weekAbsence[weekKey]) || {};
   confirmedDates.forEach(winner=>{
     // "불참(no)"은 그 주 전체 불참을 명시적으로 선언한 사람만 해당합니다.
@@ -894,11 +894,14 @@ function renderCalendar(){
   }
 }
 
-function pieGradient(yes, no){
-  const total = yes+no;
+/* 참석(초록)/불참(빨강)/미투표(회색) 3색 원형 그래프. 미투표가 0명이면 자연스럽게 2색 그래프와 동일합니다. */
+function pieGradient(yes, no, notVoted){
+  notVoted = notVoted || 0;
+  const total = yes+no+notVoted;
   if(total===0) return null;
   const yesPct = (yes/total)*100;
-  return `conic-gradient(var(--pitch) 0% ${yesPct}%, var(--danger) ${yesPct}% 100%)`;
+  const noPct = (no/total)*100;
+  return `conic-gradient(var(--pitch) 0% ${yesPct}%, var(--danger) ${yesPct}% ${yesPct+noPct}%, var(--muted) ${yesPct+noPct}% 100%)`;
 }
 
 let lastVotesJson = null;
@@ -910,9 +913,22 @@ function getEffectiveVotesForDate(date){
   if(actual && actual.finalized){
     const approvedNames = getApprovedNonAdminNames();
     const attendSet = new Set(actual.attendees||[]);
+    // 실제 참석 체크가 끝나면 전원이 참석/불참 둘 중 하나로 확정되어 미투표는 없습니다.
     return approvedNames.map(name=>({ name, choice: attendSet.has(name) ? 'yes' : 'no' }));
   }
   return appData.votes[date] || [];
+}
+/* 참석/불참/미투표를 명확히 3단계로 구분합니다.
+   미투표 = 승인된 회원(관리자 제외) 중 이 날짜에 대해 참석·불참 어느 쪽으로도 기록되지 않은 사람.
+   (실제 참석 체크가 끝난 날짜는 전원이 참석/불참으로 확정되므로 미투표가 항상 0명입니다.) */
+function getVoteBreakdownForDate(date){
+  const effVotes = getEffectiveVotesForDate(date);
+  const yesList = effVotes.filter(v=>v.choice==='yes').map(v=>v.name);
+  const noList = effVotes.filter(v=>v.choice==='no').map(v=>v.name);
+  const approvedNames = getApprovedNonAdminNames();
+  const votedSet = new Set([...yesList, ...noList]);
+  const notVotedList = approvedNames.filter(n=>!votedSet.has(n));
+  return { yesList, noList, notVotedList };
 }
 /* 투표 결과와 실제 참석을 비교해 노쇼(참석 투표했지만 안 옴)와 번개참석(불참·미투표였지만 실제로 옴)을 계산합니다. */
 function computeNoShowSummary(date){
@@ -927,6 +943,7 @@ function computeNoShowSummary(date){
   const suddenFromNonVoter = approvedNames.filter(n=>!votedNames.includes(n) && attendSet.has(n));
   return { noShow, suddenAttend: [...suddenFromNo, ...suddenFromNonVoter], guests: actual.guests||[] };
 }
+
 
 async function renderMatchPanel(){
   const panel = $('#matchPanel');
@@ -972,34 +989,37 @@ async function renderMatchPanel(){
     banner = `<div class="past-notice">아직 ${weekLabel} 투표가 없습니다.<br>가능한 날짜를 선택하거나, ${weekLabel} 전체 불참을 선택해 주시기 바랍니다.</div>`;
   }
 
-  /* 확정된 경기의 참석률/참석·불참 명단은 그대로 유지 (읽기 전용, 별도 참석/불참 버튼은 없음 — 날짜 선택이 곧 참석 여부입니다) */
+  /* 확정된 경기의 참석률/참석·불참·미투표 명단은 그대로 유지 (읽기 전용, 별도 참석/불참 버튼은 없음 — 날짜 선택이 곧 참석 여부입니다) */
   let confirmedSummaryHtml = '';
   if(isSelectedConfirmed){
     const actualRecord = appData.actualAttendance && appData.actualAttendance[selectedDate];
     const isFinalized = actualRecord && actualRecord.finalized;
-    const effVotes = getEffectiveVotesForDate(selectedDate);
-    const yesList = effVotes.filter(v=>v.choice==='yes');
-    const noList = effVotes.filter(v=>v.choice==='no');
+    const { yesList, noList, notVotedList } = getVoteBreakdownForDate(selectedDate);
     const guests = (isFinalized && actualRecord.guests) || [];
-    const grad = pieGradient(yesList.length + guests.length, noList.length);
-    const total = yesList.length + guests.length + noList.length;
-    const weekRate = total ? Math.round((yesList.length+guests.length)/total*100) : null;
+    const yesCount = yesList.length + guests.length;
+    const noCount = noList.length;
+    const notVotedCount = notVotedList.length;
+    const grad = pieGradient(yesCount, noCount, notVotedCount);
+    const total = yesCount + noCount + notVotedCount;
+    const weekRate = total ? Math.round(yesCount/total*100) : null;
     const noShowSummary = isFinalized ? computeNoShowSummary(selectedDate) : null;
     confirmedSummaryHtml = `
       ${isFinalized ? `<div class="confirm-banner" style="background:rgba(61,220,132,0.1);border-color:rgba(61,220,132,0.4);color:var(--pitch);">✅ 실제 참석 체크 완료</div>` : ''}
-      ${weekRate!=null ? `<div class="week-rate-big">${weekLabel} 참석률 <b>${weekRate}%</b> <span class="wr-sub">(${yesList.length+guests.length}/${total}명${isFinalized?' · 실제 참석 기준':' · 투표 기준'})</span></div>` : ''}
+      ${weekRate!=null ? `<div class="week-rate-big">${weekLabel} 참석률 <b>${weekRate}%</b> <span class="wr-sub">(${yesCount}/${total}명${isFinalized?' · 실제 참석 기준':' · 투표 기준'})</span></div>` : ''}
       <div class="pie-row">
         ${grad ? `<div class="pie" style="background:${grad};"></div>` : `<div class="pie" style="background:var(--surface-2);"></div>`}
         <div class="pie-legend">
           ${total? `
-            <div class="li"><span class="sw yes"></span>참석 ${Math.round((yesList.length+guests.length)/total*100)}% (${yesList.length+guests.length}명)</div>
-            <div class="li"><span class="sw no"></span>불참 ${Math.round(noList.length/total*100)}% (${noList.length}명)</div>
+            <div class="li"><span class="sw yes"></span>참석 ${Math.round(yesCount/total*100)}% (${yesCount}명)</div>
+            <div class="li"><span class="sw no"></span>불참 ${Math.round(noCount/total*100)}% (${noCount}명)</div>
+            <div class="li"><span class="sw notvoted"></span>미투표 ${Math.round(notVotedCount/total*100)}% (${notVotedCount}명)</div>
           ` : `<div class="pie-empty">아직 투표가 없습니다.</div>`}
         </div>
       </div>
-      <div class="voter-lists">
+      <div class="voter-lists three-col">
         <div class="voter-col yes"><h4>참석 명단</h4>${(yesList.length||guests.length)? [...yesList.map(v=>`<div class="voter-name">${escapeHtml(v.name)}</div>`), ...guests.map(g=>`<div class="voter-name">${escapeHtml(g)} <span style="color:var(--muted);font-size:10px;">(게스트)</span></div>`)].join('') : '<div class="voter-empty">아직 없음</div>'}</div>
-        <div class="voter-col no"><h4>불참 명단</h4>${noList.length? noList.map(v=>`<div class="voter-name">${escapeHtml(v.name)}</div>`).join('') : '<div class="voter-empty">아직 없음</div>'}</div>
+        <div class="voter-col no"><h4>불참 명단</h4>${noList.length? noList.map(name=>`<div class="voter-name">${escapeHtml(name)}</div>`).join('') : '<div class="voter-empty">아직 없음</div>'}</div>
+        <div class="voter-col notvoted"><h4>미투표 명단</h4>${notVotedList.length? notVotedList.map(name=>`<div class="voter-name">${escapeHtml(name)}</div>`).join('') : '<div class="voter-empty">아직 없음</div>'}</div>
       </div>
       ${noShowSummary && (noShowSummary.noShow.length || noShowSummary.suddenAttend.length) ? `
       <div class="noshow-summary">
@@ -1038,7 +1058,7 @@ async function renderMatchPanel(){
     </div>
     ${banner}
     ${confirmedSummaryHtml}
-    ${iAmInjured ? `<div class="confirm-banner" style="background:rgba(255,93,93,0.1);border-color:rgba(255,93,93,0.4);color:var(--danger);">🤕 부상 중에는 투표할 수 없습니다. (복귀 예정일: ${escapeHtml(appData.members[myName].injuryEnd)})</div>` : ''}
+    ${iAmInjured ? `<div class="confirm-banner" style="background:rgba(255,93,93,0.1);border-color:rgba(255,93,93,0.4);color:var(--danger);white-space:normal;">🤕 부상 중에는 투표할 수 없습니다. (복귀 예정일: ${escapeHtml(appData.members[myName].injuryEnd)})</div>` : ''}
     <div class="week-summary-row">
       <span>참여 의사 ${availableNames.length}명</span><span class="dot-sep">|</span>
       <span>불참 ${absentNames.length}명</span><span class="dot-sep">|</span>
@@ -1943,7 +1963,7 @@ function renderHeroMatch(){
 async function adminModifyAttendance(date, name, action){
   if(!requireAdmin()) return;
   await mutateAppData(data=>{
-    const approvedNames = Object.keys(data.members||{}).filter(n=>data.members[n].approved);
+    const approvedNames = Object.keys(data.members||{}).filter(n=>data.members[n].approved && n!==ADMIN_NAME);
     const existing = data.actualAttendance && data.actualAttendance[date];
     let current = (existing && existing.finalized)
       ? [...existing.attendees]
@@ -3063,6 +3083,21 @@ async function loadMatchesForSelectedDate(){
   }
 }
 
+/* 경기 탭 카드의 "위치" 버튼: 지도 탭으로 전환하고 그 경기장 위치로 자동 이동/확장합니다.
+   플랩풋볼 실제 stadium_name이 프리셋(FUTSAL_VENUES) 이름과 다를 수 있어, 먼저 프리셋 매칭을 시도하고
+   없으면 이름만으로 검색해 placeVenueMarker의 "목록에 없는 경기장" 임시 핀 경로를 그대로 재사용합니다. */
+async function goToVenueOnMapTab(venueName){
+  const mapTabBtn = document.querySelector('.mobile-tabbar .tab-btn[data-tab="map"]');
+  if(mapTabBtn) mapTabBtn.click();
+  const preset = findVenuePreset(venueName);
+  const info = { name: venueName, address: preset ? preset.address : '' };
+  const sel = $('#venuePresetSelect');
+  const input = $('#venueInput');
+  if(sel) sel.value = preset ? preset.name : '';
+  if(input) input.value = venueName;
+  await showVenueOnMap(info);
+}
+
 function renderMatchList(){
   const listEl = $('#matchListContainer');
   const countEl = $('#matchCountText');
@@ -3130,6 +3165,8 @@ function renderMatchList(){
       ? `<button type="button" class="mc-fav-btn ${isFav?'on':''}" data-venue="${escapeHtml(r.stadium_name||'')}" title="이 경기장 즐겨찾기">${isFav?'★':'☆'}</button>`
       : '';
 
+    const locBtnHtml = `<button type="button" class="mc-loc-btn" data-venue="${escapeHtml(r.stadium_name||'')}" title="지도에서 위치 보기">📍 위치</button>`;
+
     return `
       <div class="match-card">
         <div class="mc-top-row">
@@ -3141,6 +3178,7 @@ function renderMatchList(){
         <div class="mc-status-row">
           <span class="mc-status ${label.cls}">${label.text}</span>
           ${typeHtml}
+          ${r.stadium_name ? locBtnHtml : ''}
         </div>
         <div class="mc-action-row">
           <button type="button" class="mc-apply-btn" data-url="${escapeHtml(r.match_url||'')}">신청하기 →</button>
@@ -3158,6 +3196,13 @@ function renderMatchList(){
   listEl.querySelectorAll('.mc-apply-btn').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       if(btn.dataset.url) window.open(btn.dataset.url, '_blank', 'noopener');
+    });
+  });
+  listEl.querySelectorAll('.mc-loc-btn').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const venueName = btn.dataset.venue;
+      if(venueName) goToVenueOnMapTab(venueName);
     });
   });
   listEl.querySelectorAll('.mc-fav-btn').forEach(btn=>{
