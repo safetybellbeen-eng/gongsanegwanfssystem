@@ -404,9 +404,6 @@
   .match-card .mc-top-row{display:flex;align-items:flex-start;gap:8px;margin-bottom:12px;}
   .match-card .mc-time{font-family:'JetBrains Mono';font-size:17px;font-weight:700;flex-shrink:0;}
   .match-card .mc-venue{font-size:13px;color:var(--text);flex:1;min-width:0;white-space:normal;word-break:keep-all;line-height:1.4;}
-  .mc-fav-btn{flex-shrink:0;background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;padding:0 2px;line-height:1;}
-  .mc-fav-btn.on{color:var(--amber);}
-  .mc-fav-btn:disabled{opacity:0.5;cursor:not-allowed;}
   .match-card .mc-status{flex-shrink:0;display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:700;border-radius:8px;padding:5px 10px;white-space:nowrap;}
   .match-card .mc-status.status-open{background:rgba(61,220,132,0.15);color:var(--pitch);}
   .match-card .mc-status.status-closing{background:rgba(255,176,32,0.15);color:var(--amber);}
