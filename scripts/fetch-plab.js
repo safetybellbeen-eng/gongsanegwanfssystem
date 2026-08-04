@@ -16,6 +16,13 @@
 // - data.next는 GitHub Actions 실행 환경에서 접속이 안 되는 social-backend.plabfootball.com을
 //   가리켜서, 그 URL을 직접 호출하지 않고 "다음 페이지 존재 여부" 판단 용도로만 사용합니다.
 //   실제 다음 페이지 요청은 항상 www.plabfootball.com에 page 번호만 올려서 직접 만듭니다.
+//
+// [지역 필터링 정책]
+// 이 스크립트는 더 이상 서울 지역만 골라서 저장하지 않습니다. 전국 데이터를 그대로 저장하되,
+// 각 경기의 area_group 값("서울"/"경기"/"인천" 등)도 함께 저장합니다. 화면에 보여줄 지역을
+// 고르는 건 이제 조회 시점(js/app.js가 Supabase에 쿼리할 때 area_group = '서울' 조건을 거는 것)의
+// 역할입니다. 이렇게 하면 지역 판별 로직이 수집 단계에만 갇혀있지 않고, 나중에 다른 지역도
+// 보여주고 싶어지면 프론트엔드 쿼리만 바꾸면 됩니다.
 
 const { createClient } = require('@supabase/supabase-js');
 // Node.js 20에는 네이티브 WebSocket이 없어서, @supabase/supabase-js가 내부적으로 만드는
@@ -196,6 +203,7 @@ function mapAndValidate(item) {
       player_count: item.attributes?.format ?? null, // 계산하지 않고 원본 값(또는 null) 그대로 저장
       confirm_count: confirmCount,
       max_player_cnt: maxPlayerCnt,
+      area_group: item.attributes?.area_group ?? null, // "서울"/"경기"/"인천" 등. 지역 필터링은 조회 시점(js/app.js)에서 합니다.
       updated_at: new Date().toISOString(),
     },
   };
@@ -212,30 +220,20 @@ async function main() {
     const dayResults = await fetchAllPagesForDate(date);
     allRaw = allRaw.concat(dayResults);
   }
-  console.log(`[진단] 전체 원본 경기 수(필터 전): ${allRaw.length}건`);
+  console.log(`[진단] 전체 원본 경기 수: ${allRaw.length}건`);
 
-  // ⚠️ "가산" 경기가 이 필터 때문에 잘못 빠지는 건 아닌지 직접 확인할 수 있도록, 필터 전/후의
-  // 가산 포함 경기 수를 각각 따로 찍습니다. 필터 후에도 숫자가 그대로면 안전하게 걸러진 것이고,
-  // 필터 후에 숫자가 줄었다면(특히 0이 되었다면) area_group 값이 "서울"이 아닌 다른 표기일
-  // 가능성이 높다는 뜻이라, 그 경우 이 필터를 걷어내거나 기준을 다시 잡아야 합니다.
-  const gasanBeforeFilter = allRaw.filter((item) => String(item.title || '').includes('가산'));
-  console.log(`[진단] "가산" 포함 경기 수 (서울 필터 적용 전): ${gasanBeforeFilter.length}건`);
-  if (gasanBeforeFilter.length) {
-    const gasanAreaGroups = [...new Set(gasanBeforeFilter.map((item) => item.attributes?.area_group))];
-    console.log('[진단] "가산" 경기들의 실제 area_group 값:', gasanAreaGroups);
-  }
-
-  // ⚠️ area_id 파라미터만으로는 서울 외 지역(예: 경기 김포)이 섞여 들어오는 것이 실제로 확인됐습니다.
-  // 실제 원본 데이터에서 확인된 attributes.area_group 필드("서울"/"경기"/"인천" 등)로
-  // 서울 지역만 다시 한번 걸러냅니다.
-  const seoulRaw = allRaw.filter((item) => String(item.attributes?.area_group || '').includes('서울'));
-  console.log(`[진단] area_group="서울" 필터 후: ${seoulRaw.length}건 (제외됨: ${allRaw.length - seoulRaw.length}건)`);
-
-  const totalGasan = seoulRaw.filter((item) => String(item.title || '').includes('가산')).length;
-  console.log(`[진단] "가산" 포함 경기 수 (서울 필터 적용 후): ${totalGasan}건`);
+  // ⚠️ 지역 필터링(서울만 보여주기)은 이제 여기서 하지 않습니다. 전국 데이터를 그대로 저장하고,
+  // 각 경기의 area_group 값("서울"/"경기"/"인천" 등)도 함께 저장해서, 실제 화면에 보여줄 때
+  // (js/app.js의 경기 탭 조회 쿼리)에서 area_group = '서울' 조건으로 걸러냅니다.
+  // 이렇게 하면 지역 판별 로직이 수집 단계 하나에만 있지 않고, 나중에 다른 지역도 보여주고
+  // 싶어지면 조회 쿼리만 바꾸면 되는 구조가 됩니다.
+  const totalGasan = allRaw.filter((item) => String(item.title || '').includes('가산')).length;
+  console.log(`[진단] "가산" 포함 경기 수(참고용, 필터 없이): ${totalGasan}건`);
+  const seoulCountForLog = allRaw.filter((item) => String(item.attributes?.area_group || '').includes('서울')).length;
+  console.log(`[진단] 이 중 area_group="서울"인 경기 수(참고용): ${seoulCountForLog}건`);
 
   const validRows = [];
-  for (const item of seoulRaw) {
+  for (const item of allRaw) {
     const result = mapAndValidate(item);
     if (!result.ok) {
       console.warn(`[fetch-plab] 검증 실패로 제외: id=${item.id}, 사유=${result.reason}`);
