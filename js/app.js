@@ -3001,10 +3001,13 @@ async function loadMatchesForSelectedDate(){
   listEl.innerHTML = '<div class="match-loading">경기 정보를 불러오는 중...</div>';
 
   try{
+    // 지역 필터링은 이제 수집(fetch-plab.js) 단계가 아니라 여기(조회 시점)에서 합니다.
+    // plab_matches에는 전국 데이터가 다 들어있고, area_group 컬럼으로 서울만 걸러서 보여줍니다.
     const { data, error } = await supabaseClient
       .from('plab_matches')
       .select('*')
       .eq('match_date', selectedMatchDate)
+      .eq('area_group', '서울')
       .order('match_time', { ascending: true });
     if(error) throw error;
 
