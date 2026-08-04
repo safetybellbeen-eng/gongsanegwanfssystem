@@ -2,6 +2,9 @@ name: Plab Sync
 
 on:
   workflow_dispatch:
+  schedule:
+    # 30분마다 자동 실행 (UTC 기준 cron이라 KST와는 무관하게 매시 정각/30분에 돌아갑니다)
+    - cron: '*/30 * * * *'
 
 jobs:
   sync-plab:
@@ -18,7 +21,7 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Sync Plab matches to Supabase (오늘부터 14일, 서울 지역만)
+      - name: Sync Plab matches to Supabase (오늘부터 14일, 전국 데이터 저장 / 지역 필터는 조회 시점에)
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
