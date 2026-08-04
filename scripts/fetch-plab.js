@@ -5,12 +5,17 @@
 // - 기존 공생관 웹앱(index.html / app.js / style.css)과는 전혀 연결되지 않은 별도 파이프라인입니다.
 // - SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY는 GitHub Secrets에서 환경변수로 전달받습니다.
 //
-// ⚠️ 6차 수정 사항 (실제 사용 중인 API 엔드포인트로 교체)
-// 이전까지 쓰던 https://social-admin.plabfootball.com/api/v2/match-explore/1/match/ 는
-// 실제 플랩 홈페이지가 쓰는 API가 아니었습니다 (400 오류 원인).
-// 실제 플랩 홈페이지 개발자도구에서 확인한 아래 API로 완전히 교체했습니다.
-//   https://www.plabfootball.com/api/v3/social-matches/?date=YYYY-MM-DD&hide_soldout=1&area_id=...&page=1
-// area_id는 서울 지역 코드 목록을 그대로(추측 없이) 반복 포함합니다.
+// [API 및 필드 구조 요약 — 실제 응답을 직접 확인해 확정한 내용]
+// - 엔드포인트: https://www.plabfootball.com/api/v3/social-matches/
+//   (date, hide_soldout=1, area_id(여러 개 반복), page 파라미터 사용)
+// - 응답 구조: { data: { count, next, previous, results: [...] } }
+// - 각 경기 객체: id/time/title/badges는 최상위, schedule/format/participants/level 등은
+//   전부 attributes 안에 있습니다 (item.attributes.schedule, item.attributes.participants.label 등).
+// - hide_soldout=1로 이미 마감 경기는 응답에서 제외되어 오므로, badges에 hurry가 있으면 'hurry',
+//   그 외에는 'available'로만 판단하면 됩니다.
+// - data.next는 GitHub Actions 실행 환경에서 접속이 안 되는 social-backend.plabfootball.com을
+//   가리켜서, 그 URL을 직접 호출하지 않고 "다음 페이지 존재 여부" 판단 용도로만 사용합니다.
+//   실제 다음 페이지 요청은 항상 www.plabfootball.com에 page 번호만 올려서 직접 만듭니다.
 
 const { createClient } = require('@supabase/supabase-js');
 // Node.js 20에는 네이티브 WebSocket이 없어서, @supabase/supabase-js가 내부적으로 만드는
@@ -122,7 +127,6 @@ async function fetchAllPagesForDate(date) {
     gasanForDate += pageGasan;
 
     results.push(...pageResults);
-    console.log('[진단] pageResults[0] (push 직후):', JSON.stringify(pageResults[0], null, 2));
 
     // 다음 페이지 존재 여부는 data.next 유무와 results 개수 둘 다로 확인합니다.
     // (실제 next URL은 절대 호출하지 않고, 다음 페이지 번호로 직접 요청을 다시 만듭니다.)
@@ -155,11 +159,6 @@ function getApplyStatus(item) {
    id, schedule, time, title(경기장명), attributes.format(경기 형식),
    attributes.participants.label("6/15" 형식 → 현재/정원), badges(모집 상태) */
 function mapAndValidate(item) {
-  // 검증 로직이 시작되기 직전에, 지금 검사하려는 이 객체가 실제로 무엇인지 그대로 찍습니다.
-  console.log('CHECK ID:', item.id);
-  console.log('CHECK SCHEDULE:', item.attributes?.schedule);
-  console.log(JSON.stringify(item, null, 2));
-
   const idNum = Number(item.id);
   if (item.id === undefined || item.id === null || Number.isNaN(idNum)) {
     return { ok: false, reason: 'id가 유효한 숫자가 아님' };
@@ -215,24 +214,28 @@ async function main() {
   }
   console.log(`[진단] 전체 원본 경기 수(필터 전): ${allRaw.length}건`);
 
-  const totalGasan = allRaw.filter((item) => String(item.title || '').includes('가산')).length;
-  console.log(`[진단] "가산" 포함 경기 수: ${totalGasan}건`);
-
-  // ⚠️ 검증(mapAndValidate)을 시작하기 전에, 첫 번째 경기의 원본 객체 전체를 그대로 출력합니다.
-  // 모든 경기가 "schedule 없음"으로 제외되고 있어, schedule이 실제로 어떤 위치/이름으로
-  // 들어있는지 원본 그대로 확인해야 합니다. 검증 로직보다 반드시 먼저 실행됩니다.
-  if (allRaw.length) {
-    const firstItem = allRaw[0];
-    console.log('===== RAW FIRST ITEM =====');
-    console.log(JSON.stringify(firstItem, null, 2));
-    console.log('===== END RAW FIRST ITEM =====');
-  } else {
-    console.log('[진단] allRaw가 비어있어 원본 첫 번째 경기를 출력할 수 없습니다.');
+  // ⚠️ "가산" 경기가 이 필터 때문에 잘못 빠지는 건 아닌지 직접 확인할 수 있도록, 필터 전/후의
+  // 가산 포함 경기 수를 각각 따로 찍습니다. 필터 후에도 숫자가 그대로면 안전하게 걸러진 것이고,
+  // 필터 후에 숫자가 줄었다면(특히 0이 되었다면) area_group 값이 "서울"이 아닌 다른 표기일
+  // 가능성이 높다는 뜻이라, 그 경우 이 필터를 걷어내거나 기준을 다시 잡아야 합니다.
+  const gasanBeforeFilter = allRaw.filter((item) => String(item.title || '').includes('가산'));
+  console.log(`[진단] "가산" 포함 경기 수 (서울 필터 적용 전): ${gasanBeforeFilter.length}건`);
+  if (gasanBeforeFilter.length) {
+    const gasanAreaGroups = [...new Set(gasanBeforeFilter.map((item) => item.attributes?.area_group))];
+    console.log('[진단] "가산" 경기들의 실제 area_group 값:', gasanAreaGroups);
   }
 
+  // ⚠️ area_id 파라미터만으로는 서울 외 지역(예: 경기 김포)이 섞여 들어오는 것이 실제로 확인됐습니다.
+  // 실제 원본 데이터에서 확인된 attributes.area_group 필드("서울"/"경기"/"인천" 등)로
+  // 서울 지역만 다시 한번 걸러냅니다.
+  const seoulRaw = allRaw.filter((item) => String(item.attributes?.area_group || '').includes('서울'));
+  console.log(`[진단] area_group="서울" 필터 후: ${seoulRaw.length}건 (제외됨: ${allRaw.length - seoulRaw.length}건)`);
+
+  const totalGasan = seoulRaw.filter((item) => String(item.title || '').includes('가산')).length;
+  console.log(`[진단] "가산" 포함 경기 수 (서울 필터 적용 후): ${totalGasan}건`);
+
   const validRows = [];
-  console.log('[진단] for 루프 직전 allRaw[0]:', JSON.stringify(allRaw[0], null, 2));
-  for (const item of allRaw) {
+  for (const item of seoulRaw) {
     const result = mapAndValidate(item);
     if (!result.ok) {
       console.warn(`[fetch-plab] 검증 실패로 제외: id=${item.id}, 사유=${result.reason}`);
