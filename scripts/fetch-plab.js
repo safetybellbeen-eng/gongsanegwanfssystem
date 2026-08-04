@@ -5,26 +5,38 @@
 // - 기존 공생관 웹앱(index.html / app.js / style.css)과는 전혀 연결되지 않은 별도 파이프라인입니다.
 // - SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY는 GitHub Secrets에서 환경변수로 전달받습니다.
 //
-// ⚠️ 4차 수정 사항 (진단 로그 전용 추가, 필터/매핑 로직은 전혀 바꾸지 않았습니다)
-// "가산"이 포함된 경기장이 plab_matches에 한 건도 저장되지 않는 문제의 원인을 찾기 위해,
-// 아래 5단계마다 "가산" 포함 경기가 몇 건 있는지 추적하는 로그만 추가했습니다.
-//   1) 각 날짜별 전체 페이지 조회 여부
-//   2) API 원본 results 안에 가산 경기가 있는지
-//   3) 가산 경기의 apply_status
-//   4) 가산 경기가 데이터 검증에서 제외되는지
-//   5) 최종 upsert 대상에 가산 경기가 포함되는지
-// 가산 경기를 강제로 포함시키거나 별도 취급하는 로직은 전혀 추가하지 않았습니다 — 순수하게 로그만 남깁니다.
+// [API 및 필드 구조 요약 — 실제 응답을 직접 확인해 확정한 내용]
+// - 엔드포인트: https://www.plabfootball.com/api/v3/social-matches/
+//   (date, hide_soldout=1, area_id(여러 개 반복), page 파라미터 사용)
+// - 응답 구조: { data: { count, next, previous, results: [...] } }
+// - 각 경기 객체: id/time/title/badges는 최상위, schedule/format/participants/level 등은
+//   전부 attributes 안에 있습니다 (item.attributes.schedule, item.attributes.participants.label 등).
+// - hide_soldout=1로 이미 마감 경기는 응답에서 제외되어 오므로, badges에 hurry가 있으면 'hurry',
+//   그 외에는 'available'로만 판단하면 됩니다.
+// - data.next는 GitHub Actions 실행 환경에서 접속이 안 되는 social-backend.plabfootball.com을
+//   가리켜서, 그 URL을 직접 호출하지 않고 "다음 페이지 존재 여부" 판단 용도로만 사용합니다.
+//   실제 다음 페이지 요청은 항상 www.plabfootball.com에 page 번호만 올려서 직접 만듭니다.
 
 const { createClient } = require('@supabase/supabase-js');
+// Node.js 20에는 네이티브 WebSocket이 없어서, @supabase/supabase-js가 내부적으로 만드는
+// Realtime 클라이언트가 생성 시점에 즉시 에러를 던집니다. 이 스크립트는 realtime(구독) 기능을
+// 전혀 쓰지 않지만, createClient() 자체가 이 초기화를 피할 수 없어서 ws 패키지를 대신 꽂아줍니다.
+const WebSocket = require('ws');
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const DAYS_TO_FETCH = 14;
 const TABLE_NAME = 'plab_matches';
-const MAX_PAGES_PER_DATE = 50; // 무한 루프 방지용 안전장치
-const ALLOWED_STATUSES = ['available', 'hurry'];
-const DIAG_KEYWORD = '가산'; // 진단 대상 키워드 (이 값 자체가 저장 여부를 바꾸지는 않습니다)
+const MAX_PAGES_PER_DATE = 200; // 무한 루프 방지용 안전장치
+const API_BASE = 'https://www.plabfootball.com/api/v3/social-matches/';
+
+// 플랩 홈페이지 개발자도구에서 실제로 확인된 서울 지역 area_id 목록입니다. 추측으로 만든 값이
+// 아니라 실제 Request URL에 포함되어 있던 값을 그대로 반영했습니다.
+const SEOUL_AREA_IDS = [
+  18, 138, 139, 58, 68, 88, 518, 135, 136, 137, 144, 78, 55, 148, 75,
+  5, 6, 8, 51, 143, 38, 56, 100, 101, 140, 141, 142, 28, 133, 134,
+];
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
   console.error('[fetch-plab] SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY 환경변수가 설정되어 있지 않습니다.');
@@ -32,7 +44,9 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
   process.exit(1);
 }
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+  realtime: { transport: WebSocket },
+});
 
 /* ---------- 날짜 계산 (KST 기준, 오늘을 1일째로 포함해 14일) ---------- */
 function getKstNow() {
@@ -56,32 +70,31 @@ function buildDateList() {
   return list;
 }
 
-/* ---------- 진단용 헬퍼 ---------- */
-function isDiagMatch(item) {
-  return String((item && item.stadium_name) || '').includes(DIAG_KEYWORD);
-}
-function logDiagRaw(item) {
-  console.log(
-    '[진단][가산 원본]',
-    JSON.stringify({
-      id: item.id,
-      schedule: item.schedule,
-      time: item.time,
-      stadium_name: item.stadium_name,
-      apply_status: item.apply_status,
-      player_count: item.player_count,
-      confirm_cnt: item.confirm_cnt,
-      max_player_cnt: item.max_player_cnt,
-    })
-  );
+/* ---------- 특정 날짜·페이지의 요청 URL 생성 (area_id를 여러 번 append) ----------
+   항상 www.plabfootball.com/api/v3/social-matches만 직접 호출합니다.
+   ⚠️ response.data.next는 실행 환경(GitHub Actions)에서 접속이 안 되는
+   social-backend.plabfootball.com 주소를 가리켜서 타임아웃이 났습니다.
+   그래서 data.next의 URL을 그대로 따라가지 않고, "다음 페이지가 있는지" 판단 용도로만
+   쓰고, 실제 요청은 항상 이 함수로 직접 만든 URL로 보냅니다. */
+function buildPageUrl(date, page) {
+  const params = new URLSearchParams();
+  params.set('date', date);
+  params.set('hide_soldout', '1');
+  SEOUL_AREA_IDS.forEach((id) => {
+    params.append('area_id', String(id));
+  });
+  params.set('page', String(page));
+  return `${API_BASE}?${params.toString()}`;
 }
 
-/* ---------- 특정 날짜의 전체 페이지를 끝까지 조회 ---------- */
+/* ---------- 특정 날짜의 전체 페이지를 끝까지 조회 ----------
+   매 페이지 항상 www.plabfootball.com을 직접 호출하고, page 번호만 1씩 증가시킵니다.
+   data.next가 없거나(마지막 페이지) 이번 페이지 results가 0건이면 종료합니다. */
 async function fetchAllPagesForDate(date) {
   const results = [];
-  let page = 1;
+  let pageNum = 1;
   let pageCount = 0;
-  let dateDiagCount = 0;
+  let gasanForDate = 0;
 
   while (true) {
     pageCount++;
@@ -89,69 +102,87 @@ async function fetchAllPagesForDate(date) {
       console.warn(`[fetch-plab] ${date}: 최대 페이지 수(${MAX_PAGES_PER_DATE})에 도달해 중단합니다.`);
       break;
     }
-    const url = `https://social-admin.plabfootball.com/api/v2/match-explore/1/match/?date=${date}&page=${page}&type=region`;
-    console.log(`[진단][${date}] 페이지 ${page} 요청: ${url}`);
 
+    const url = buildPageUrl(date, pageNum);
+    console.log(`[진단] 전체 요청 URL: ${url}`);
     const res = await fetch(url, { headers: { Accept: 'application/json' } });
+    console.log(`[진단] 응답 상태 코드: ${res.status}`);
+    console.log(`[진단] 조회 날짜: ${date}`);
+    console.log(`[진단] 페이지 번호: ${pageNum}`);
+
     if (!res.ok) {
-      console.error(`[fetch-plab] ${date} 페이지 ${page} 요청 실패 (status ${res.status})`);
+      console.error(`[fetch-plab] ${date} 페이지 ${pageNum} 요청 실패 (status ${res.status})`);
       break;
     }
-    const data = await res.json();
-    const pageResults = Array.isArray(data.results) ? data.results : [];
-    console.log(`[진단][${date}] 페이지 ${page} 원본 ${pageResults.length}건`);
 
-    const pageDiag = pageResults.filter(isDiagMatch);
-    if (pageDiag.length) {
-      console.log(`[진단][${date}] 페이지 ${page}에서 "${DIAG_KEYWORD}" 포함 경기 ${pageDiag.length}건 발견`);
-      pageDiag.forEach(logDiagRaw);
-    }
-    dateDiagCount += pageDiag.length;
+    const responseJson = await res.json();
+    const data = responseJson.data;
+    const pageResults = Array.isArray(data?.results) ? data.results : [];
+    const next = data?.next;
+
+    console.log(`[진단] 해당 페이지 results 개수: ${pageResults.length}`);
+    console.log(`[진단] data.next 존재 여부: ${next ? '있음' : '없음'} (실제 next URL은 호출하지 않고 판단 용도로만 사용)`);
+
+    const pageGasan = pageResults.filter((item) => String(item.title || '').includes('가산')).length;
+    gasanForDate += pageGasan;
 
     results.push(...pageResults);
 
-    if (!data.next) break; // next가 null/빈 문자열/undefined면 마지막 페이지
-    page++;
+    // 다음 페이지 존재 여부는 data.next 유무와 results 개수 둘 다로 확인합니다.
+    // (실제 next URL은 절대 호출하지 않고, 다음 페이지 번호로 직접 요청을 다시 만듭니다.)
+    if (!next || pageResults.length === 0) break;
+    pageNum++;
+
   }
 
-  console.log(`[진단][${date}] 조회한 총 페이지 수: ${pageCount}`);
-  console.log(`[진단][${date}] 원본 results 총 개수: ${results.length}`);
-  console.log(`[진단][${date}] "${DIAG_KEYWORD}" 포함 경기 수: ${dateDiagCount}`);
-
+  console.log(`[진단] ${date} "가산" 포함 경기 수: ${gasanForDate}건`);
   return results;
 }
 
-/* ---------- 검증 + 매핑 (기존 로직 그대로, 변경 없음) ----------
-   실제 확인된 필드만 사용합니다: id, time, schedule, stadium_name, apply_status,
-   player_count(경기 형식, 예: "6vs6"), confirm_cnt(현재 모집 인원), max_player_cnt(최대 정원) */
+function toNullableNumber(v) {
+  if (v === undefined || v === null || v === '') return null;
+  const n = Number(v);
+  return Number.isNaN(n) ? null : n;
+}
+
+/* ---------- badges에서 모집 상태 판단 ----------
+   hide_soldout=1로 이미 마감(품절) 경기는 응답에서 제외되어 오므로, 여기서는
+   hurry(마감임박) 여부만 판단하면 됩니다. 그 외는 전부 available(모집중)입니다. */
+function getApplyStatus(item) {
+  const badges = Array.isArray(item.badges) ? item.badges : [];
+  const hasHurry = badges.some((b) => b && b.code === 'hurry');
+  return hasHurry ? 'hurry' : 'available';
+}
+
+/* ---------- 검증 + 매핑 ----------
+   실제 확인된 필드만 사용합니다:
+   id, schedule, time, title(경기장명), attributes.format(경기 형식),
+   attributes.participants.label("6/15" 형식 → 현재/정원), badges(모집 상태) */
 function mapAndValidate(item) {
   const idNum = Number(item.id);
   if (item.id === undefined || item.id === null || Number.isNaN(idNum)) {
     return { ok: false, reason: 'id가 유효한 숫자가 아님' };
   }
-  if (!item.schedule) {
-    return { ok: false, reason: 'schedule 없음' };
+  // ⚠️ 실제 원본 데이터를 확인한 결과, schedule은 최상위가 아니라 attributes 안에 있습니다.
+  if (!item.attributes?.schedule) {
+    return { ok: false, reason: 'attributes.schedule 없음' };
   }
-  const matchDate = String(item.schedule).slice(0, 10);
+  const matchDate = String(item.attributes.schedule).slice(0, 10);
   if (!matchDate) {
-    return { ok: false, reason: 'match_date를 schedule에서 추출할 수 없음' };
+    return { ok: false, reason: 'match_date를 attributes.schedule에서 추출할 수 없음' };
   }
   if (!item.time) {
     return { ok: false, reason: 'time 없음' };
   }
-  if (!item.stadium_name) {
-    return { ok: false, reason: 'stadium_name 없음' };
+  if (!item.title) {
+    return { ok: false, reason: 'title(경기장명) 없음' };
   }
-  if (!item.player_count) {
-    return { ok: false, reason: 'player_count 없음' };
-  }
-  if (!ALLOWED_STATUSES.includes(item.apply_status)) {
-    return { ok: false, reason: `apply_status(${item.apply_status})가 저장 대상(available/hurry)이 아님` };
-  }
-  // confirm_cnt / max_player_cnt는 null이어도 경기 저장 자체를 막지 않습니다.
-  // Supabase의 confirm_count, max_player_cnt 컬럼은 nullable이므로 값이 없으면 null 그대로 저장합니다.
-  const confirmCount = item.confirm_cnt == null ? null : Number(item.confirm_cnt);
-  const maxPlayerCnt = item.max_player_cnt == null ? null : Number(item.max_player_cnt);
+
+  // ⚠️ participants도 마찬가지로 attributes 안에 있습니다 (attributes.participants.label).
+  const label = String(item.attributes?.participants?.label || '');
+  const [currentText, maxText] = label.split('/');
+  const confirmCount = toNullableNumber(currentText);
+  const maxPlayerCnt = toNullableNumber(maxText);
 
   return {
     ok: true,
@@ -159,10 +190,10 @@ function mapAndValidate(item) {
       id: idNum,
       match_date: matchDate,
       match_time: item.time,
-      stadium_name: item.stadium_name,
+      stadium_name: item.title,
       match_url: `https://plabfootball.com/match/${item.id}`,
-      apply_status: item.apply_status,
-      player_count: item.player_count, // "6vs6" 같은 경기 형식 문자열. 계산하지 않고 원본 그대로 저장합니다.
+      apply_status: getApplyStatus(item),
+      player_count: item.attributes?.format ?? null, // 계산하지 않고 원본 값(또는 null) 그대로 저장
       confirm_count: confirmCount,
       max_player_cnt: maxPlayerCnt,
       updated_at: new Date().toISOString(),
@@ -174,73 +205,50 @@ async function main() {
   const dates = buildDateList();
   const startDate = dates[0];
   const endDate = dates[dates.length - 1];
-  console.log(`[fetch-plab] 조회 기간: ${startDate} ~ ${endDate} (오늘 포함 ${DAYS_TO_FETCH}일)`);
+  console.log(`[진단] 조회 대상 날짜 범위(참고용, 응답에서 이 범위만 필터링): ${startDate} ~ ${endDate}`);
 
   let allRaw = [];
   for (const date of dates) {
     const dayResults = await fetchAllPagesForDate(date);
     allRaw = allRaw.concat(dayResults);
   }
-  console.log(`[fetch-plab] 전체 원본 경기 수: ${allRaw.length}건`);
+  console.log(`[진단] 전체 원본 경기 수(필터 전): ${allRaw.length}건`);
 
-  // ---- 진단 1단계: 원본 전체에서 "가산" 포함 경기 집계 ----
-  const allDiagRaw = allRaw.filter(isDiagMatch);
-  console.log(`[진단] 전체 원본 경기: ${allRaw.length}건`);
-  console.log(`[진단] 전체 "${DIAG_KEYWORD}" 경기: ${allDiagRaw.length}건`);
+  // ⚠️ "가산" 경기가 이 필터 때문에 잘못 빠지는 건 아닌지 직접 확인할 수 있도록, 필터 전/후의
+  // 가산 포함 경기 수를 각각 따로 찍습니다. 필터 후에도 숫자가 그대로면 안전하게 걸러진 것이고,
+  // 필터 후에 숫자가 줄었다면(특히 0이 되었다면) area_group 값이 "서울"이 아닌 다른 표기일
+  // 가능성이 높다는 뜻이라, 그 경우 이 필터를 걷어내거나 기준을 다시 잡아야 합니다.
+  const gasanBeforeFilter = allRaw.filter((item) => String(item.title || '').includes('가산'));
+  console.log(`[진단] "가산" 포함 경기 수 (서울 필터 적용 전): ${gasanBeforeFilter.length}건`);
+  if (gasanBeforeFilter.length) {
+    const gasanAreaGroups = [...new Set(gasanBeforeFilter.map((item) => item.attributes?.area_group))];
+    console.log('[진단] "가산" 경기들의 실제 area_group 값:', gasanAreaGroups);
+  }
 
-  // ---- 진단 2단계: 가산 경기의 apply_status 확인 ----
-  allDiagRaw.forEach((item) => {
-    console.log(`[진단][가산 상태] id=${item.id}, stadium_name=${item.stadium_name}, apply_status=${item.apply_status}`);
-  });
-  const diagAvailableOrHurry = allDiagRaw.filter((item) => ALLOWED_STATUSES.includes(item.apply_status));
-  console.log(`[진단] 모집 가능(available/hurry) "${DIAG_KEYWORD}" 경기: ${diagAvailableOrHurry.length}건`);
+  // ⚠️ area_id 파라미터만으로는 서울 외 지역(예: 경기 김포)이 섞여 들어오는 것이 실제로 확인됐습니다.
+  // 실제 원본 데이터에서 확인된 attributes.area_group 필드("서울"/"경기"/"인천" 등)로
+  // 서울 지역만 다시 한번 걸러냅니다.
+  const seoulRaw = allRaw.filter((item) => String(item.attributes?.area_group || '').includes('서울'));
+  console.log(`[진단] area_group="서울" 필터 후: ${seoulRaw.length}건 (제외됨: ${allRaw.length - seoulRaw.length}건)`);
 
-  // ---- 검증 단계 (기존 로직 그대로) + 진단 3단계: 검증 통과한 가산 경기 추적 ----
-  let availableCount = 0;
-  let hurryCount = 0;
-  let skippedCount = 0;
+  const totalGasan = seoulRaw.filter((item) => String(item.title || '').includes('가산')).length;
+  console.log(`[진단] "가산" 포함 경기 수 (서울 필터 적용 후): ${totalGasan}건`);
+
   const validRows = [];
-  const diagValidatedIds = new Set();
-
-  for (const item of allRaw) {
-    if (item.apply_status === 'available') availableCount++;
-    else if (item.apply_status === 'hurry') hurryCount++;
-
+  for (const item of seoulRaw) {
     const result = mapAndValidate(item);
     if (!result.ok) {
-      skippedCount++;
       console.warn(`[fetch-plab] 검증 실패로 제외: id=${item.id}, 사유=${result.reason}`);
-      if (isDiagMatch(item)) {
-        console.log(`[진단][가산 검증실패] id=${item.id}, stadium_name=${item.stadium_name}, 사유=${result.reason}`);
-      }
       continue;
     }
     validRows.push(result.row);
-    if (isDiagMatch(item)) diagValidatedIds.add(result.row.id);
   }
 
-  console.log(`[fetch-plab] available(모집중) 경기 수: ${availableCount}건`);
-  console.log(`[fetch-plab] hurry(마감임박) 경기 수: ${hurryCount}건`);
-  console.log(`[fetch-plab] 검증 실패로 제외된 경기 수: ${skippedCount}건`);
-  console.log(`[진단] 검증 통과 "${DIAG_KEYWORD}" 경기: ${diagValidatedIds.size}건`);
-
-  // id 기준 중복 제거 (마지막 값 사용) — 기존 로직 그대로
+  // id 기준 중복 제거 (마지막 값 사용)
   const dedupedMap = new Map();
   validRows.forEach((row) => dedupedMap.set(row.id, row));
   const finalRows = Array.from(dedupedMap.values());
-  console.log(`[fetch-plab] 최종 저장 대상 경기 수: ${finalRows.length}건`);
-
-  // ---- 진단 4단계: 최종 upsert 대상에 가산 경기가 포함되는지 ----
-  const finalDiagCount = finalRows.filter((row) => diagValidatedIds.has(row.id)).length;
-  console.log(`[진단] 최종 저장 대상 "${DIAG_KEYWORD}" 경기: ${finalDiagCount}건`);
-
-  if (finalRows.length) {
-    console.log('[fetch-plab] player_count 예시값 3개:', finalRows.slice(0, 3).map((r) => r.player_count));
-    console.log(
-      '[fetch-plab] confirm_count/max_player_cnt 예시값 3개:',
-      finalRows.slice(0, 3).map((r) => `${r.confirm_count}/${r.max_player_cnt}`)
-    );
-  }
+  console.log(`[진단] 전체 최종 저장 대상 수: ${finalRows.length}건`);
 
   // 최종 저장 대상이 0건이면 기존 데이터를 절대 건드리지 않고 중단합니다.
   if (finalRows.length === 0) {
