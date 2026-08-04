@@ -2095,7 +2095,20 @@ const FUTSAL_VENUES = [
   {name:'플랩 스타디움 가산 벽산디지털밸리 6차', address:'서울특별시 금천구 가산디지털1로 219'},
   {name:'플랩 스타디움 가산 코오롱테크노밸리', address:'서울특별시 금천구 디지털로9길 56, 코오롱테크노밸리 옥상'}
 ];
-function findVenuePreset(name){ return FUTSAL_VENUES.find(v=>v.name===name); }
+/* 플랩풋볼 실제 stadium_name과 프리셋 이름의 표기가 완전히 같지 않을 수 있어(공백 차이 등),
+   비교 전에 공백을 모두 제거해서 맞춰봅니다. */
+function normalizeVenueName(s){ return String(s||'').replace(/\s+/g, ''); }
+function findVenuePreset(name){
+  const exact = FUTSAL_VENUES.find(v=>v.name===name);
+  if(exact) return exact;
+  // 완전 일치가 없으면 공백 무시 + 부분 포함으로 한 번 더 시도합니다.
+  const target = normalizeVenueName(name);
+  if(!target) return null;
+  return FUTSAL_VENUES.find(v=>{
+    const preset = normalizeVenueName(v.name);
+    return preset && (preset===target || preset.includes(target) || target.includes(preset));
+  }) || null;
+}
 /* appData.venues[date]는 과거엔 문자열이었고 지금은 {name, address} 객체입니다. 둘 다 지원합니다. */
 function getVenueInfo(dateStr){
   const raw = appData.venues[dateStr];
@@ -2125,16 +2138,16 @@ $('#venuePresetSelect').addEventListener('change', ()=>{
   lookupVenueOnMap();
 });
 
-/* 관리자만 볼 수 있는 즐겨찾기(자주 쓰는 경기장) 토글 버튼 */
+/* 즐겨찾기(자주 쓰는 경기장) 토글 버튼. 관리자만 사용할 수 있고, 프리셋 목록에 있는 경기장이든
+   플랩풋볼에서 넘어온 경기장이든(프리셋과 이름이 정확히 일치하지 않아도) 지도에 지금 표시 중인
+   이름 그대로를 즐겨찾기 키로 저장합니다. 즐겨찾기 등록/해제는 지도 탭에서만 할 수 있습니다. */
 function updateFavVenueBtn(){
   const btn = $('#favVenueBtn');
   if(!btn) return;
   if(!isAdminUser()){ btn.style.display='none'; return; }
-  const name = $('#venueInput').value.trim();
-  const preset = findVenuePreset(name);
-  if(!preset){ btn.style.display='none'; return; }
+  if(!currentVenueName){ btn.style.display='none'; return; }
   btn.style.display = 'inline-block';
-  const isFav = favoriteVenueSet.has(preset.name);
+  const isFav = favoriteVenueSet.has(currentVenueName);
   btn.textContent = isFav ? '★' : '☆';
   btn.classList.toggle('on', isFav);
 }
@@ -2172,17 +2185,15 @@ async function setFavoriteVenueRobust(name, shouldBeFavorite){
 }
 $('#favVenueBtn').addEventListener('click', async ()=>{
   if(!requireAdmin()) return;
-  const name = $('#venueInput').value.trim();
-  const preset = findVenuePreset(name);
-  if(!preset) return;
-  const willBeFavorite = !favoriteVenueSet.has(preset.name);
-  const ok = await setFavoriteVenueRobust(preset.name, willBeFavorite);
+  const name = currentVenueName;
+  if(!name) return;
+  const willBeFavorite = !favoriteVenueSet.has(name);
+  const ok = await setFavoriteVenueRobust(name, willBeFavorite);
   populateVenuePresetSelect();
   updateFavVenueBtn();
-  if(venuePinObjects[preset.name]){
-    const isFavNow = favoriteVenueSet.has(preset.name);
-    setVenueStarBadge(preset.name, isFavNow);
-    refreshVenuePinStyle(preset.name, currentHighlightedVenueName===preset.name);
+  if(venuePinObjects[name]){
+    venuePinObjects[name].type = favoriteVenueSet.has(name) ? 'favorite' : 'regular';
+    renderVenuePinContent(name);
   }
   if(!ok){
     toast('즐겨찾기 저장에 실패했습니다. 잠시 후 다시 시도해 주시기 바랍니다.');
@@ -2207,11 +2218,12 @@ async function lookupVenueOnMap(){
   const name = $('#venueInput').value.trim();
   if(!name){ toast('경기장 이름을 입력하거나 목록에서 선택해 주시기 바랍니다.'); return; }
   const preset = findVenuePreset(name);
-  const info = { name, address: preset ? preset.address : '' };
+  const info = preset ? { name: preset.name, address: preset.address } : { name, address: '' };
   await showVenueOnMap(info);
 }
 
 /* 지도 렌더링의 핵심 로직 (직접 검색과 "기본 경기장 자동 표시"가 공통으로 사용합니다) */
+let currentVenueName = null; // 지도에 지금 표시 중인 경기장의 확정된 이름 (즐겨찾기 버튼이 기준으로 삼는 이름)
 async function showVenueOnMap(info){
   if(location.protocol === 'file:'){
     toast('파일을 직접 열어서는(file://) 경기장 검색이 동작하지 않습니다. 로컬 서버나 실제 배포 주소에서 열어주시기 바랍니다.');
@@ -2228,6 +2240,7 @@ async function showVenueOnMap(info){
   }
   await renderAllVenuePins(); // 목록에 있는 모든 경기장 핀을 먼저 준비합니다 (첫 실행 후에는 캐시되어 즉시 완료됨).
   await placeVenueMarker(info);
+  currentVenueName = info.name;
 
   const addrRow = $('#venueAddressRow');
   if(info.address){
@@ -2665,7 +2678,15 @@ async function placeVenueMarker(info){
   if(!coords){
     coords = await kakaoGeocode(info.name + ' 서울', false);
   }
-  if(!coords){ toast('경기장 위치를 찾지 못했습니다. 이름/주소를 확인해 주시기 바랍니다.'); return; }
+  // 3) 여전히 실패하면 "서울" 없이 이름 그대로, 그리고 "풋살"을 붙여 한 번씩 더 시도합니다.
+  //    (플랩풋볼의 실제 상호명이 프리셋과 다르거나, "서울"이 붙으면 오히려 검색이 안 되는 경우가 있음)
+  if(!coords){
+    coords = await kakaoGeocode(info.name, false);
+  }
+  if(!coords){
+    coords = await kakaoGeocode(info.name + ' 풋살', false);
+  }
+  if(!coords){ toast(`'${info.name}' 위치를 찾지 못했습니다. 지도에서 직접 검색해 보시기 바랍니다.`); return; }
   const pos = new kakao.maps.LatLng(coords.lat, coords.lng);
   map.setCenter(pos);
   map.setLevel(3);
@@ -3087,14 +3108,18 @@ async function loadMatchesForSelectedDate(){
    플랩풋볼 실제 stadium_name이 프리셋(FUTSAL_VENUES) 이름과 다를 수 있어, 먼저 프리셋 매칭을 시도하고
    없으면 이름만으로 검색해 placeVenueMarker의 "목록에 없는 경기장" 임시 핀 경로를 그대로 재사용합니다. */
 async function goToVenueOnMapTab(venueName){
+  // setActiveMobileSection('map')가 내부에서 loadDefaultMapVenue()를 별도로(await 없이) 실행시켜,
+  // 우리가 지금 보여주려는 경기장과 "기본 경기장 자동 표시" 로직이 동시에 지도를 건드리며 충돌하던
+  // 문제가 있었습니다. mapDefaultLoaded를 먼저 true로 만들어 자동 로딩을 건너뛰게 막습니다.
+  mapDefaultLoaded = true;
   const mapTabBtn = document.querySelector('.mobile-tabbar .tab-btn[data-tab="map"]');
   if(mapTabBtn) mapTabBtn.click();
   const preset = findVenuePreset(venueName);
-  const info = { name: venueName, address: preset ? preset.address : '' };
+  const info = preset ? { name: preset.name, address: preset.address } : { name: venueName, address: '' };
   const sel = $('#venuePresetSelect');
   const input = $('#venueInput');
   if(sel) sel.value = preset ? preset.name : '';
-  if(input) input.value = venueName;
+  if(input) input.value = preset ? preset.name : venueName;
   await showVenueOnMap(info);
 }
 
@@ -3156,14 +3181,13 @@ function renderMatchList(){
       ? `<div class="mc-tags-row">${extraTags.map(t=>`<span class="mc-tag">${escapeHtml(String(t))}</span>`).join('')}</div>`
       : '';
 
+    // isFav는 즐겨찾기 필터(matchFavOnly)에서 계속 사용하지만, 즐겨찾기 등록/해제는
+    // 이제 지도 탭에서만 할 수 있어 경기 카드에는 별표 버튼을 두지 않습니다.
     const isFav = [...favSet].some(fav=>{
       const normalize = (s)=> String(s||'').replace(/\s+/g, '');
       const a = normalize(r.stadium_name), b = normalize(fav);
       return a && b && (a===b || a.includes(b) || b.includes(a));
     });
-    const favBtnHtml = isAdminUser()
-      ? `<button type="button" class="mc-fav-btn ${isFav?'on':''}" data-venue="${escapeHtml(r.stadium_name||'')}" title="이 경기장 즐겨찾기">${isFav?'★':'☆'}</button>`
-      : '';
 
     const locBtnHtml = `<button type="button" class="mc-loc-btn" data-venue="${escapeHtml(r.stadium_name||'')}" title="지도에서 위치 보기">📍 위치</button>`;
 
@@ -3172,7 +3196,6 @@ function renderMatchList(){
         <div class="mc-top-row">
           <span class="mc-time">${escapeHtml(timeStr)}</span>
           <span class="mc-venue">📍 ${escapeHtml(r.stadium_name || '경기장 미정')}</span>
-          ${favBtnHtml}
         </div>
         ${extraTagsHtml}
         <div class="mc-status-row">
@@ -3203,23 +3226,6 @@ function renderMatchList(){
       e.stopPropagation();
       const venueName = btn.dataset.venue;
       if(venueName) goToVenueOnMapTab(venueName);
-    });
-  });
-  listEl.querySelectorAll('.mc-fav-btn').forEach(btn=>{
-    btn.addEventListener('click', async (e)=>{
-      e.stopPropagation();
-      const venueName = btn.dataset.venue;
-      if(!venueName) return;
-      const willBeFavorite = !btn.classList.contains('on');
-      btn.disabled = true;
-      const ok = await setFavoriteVenueRobust(venueName, willBeFavorite);
-      btn.disabled = false;
-      if(ok){
-        toast(willBeFavorite ? `'${venueName}' 즐겨찾기에 추가했습니다.` : `'${venueName}' 즐겨찾기에서 제거했습니다.`);
-        renderMatchList();
-      } else {
-        toast('즐겨찾기 저장에 실패했습니다. 잠시 후 다시 시도해 주시기 바랍니다.');
-      }
     });
   });
   const moreBtn = $('#matchMoreBtn');
