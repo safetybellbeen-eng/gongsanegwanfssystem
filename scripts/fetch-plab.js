@@ -157,19 +157,20 @@ function getApplyStatus(item) {
 function mapAndValidate(item) {
   // 검증 로직이 시작되기 직전에, 지금 검사하려는 이 객체가 실제로 무엇인지 그대로 찍습니다.
   console.log('CHECK ID:', item.id);
-  console.log('CHECK SCHEDULE:', item.schedule);
+  console.log('CHECK SCHEDULE:', item.attributes?.schedule);
   console.log(JSON.stringify(item, null, 2));
 
   const idNum = Number(item.id);
   if (item.id === undefined || item.id === null || Number.isNaN(idNum)) {
     return { ok: false, reason: 'id가 유효한 숫자가 아님' };
   }
-  if (!item.schedule) {
-    return { ok: false, reason: 'schedule 없음' };
+  // ⚠️ 실제 원본 데이터를 확인한 결과, schedule은 최상위가 아니라 attributes 안에 있습니다.
+  if (!item.attributes?.schedule) {
+    return { ok: false, reason: 'attributes.schedule 없음' };
   }
-  const matchDate = String(item.schedule).slice(0, 10);
+  const matchDate = String(item.attributes.schedule).slice(0, 10);
   if (!matchDate) {
-    return { ok: false, reason: 'match_date를 schedule에서 추출할 수 없음' };
+    return { ok: false, reason: 'match_date를 attributes.schedule에서 추출할 수 없음' };
   }
   if (!item.time) {
     return { ok: false, reason: 'time 없음' };
@@ -178,7 +179,8 @@ function mapAndValidate(item) {
     return { ok: false, reason: 'title(경기장명) 없음' };
   }
 
-  const label = String(item.participants?.label || '');
+  // ⚠️ participants도 마찬가지로 attributes 안에 있습니다 (attributes.participants.label).
+  const label = String(item.attributes?.participants?.label || '');
   const [currentText, maxText] = label.split('/');
   const confirmCount = toNullableNumber(currentText);
   const maxPlayerCnt = toNullableNumber(maxText);
