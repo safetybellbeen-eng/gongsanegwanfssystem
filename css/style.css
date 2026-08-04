@@ -269,8 +269,8 @@
   .vote-buttons{display:flex;gap:8px;margin:18px 0 20px;}
   .past-notice{background:var(--surface-2);border:1px dashed var(--line);color:var(--muted);font-size:12px;padding:12px;border-radius:10px;margin:16px 0 20px;text-align:center;}
 
-  .confirm-banner{background:rgba(255,176,32,0.1);border:1px solid rgba(255,176,32,0.4);color:var(--amber);font-size:13px;font-weight:600;padding:12px 14px;border-radius:10px;margin:16px 0 18px;text-align:center;}
-  .confirm-banner.tie{background:rgba(109,184,255,0.1);border-color:rgba(109,184,255,0.4);color:#6db8ff;}
+  .confirm-banner{background:rgba(255,176,32,0.1);border:1px solid rgba(255,176,32,0.4);color:var(--amber);font-size:13px;font-weight:600;padding:12px 14px;border-radius:10px;margin:16px 0 18px;text-align:center;white-space:nowrap;overflow-x:auto;}
+  .confirm-banner.tie{background:rgba(109,184,255,0.1);border-color:rgba(109,184,255,0.4);color:#6db8ff;white-space:normal;}
   .week-day-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:18px;}
   .week-day-chip{position:relative;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:10px 2px;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;}
   .week-day-chip:hover:not(.disabled){border-color:rgba(61,220,132,0.4);}
@@ -343,16 +343,17 @@
   .da-names{display:flex;flex-wrap:wrap;gap:5px;}
   .nv-chip.me{background:var(--pitch);color:#0b1410;border-color:var(--pitch);font-weight:700;}
   .week-summary-row{display:flex;gap:8px;align-items:center;font-size:12px;color:var(--muted);margin-bottom:14px;flex-wrap:wrap;}
+  .week-summary-row span{white-space:nowrap;}
   .week-summary-row .dot-sep{color:var(--line);}
   .absence-btn{width:100%;background:var(--surface-2);border:1px solid var(--line);color:var(--muted);border-radius:10px;padding:12px;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:18px;}
   .absence-btn.active{background:rgba(255,93,93,0.12);border-color:rgba(255,93,93,0.4);color:var(--danger);}
   .week-rate-big{font-family:'Bebas Neue';font-size:20px;color:var(--text);text-align:center;margin:14px 0;padding:10px;background:var(--surface-2);border-radius:10px;}
   .week-rate-big b{color:var(--pitch);font-size:26px;}
   .week-rate-big .wr-sub{font-family:'Inter';font-size:11px;color:var(--muted);margin-left:4px;}
-  .not-voted-row .label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;display:block;margin-bottom:8px;}
+  .not-voted-row .label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;display:block;margin-bottom:8px;white-space:nowrap;}
   .not-voted-list{display:flex;flex-wrap:wrap;gap:6px;}
-  .nv-chip{background:var(--surface-2);border:1px solid var(--line);border-radius:20px;padding:4px 10px;font-size:12px;color:var(--muted);}
-  .nv-empty{font-size:12px;color:var(--pitch);}
+  .nv-chip{background:var(--surface-2);border:1px solid var(--line);border-radius:20px;padding:4px 10px;font-size:12px;color:var(--muted);white-space:nowrap;}
+  .nv-empty{font-size:12px;color:var(--pitch);white-space:nowrap;}
   .vote-btn{flex:1;padding:12px;border-radius:10px;border:1px solid var(--line);background:var(--surface-2);color:var(--text);font-weight:700;font-size:14px;cursor:pointer;}
   .vote-btn.yes.picked{background:var(--pitch);color:#0b1410;border-color:var(--pitch);}
   .vote-btn.no.picked{background:var(--danger);color:#1a0505;border-color:var(--danger);}
@@ -360,19 +361,22 @@
   .pie-row{display:flex;align-items:center;gap:20px;margin-bottom:20px;}
   .pie{width:88px;height:88px;border-radius:50%;flex-shrink:0;}
   .pie-legend{font-size:12px;display:flex;flex-direction:column;gap:6px;}
-  .pie-legend .li{display:flex;align-items:center;gap:8px;}
-  .pie-legend .sw{width:9px;height:9px;border-radius:2px;}
+  .pie-legend .li{display:flex;align-items:center;gap:8px;white-space:nowrap;}
+  .pie-legend .sw{width:9px;height:9px;border-radius:2px;flex-shrink:0;}
   .pie-legend .sw.yes{background:var(--pitch);}
   .pie-legend .sw.no{background:var(--danger);}
-  .pie-empty{color:var(--muted);font-size:12px;}
+  .pie-legend .sw.notvoted{background:var(--muted);}
+  .pie-empty{color:var(--muted);font-size:12px;white-space:nowrap;}
 
   .voter-lists{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
-  .voter-col h4{font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);margin:0 0 8px;}
+  .voter-lists.three-col{grid-template-columns:1fr 1fr 1fr;}
+  .voter-col h4{font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);margin:0 0 8px;white-space:nowrap;}
   .voter-col.yes h4{color:var(--pitch);}
   .voter-col.no h4{color:var(--danger);}
-  .voter-name{font-size:13px;padding:4px 0;border-bottom:1px dashed var(--line);}
+  .voter-col.notvoted h4{color:var(--muted);}
+  .voter-name{font-size:13px;padding:4px 0;border-bottom:1px dashed var(--line);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .voter-name:last-child{border-bottom:none;}
-  .voter-empty{font-size:12px;color:var(--muted);}
+  .voter-empty{font-size:12px;color:var(--muted);white-space:nowrap;}
 
   /* ---------- 경기 탭 (플랩풋볼) ---------- */
   .match-date-scroll{display:flex;gap:8px;overflow-x:auto;padding-bottom:8px;margin-bottom:14px;-webkit-overflow-scrolling:touch;}
@@ -386,8 +390,8 @@
   .match-count{display:flex;flex-direction:column;gap:3px;}
   .mc-count-label{font-size:12px;color:var(--muted);font-weight:600;}
   .mc-count-num{font-family:'JetBrains Mono';font-size:22px;font-weight:800;color:var(--text);letter-spacing:0.01em;}
-  .match-updated{font-size:11px;color:var(--muted);margin-top:2px;}
-  .match-updated-note{display:inline-block;font-size:10px;color:var(--amber);margin-top:4px;line-height:1.4;}
+  .match-updated{font-size:11px;color:var(--muted);margin-top:2px;white-space:nowrap;max-width:100%;overflow-x:auto;}
+  .match-updated-note{display:inline-block;font-size:10px;color:var(--amber);margin-top:4px;line-height:1.4;white-space:nowrap;}
   .mf-refresh-btn{flex-shrink:0;background:var(--surface-2);border:1px solid var(--line);color:var(--text);border-radius:20px;padding:8px 14px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;}
   .mf-refresh-btn:hover{border-color:var(--pitch);color:var(--pitch);}
   .mf-refresh-btn:disabled{opacity:0.5;cursor:not-allowed;}
@@ -408,6 +412,8 @@
   .match-card .mc-status.status-closing{background:rgba(255,176,32,0.15);color:var(--amber);}
   .match-card .mc-status.status-full{background:rgba(255,93,93,0.15);color:var(--danger);}
   .mc-type{flex-shrink:0;display:inline-flex;align-items:center;gap:4px;background:rgba(109,184,255,0.15);color:#6db8ff;border-radius:8px;padding:5px 10px;font-size:12px;font-weight:700;white-space:nowrap;}
+  .mc-loc-btn{flex-shrink:0;margin-left:auto;display:inline-flex;align-items:center;gap:4px;background:var(--surface-2);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:5px 10px;font-size:12px;font-weight:700;white-space:nowrap;cursor:pointer;}
+  .mc-loc-btn:hover{border-color:var(--pitch);color:var(--pitch);}
   .mc-tags-row{display:flex;gap:6px;margin-bottom:10px;}
   .mc-tag{background:var(--surface);border:1px solid var(--line);color:var(--muted);border-radius:7px;padding:3px 9px;font-size:11px;font-weight:600;}
   /* 상태·인원수 뱃지 줄과 신청하기 버튼 줄을 완전히 분리했습니다.
@@ -430,6 +436,8 @@
   .venue-row input{flex:1;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:10px 12px;color:var(--text);font-size:13px;}
   .venue-row button{background:var(--pitch);color:#0b1410;border:none;border-radius:8px;padding:0 16px;font-weight:700;font-size:13px;cursor:pointer;}
   .venue-hint{font-size:11px;color:var(--muted);margin-bottom:6px;}
+  .venue-legend{display:flex;gap:12px;flex-wrap:nowrap;}
+  .venue-legend .vl-item{white-space:nowrap;}
   .plab-link{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--pitch);text-decoration:none;border:1px solid rgba(61,220,132,0.35);border-radius:20px;padding:8px 14px;margin-bottom:14px;}
   .plab-link:hover{background:var(--pitch-dim);}
   #mapWrap{position:relative;}
@@ -649,6 +657,9 @@
     .admin-row button{min-height:40px;}
     #map{height:380px;}
     .voter-lists{grid-template-columns:1fr 1fr;gap:8px;}
+    .voter-lists.three-col{grid-template-columns:1fr 1fr 1fr;gap:6px;}
+    .voter-lists.three-col .voter-name{font-size:11px;padding:3px 0;}
+    .voter-lists.three-col .voter-col h4{font-size:9px;}
     input,select,textarea,button{font-size:16px;} /* iOS 자동 확대 방지 */
 
     /* 화면 폭에 안 맞고 잘려 보이던 요소들: 그리드를 줄이거나 가로 스크롤로 전환 */
@@ -675,7 +686,7 @@
     .week-day-grid::-webkit-scrollbar{display:none;}
     .week-day-chip{min-width:56px;}
     .venue-row{flex-wrap:wrap;}
-    .mc-status,.mc-type{font-size:11px;padding:4px 8px;}
+    .mc-status,.mc-type,.mc-loc-btn{font-size:11px;padding:4px 8px;}
     .mc-apply-btn{padding:9px 14px;font-size:12px;}
     .match-card{padding:12px 14px;}
     .venue-row select,
