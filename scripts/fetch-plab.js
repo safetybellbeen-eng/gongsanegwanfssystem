@@ -275,6 +275,38 @@ async function main() {
   } else {
     console.log(`[fetch-plab] 과거 데이터(match_date < ${todayS}) 정리 완료`);
   }
+
+  // ⚠️ upsert는 "이번에 새로 찾은 것만" 갱신/삽입할 뿐, 예전에 저장됐지만 이번 결과에는 없는
+  // 행(예: 서울 필터를 넣기 전에 저장된 안양/전주 등 다른 지역 경기)은 그대로 남아있게 됩니다.
+  // 그래서 오늘/미래 날짜인데 이번 실행 결과(finalRows)에 없는 기존 행을 추가로 찾아서 정리합니다.
+  const { data: existingFutureRows, error: fetchExistingError } = await supabase
+    .from(TABLE_NAME)
+    .select('id')
+    .gte('match_date', todayS);
+
+  if (fetchExistingError) {
+    console.error('[fetch-plab] 오늘/미래 기존 데이터 조회 실패:', fetchExistingError.message);
+  } else {
+    const finalIdSet = new Set(finalRows.map((r) => r.id));
+    const staleIds = (existingFutureRows || [])
+      .map((r) => r.id)
+      .filter((id) => !finalIdSet.has(id));
+
+    console.log(`[진단] 이번 결과에 없는(정리 대상) 기존 오늘/미래 데이터: ${staleIds.length}건`);
+
+    if (staleIds.length) {
+      // id가 너무 많으면 한 번에 지우기 부담스러우니 500개씩 나눠서 삭제합니다.
+      const CHUNK_SIZE = 500;
+      for (let i = 0; i < staleIds.length; i += CHUNK_SIZE) {
+        const chunk = staleIds.slice(i, i + CHUNK_SIZE);
+        const { error: staleDeleteError } = await supabase.from(TABLE_NAME).delete().in('id', chunk);
+        if (staleDeleteError) {
+          console.error('[fetch-plab] 정리 대상 삭제 실패:', staleDeleteError.message);
+        }
+      }
+      console.log(`[fetch-plab] 정리 대상(이번 결과에 없던 기존 오늘/미래 데이터) ${staleIds.length}건 삭제 완료`);
+    }
+  }
 }
 
 main().catch((err) => {
