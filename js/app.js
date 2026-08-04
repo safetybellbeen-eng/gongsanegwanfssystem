@@ -3025,7 +3025,11 @@ async function loadMatchesForSelectedDate(){
     console.log('[경기 탭] 이 날짜에서 발견된 apply_status 값들:', uniqueStatuses);
     if(updatedEl){
       const latest = lastMatchRows.reduce((acc,r)=> (r.updated_at && (!acc || r.updated_at>acc)) ? r.updated_at : acc, null);
-      updatedEl.textContent = latest ? `마지막 업데이트 · ${new Date(latest).toLocaleString('ko-KR')}` : '';
+      // 이 데이터는 실시간이 아니라 주기적으로 동기화된 스냅샷이라, 인기 있는 경기는 그 사이에
+      // 마감될 수 있습니다. 신청 전 실제 링크에서 최신 상태를 한 번 더 확인하도록 안내합니다.
+      updatedEl.innerHTML = latest
+        ? `마지막 업데이트 · ${new Date(latest).toLocaleString('ko-KR')}<br><span class="match-updated-note">⚠️ 실시간 정보가 아니라, 신청 전 실제 링크에서 마감 여부를 한 번 더 확인해 주세요.</span>`
+        : '';
     }
     renderMatchList();
   }catch(e){
