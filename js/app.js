@@ -113,9 +113,11 @@ async function loginOrValidate(name, birth){
   return { ok:true, data: fresh };
 }
 
-function initAppUI(){
+async function initAppUI(){
   const now = new Date();
   viewYear = now.getFullYear(); viewMonth = now.getMonth();
+  await loadFavoriteVenues(); // 지도 핀/경기 탭 필터가 즐겨찾기를 바로 반영할 수 있도록 먼저 불러옵니다.
+  populateVenuePresetSelect();
   renderCalendar();
   renderMemberList();
   loadWeather();
@@ -237,7 +239,7 @@ $('#loginForm').addEventListener('submit', async (e)=>{
   $('#adminBadge').style.display = isAdmin() ? 'inline-block' : 'none';
   $('#loginOverlay').classList.add('hidden');
   renderQuote();
-  initAppUI();
+  await initAppUI();
 });
 
 /* ================= WEATHER (Open-Meteo, 캐시+5초 이내 표시) ================= */
@@ -655,7 +657,7 @@ const SUPABASE_KEY = 'sb_publishable_GY9qgB0wVnh2YmYWO9qrTA_OK-chx5W';
 const supabaseClient = (typeof supabase !== 'undefined') ? supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
 const SUPABASE_ROW_ID = 1; // app_state 테이블의 고정 행(row) id — 팀 전체가 공유하는 데이터 한 덩어리
 
-function emptyAppData(){ return { venues:{}, votedDates:[], votes:{}, members:{}, weekAvailability:{}, weekAbsence:{}, weekOverride:{}, actualAttendance:{}, matchGuests:{}, excludedWeeks:[], statAdjustments:{}, favoriteVenues:[], matchTimeWindow:{startHour:19,endHour:21}, kakaoJsKey:'', notice:{title:'',body:'',updatedAt:null}, kmaApiKey:'' }; }
+function emptyAppData(){ return { venues:{}, votedDates:[], votes:{}, members:{}, weekAvailability:{}, weekAbsence:{}, weekOverride:{}, actualAttendance:{}, matchGuests:{}, excludedWeeks:[], statAdjustments:{}, matchTimeWindow:{startHour:19,endHour:21}, kakaoJsKey:'', notice:{title:'',body:'',updatedAt:null}, kmaApiKey:'' }; }
 let appData = emptyAppData();
 
 async function remoteLoad(){
@@ -682,7 +684,6 @@ async function remoteLoad(){
       matchGuests: record.matchGuests || {},
       excludedWeeks: record.excludedWeeks || [],
       statAdjustments: record.statAdjustments || {},
-      favoriteVenues: record.favoriteVenues || [],
       matchTimeWindow: record.matchTimeWindow||{startHour:19,endHour:21},
       kakaoJsKey: record.kakaoJsKey || ''
     };
@@ -2077,7 +2078,7 @@ function populateVenuePresetSelect(){
   const sel = $('#venuePresetSelect');
   if(!sel) return;
   const prevValue = sel.value;
-  const favSet = new Set(appData.favoriteVenues || []);
+  const favSet = favoriteVenueSet;
   const favVenues = FUTSAL_VENUES.filter(v=>favSet.has(v.name));
   const restVenues = FUTSAL_VENUES.filter(v=>!favSet.has(v.name));
   let html = '<option value="">목록에서 선택</option>';
@@ -2105,39 +2106,53 @@ function updateFavVenueBtn(){
   const preset = findVenuePreset(name);
   if(!preset){ btn.style.display='none'; return; }
   btn.style.display = 'inline-block';
-  const isFav = (appData.favoriteVenues||[]).includes(preset.name);
+  const isFav = favoriteVenueSet.has(preset.name);
   btn.textContent = isFav ? '★' : '☆';
   btn.classList.toggle('on', isFav);
 }
-/* 즐겨찾기 저장이 다른 사람의 동시 저장(투표 등)과 겹치면 그 사이에 값이 유실될 수 있어서,
-   저장 후 다시 불러와 실제로 반영됐는지 확인하고, 안 됐으면 짧게 기다렸다가 다시 시도합니다. */
-async function setFavoriteVenueRobust(name, shouldBeFavorite){
-  for(let attempt=0; attempt<3; attempt++){
-    await mutateAppData(data=>{
-      if(!data.favoriteVenues) data.favoriteVenues = [];
-      const has = data.favoriteVenues.includes(name);
-      if(shouldBeFavorite && !has) data.favoriteVenues.push(name);
-      if(!shouldBeFavorite && has) data.favoriteVenues = data.favoriteVenues.filter(n=>n!==name);
-    });
-    const check = await remoteLoad();
-    const nowHas = (check.favoriteVenues||[]).includes(name);
-    if(nowHas === shouldBeFavorite){ appData = check; return true; }
-    await new Promise(r=>setTimeout(r, 300 + attempt*300));
+/* ⚠️ 즐겨찾기는 이제 app_state의 공유 블롭이 아니라 독립된 favorite_venues 테이블에 저장합니다.
+   추가/삭제가 그 자체로 원자적인 DB 작업이라, 투표·부상설정 등 다른 저장 작업과 절대 겹쳐서
+   유실될 일이 없습니다. */
+let favoriteVenueSet = new Set();
+async function loadFavoriteVenues(){
+  if(!supabaseClient) return;
+  try{
+    const { data, error } = await supabaseClient.from('favorite_venues').select('venue_name');
+    if(error) throw error;
+    favoriteVenueSet = new Set((data||[]).map(r=>r.venue_name));
+  }catch(e){
+    console.error('[즐겨찾기] 목록을 불러오지 못했습니다:', e);
   }
-  console.error('[즐겨찾기] 3회 재시도에도 반영되지 않았습니다:', name);
-  return false;
+}
+async function setFavoriteVenueRobust(name, shouldBeFavorite){
+  try{
+    if(shouldBeFavorite){
+      const { error } = await supabaseClient.from('favorite_venues').insert({ venue_name: name });
+      // 이미 즐겨찾기되어 있어서 primary key 충돌이 나는 경우는 실패로 취급하지 않습니다.
+      if(error && error.code !== '23505') throw error;
+      favoriteVenueSet.add(name);
+    } else {
+      const { error } = await supabaseClient.from('favorite_venues').delete().eq('venue_name', name);
+      if(error) throw error;
+      favoriteVenueSet.delete(name);
+    }
+    return true;
+  }catch(e){
+    console.error('[즐겨찾기] 저장/삭제 실패:', e);
+    return false;
+  }
 }
 $('#favVenueBtn').addEventListener('click', async ()=>{
   if(!requireAdmin()) return;
   const name = $('#venueInput').value.trim();
   const preset = findVenuePreset(name);
   if(!preset) return;
-  const willBeFavorite = !(appData.favoriteVenues||[]).includes(preset.name);
+  const willBeFavorite = !favoriteVenueSet.has(preset.name);
   const ok = await setFavoriteVenueRobust(preset.name, willBeFavorite);
   populateVenuePresetSelect();
   updateFavVenueBtn();
   if(venuePinObjects[preset.name]){
-    const isFavNow = (appData.favoriteVenues||[]).includes(preset.name);
+    const isFavNow = favoriteVenueSet.has(preset.name);
     setVenueStarBadge(preset.name, isFavNow);
     refreshVenuePinStyle(preset.name, currentHighlightedVenueName===preset.name);
   }
@@ -2263,7 +2278,7 @@ async function renderAllVenuePins(){
     }
     if(!coords) continue;
     const pos = new kakao.maps.LatLng(coords.lat, coords.lng);
-    const isFav = (appData.favoriteVenues||[]).includes(v.name);
+    const isFav = favoriteVenueSet.has(v.name);
     const el = document.createElement('div');
     el.addEventListener('click', (e)=>{
       e.stopPropagation();
@@ -2294,7 +2309,7 @@ function applyConfirmedVenueMarker(){
   const newConfirmedName = (venue && venuePinObjects[venue.name]) ? venue.name : null;
   if(confirmedVenueName && confirmedVenueName !== newConfirmedName && venuePinObjects[confirmedVenueName]){
     const prevObj = venuePinObjects[confirmedVenueName];
-    prevObj.type = (appData.favoriteVenues||[]).includes(confirmedVenueName) ? 'favorite' : 'regular';
+    prevObj.type = favoriteVenueSet.has(confirmedVenueName) ? 'favorite' : 'regular';
     renderVenuePinContent(confirmedVenueName);
   }
   confirmedVenueName = newConfirmedName;
@@ -2699,7 +2714,7 @@ $('#logoutBtn').addEventListener('click', async ()=>{
     $('#birthTag').textContent = `(${myBirth})`;
     $('#adminBadge').style.display = isAdmin() ? 'inline-block' : 'none';
     $('#loginOverlay').classList.add('hidden');
-    initAppUI();
+    await initAppUI();
   }
 })();
 
@@ -2934,7 +2949,7 @@ function checkVoteDeadlineReminder(){
 /* ================= 경기 탭 (플랩풋볼, Supabase public.plab_matches 조회 전용) =================
    ⚠️ 이 섹션은 GitHub Actions/fetch-plab.js/Supabase 테이블 구조를 전혀 건드리지 않고,
    이미 저장되어 있는 plab_matches 테이블을 "읽기 전용"으로 조회만 합니다.
-   즐겨찾기는 지도 탭에서 관리자가 지정한 appData.favoriteVenues(Supabase 공유 데이터)를 그대로 사용합니다. */
+   즐겨찾기는 독립된 favorite_venues 테이블(favoriteVenueSet)을 그대로 사용합니다. */
 
 let selectedMatchDate = null; // YYYY-MM-DD
 let matchTimeFilter = 'evening';  // all | morning | afternoon | evening (기본은 저녁 19시 이후)
@@ -3044,7 +3059,7 @@ function renderMatchList(){
   const listEl = $('#matchListContainer');
   const countEl = $('#matchCountText');
   if(!listEl) return;
-  const favSet = new Set(appData.favoriteVenues || []);
+  const favSet = favoriteVenueSet;
 
   let rows = lastMatchRows.filter(r=>{
     if(matchTimeFilter !== 'all' && matchTimePeriod(r.match_time) !== matchTimeFilter) return false;
