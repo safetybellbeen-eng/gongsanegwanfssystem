@@ -962,7 +962,8 @@ async function renderMatchPanel(){
   const admin = isAdminUser();
   const iAmAbsent = !!absenceMap[myName];
   const iAmInjured = isCurrentlyInjured(myName);
-  const notVotedHtml = `
+  const isSelectedConfirmed = confirmedDates.includes(selectedDate);
+  const notVotedHtml = isSelectedConfirmed ? '' : `
     <div class="not-voted-row">
       <span class="label">미투표 인원 (${notVoted.length}명)</span>
       <div class="not-voted-list">${notVoted.length? notVoted.map(n=>`<span class="nv-chip">${escapeHtml(n)}</span>`).join('') : '<span class="nv-empty">모두 투표했어요 🎉</span>'}</div>
@@ -973,7 +974,6 @@ async function renderMatchPanel(){
     </div>
   `;
 
-  const isSelectedConfirmed = confirmedDates.includes(selectedDate);
   const s0 = parseYMD(dates[0]), s6 = parseYMD(dates[6]);
   const rangeLabel = `${s0.getMonth()+1}.${s0.getDate()}(${weekdayKR[0]}) ~ ${s6.getMonth()+1}.${s6.getDate()}(${weekdayKR[6]})`;
   const weekLabel = getWeekLabel(weekKey);
@@ -1017,7 +1017,7 @@ async function renderMatchPanel(){
         </div>
       </div>
       <div class="voter-lists three-col">
-        <div class="voter-col yes"><h4>참석 명단</h4>${(yesList.length||guests.length)? [...yesList.map(v=>`<div class="voter-name">${escapeHtml(v.name)}</div>`), ...guests.map(g=>`<div class="voter-name">${escapeHtml(g)} <span style="color:var(--muted);font-size:10px;">(게스트)</span></div>`)].join('') : '<div class="voter-empty">아직 없음</div>'}</div>
+        <div class="voter-col yes"><h4>참석 명단</h4>${(yesList.length||guests.length)? [...yesList.map(name=>`<div class="voter-name">${escapeHtml(name)}</div>`), ...guests.map(g=>`<div class="voter-name">${escapeHtml(g)} <span style="color:var(--muted);font-size:10px;">(게스트)</span></div>`)].join('') : '<div class="voter-empty">아직 없음</div>'}</div>
         <div class="voter-col no"><h4>불참 명단</h4>${noList.length? noList.map(name=>`<div class="voter-name">${escapeHtml(name)}</div>`).join('') : '<div class="voter-empty">아직 없음</div>'}</div>
         <div class="voter-col notvoted"><h4>미투표 명단</h4>${notVotedList.length? notVotedList.map(name=>`<div class="voter-name">${escapeHtml(name)}</div>`).join('') : '<div class="voter-empty">아직 없음</div>'}</div>
       </div>
@@ -1059,11 +1059,11 @@ async function renderMatchPanel(){
     ${banner}
     ${confirmedSummaryHtml}
     ${iAmInjured ? `<div class="confirm-banner" style="background:rgba(255,93,93,0.1);border-color:rgba(255,93,93,0.4);color:var(--danger);white-space:normal;">🤕 부상 중에는 투표할 수 없습니다. (복귀 예정일: ${escapeHtml(appData.members[myName].injuryEnd)})</div>` : ''}
-    <div class="week-summary-row">
+    ${isSelectedConfirmed ? '' : `<div class="week-summary-row">
       <span>참여 의사 ${availableNames.length}명</span><span class="dot-sep">|</span>
       <span>불참 ${absentNames.length}명</span><span class="dot-sep">|</span>
       <span>미투표 ${notVoted.length}명</span>
-    </div>
+    </div>`}
     <button class="absence-btn ${iAmAbsent?'active':''}" id="absenceBtn" ${iAmInjured?'disabled':''}>${iAmAbsent?`✕ ${weekLabel} 불참 취소`:`${weekLabel} 전체 불참`}</button>
     ${notVotedHtml}
     <div class="daily-attend-block">
@@ -3007,10 +3007,17 @@ function checkVoteDeadlineReminder(){
 let selectedMatchDate = null; // YYYY-MM-DD
 let matchTimeFilter = 'evening';  // all | morning | afternoon | evening (기본은 저녁 19시 이후)
 let matchFavOnly = false;
+let matchFormatFilter = 'all'; // all | '5' | '6' (player_count에서 뽑은 인원수 기준)
 let matchesTabInited = false;
 let lastMatchRows = [];
 let matchVisibleCount = 10;
 const MATCHES_PER_PAGE = 10;
+
+/* player_count는 "6vs6", "6VS6", "6:6" 등 표기가 섞여 들어올 수 있어, 첫 숫자만 뽑아 비교 기준으로 삼습니다. */
+function matchFormatNumber(playerCount){
+  const m = String(playerCount||'').match(/\d+/);
+  return m ? m[0] : null;
+}
 
 /* 오늘부터 14일치 날짜 목록 (KST 기준) */
 function buildMatchDateList(){
@@ -3093,11 +3100,13 @@ async function loadMatchesForSelectedDate(){
     console.log('[경기 탭] 이 날짜에서 발견된 apply_status 값들:', uniqueStatuses);
     if(updatedEl){
       const latest = lastMatchRows.reduce((acc,r)=> (r.updated_at && (!acc || r.updated_at>acc)) ? r.updated_at : acc, null);
+      updatedEl.textContent = latest ? `마지막 업데이트 · ${new Date(latest).toLocaleString('ko-KR')}` : '';
+    }
+    const syncNote = $('#matchSyncNote');
+    if(syncNote){
       // 이 데이터는 실시간이 아니라 주기적으로 동기화된 스냅샷이라, 인기 있는 경기는 그 사이에
       // 마감될 수 있습니다. 신청 전 실제 링크에서 최신 상태를 한 번 더 확인하도록 안내합니다.
-      updatedEl.innerHTML = latest
-        ? `마지막 업데이트 · ${new Date(latest).toLocaleString('ko-KR')}<br><span class="match-updated-note">⚠️ 실시간 정보가 아니라, 신청 전 실제 링크에서 마감 여부를 한 번 더 확인해 주세요.</span>`
-        : '';
+      syncNote.style.display = lastMatchRows.length ? 'block' : 'none';
     }
     renderMatchList();
   }catch(e){
@@ -3118,6 +3127,11 @@ async function goToVenueOnMapTab(venueName){
   mapDefaultLoaded = true;
   const mapTabBtn = document.querySelector('.mobile-tabbar .tab-btn[data-tab="map"]');
   if(mapTabBtn) mapTabBtn.click();
+  // 탭 전환으로 #sectionMap이 display:none → block으로 바뀐 직후에는 브라우저가 아직 레이아웃을
+  // 재계산하지 않은 상태라, 이 시점에 카카오맵을 그리면 지도가 실제 컨테이너 크기/위치를 잘못
+  // 인식해 비스듬히 어긋난 곳부터 보이는 문제가 있었습니다. 한 프레임을 기다려 레이아웃이
+  // 확정된 뒤에 지도를 그리도록 합니다.
+  await new Promise(resolve=>requestAnimationFrame(resolve));
   const preset = findVenuePreset(venueName);
   const info = preset ? { name: preset.name, address: preset.address } : { name: venueName, address: '' };
   const sel = $('#venuePresetSelect');
@@ -3125,6 +3139,8 @@ async function goToVenueOnMapTab(venueName){
   if(sel) sel.value = preset ? preset.name : '';
   if(input) input.value = preset ? preset.name : venueName;
   await showVenueOnMap(info);
+  // 지도가 그려진 후에도 컨테이너 크기가 늦게 확정되는 경우가 있어, relayout으로 한 번 더 보정합니다.
+  setTimeout(()=>{ try{ if(map) map.relayout(); if(map && currentVenueName && venuePinObjects[currentVenueName]) map.setCenter(venuePinObjects[currentVenueName].pos); }catch(e){} }, 150);
 }
 
 function renderMatchList(){
@@ -3135,6 +3151,13 @@ function renderMatchList(){
 
   let rows = lastMatchRows.filter(r=>{
     if(matchTimeFilter !== 'all' && matchTimePeriod(r.match_time) !== matchTimeFilter) return false;
+    if(matchFormatFilter !== 'all' && matchFormatNumber(r.player_count) !== matchFormatFilter) return false;
+    // 오늘 날짜를 보고 있을 때는, 이미 시작 시각이 지난 경기는 신청해도 소용없으니 목록에서 제외합니다.
+    if(selectedMatchDate === todayStr() && r.match_time){
+      const now = kstNow();
+      const nowHM = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+      if(String(r.match_time).slice(0,5) < nowHM) return false;
+    }
     if(matchFavOnly){
       // 즐겨찾기 경기장명과 완전히 일치하지 않을 수 있어(플랩 표기 차이), 공백을 무시하고
       // 부분 포함까지 함께 확인합니다. (예: "가산 벽산디지털밸리" vs "가산벽산디지털밸리")
@@ -3261,6 +3284,15 @@ function initMatchesTabOnce(){
     matchVisibleCount = MATCHES_PER_PAGE;
     favBtn.classList.toggle('active', matchFavOnly);
     renderMatchList();
+  });
+  const formatRow = $('#matchFormatFilterRow');
+  if(formatRow) formatRow.querySelectorAll('.mf-chip[data-filter-format]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      matchFormatFilter = btn.dataset.filterFormat;
+      matchVisibleCount = MATCHES_PER_PAGE;
+      formatRow.querySelectorAll('.mf-chip[data-filter-format]').forEach(b=>b.classList.toggle('active', b===btn));
+      renderMatchList();
+    });
   });
   const refreshBtn = $('#matchRefreshBtn');
   if(refreshBtn) refreshBtn.addEventListener('click', async ()=>{
