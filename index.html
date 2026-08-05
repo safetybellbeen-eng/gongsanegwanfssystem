@@ -202,6 +202,7 @@
       </div>
       <button class="mf-refresh-btn" id="matchRefreshBtn">🔄 최신 경기 불러오기</button>
     </div>
+    <div class="match-sync-note" id="matchSyncNote" style="display:none;">⚠️ 실시간 정보가 아니라, 신청 전 실제 링크에서 마감 여부를 한 번 더 확인해 주세요.</div>
 
     <div class="match-filter-row" id="matchFilterRow">
       <button class="mf-chip" data-filter-time="all">전체</button>
@@ -209,6 +210,11 @@
       <button class="mf-chip" data-filter-time="afternoon">오후</button>
       <button class="mf-chip active" data-filter-time="evening">저녁</button>
       <button class="mf-chip mf-fav" id="matchFavFilterBtn">⭐ 즐겨찾기만</button>
+    </div>
+    <div class="match-filter-row" id="matchFormatFilterRow">
+      <button class="mf-chip active" data-filter-format="all">전체 형식</button>
+      <button class="mf-chip" data-filter-format="5">5:5</button>
+      <button class="mf-chip" data-filter-format="6">6:6</button>
     </div>
 
     <div id="matchListContainer"></div>
