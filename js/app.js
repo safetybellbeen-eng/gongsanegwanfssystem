@@ -918,16 +918,38 @@ function getEffectiveVotesForDate(date){
   }
   return appData.votes[date] || [];
 }
-/* 참석/불참/미투표를 명확히 3단계로 구분합니다.
-   미투표 = 승인된 회원(관리자 제외) 중 이 날짜에 대해 참석·불참 어느 쪽으로도 기록되지 않은 사람.
-   (실제 참석 체크가 끝난 날짜는 전원이 참석/불참으로 확정되므로 미투표가 항상 0명입니다.) */
+/* 참석/불참/미투표를 사용자가 정한 기준으로 명확히 3단계로 구분합니다.
+   - 참석: 그 날짜를 가능일로 선택한 사람
+   - 불참: 그 날짜는 선택하지 않았지만, (a) 그 주의 다른 날짜는 하나 이상 선택했거나
+           (b) 그 주 전체 불참을 선언한 사람
+   - 미투표: 그 주 모든 날짜에 대해 아무 선택도 하지 않았고 전체 불참 선언도 하지 않은 사람
+   (data.votes는 위 구분과 다른 목적의 파생 데이터라 여기선 쓰지 않고, weekAvailability/weekAbsence
+   원본을 직접 봅니다. 실제 참석 체크가 끝난 날짜는 전원이 참석/불참으로 확정되어 미투표가 항상 0명입니다.) */
 function getVoteBreakdownForDate(date){
-  const effVotes = getEffectiveVotesForDate(date);
-  const yesList = effVotes.filter(v=>v.choice==='yes').map(v=>v.name);
-  const noList = effVotes.filter(v=>v.choice==='no').map(v=>v.name);
+  const actual = appData.actualAttendance && appData.actualAttendance[date];
   const approvedNames = getApprovedNonAdminNames();
-  const votedSet = new Set([...yesList, ...noList]);
-  const notVotedList = approvedNames.filter(n=>!votedSet.has(n));
+  if(actual && actual.finalized){
+    const attendSet = new Set(actual.attendees||[]);
+    return {
+      yesList: approvedNames.filter(n=>attendSet.has(n)),
+      noList: approvedNames.filter(n=>!attendSet.has(n)),
+      notVotedList: []
+    };
+  }
+  const weekKey = getWeekStart(date);
+  const avail = (appData.weekAvailability && appData.weekAvailability[weekKey]) || {};
+  const weekAbsenceMap = (appData.weekAbsence && appData.weekAbsence[weekKey]) || {};
+  const yesList = [], noList = [], notVotedList = [];
+  approvedNames.forEach(name=>{
+    const picks = avail[name] || [];
+    if(picks.includes(date)){
+      yesList.push(name);
+    } else if(picks.length > 0 || weekAbsenceMap[name]){
+      noList.push(name);
+    } else {
+      notVotedList.push(name);
+    }
+  });
   return { yesList, noList, notVotedList };
 }
 /* 투표 결과와 실제 참석을 비교해 노쇼(참석 투표했지만 안 옴)와 번개참석(불참·미투표였지만 실제로 옴)을 계산합니다. */
