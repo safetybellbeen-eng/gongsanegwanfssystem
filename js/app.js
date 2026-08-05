@@ -2177,10 +2177,14 @@ async function setFavoriteVenueRobust(name, shouldBeFavorite){
       if(error) throw error;
       favoriteVenueSet.delete(name);
     }
-    return true;
+    return { ok:true };
   }catch(e){
     console.error('[즐겨찾기] 저장/삭제 실패:', e);
-    return false;
+    // 테이블이 아직 없거나(42P01) RLS 정책이 없어서 막힌 경우(42501)를 구분해서 안내합니다.
+    let reason = e && e.message ? e.message : '알 수 없는 오류';
+    if(e && e.code === '42P01') reason = 'favorite_venues 테이블이 아직 없습니다. favorite-venues-table.sql을 Supabase에서 실행해 주시기 바랍니다.';
+    else if(e && e.code === '42501') reason = '저장 권한이 없습니다(RLS 정책 확인 필요). favorite-venues-table.sql을 Supabase에서 실행해 주시기 바랍니다.';
+    return { ok:false, reason };
   }
 }
 $('#favVenueBtn').addEventListener('click', async ()=>{
@@ -2188,15 +2192,15 @@ $('#favVenueBtn').addEventListener('click', async ()=>{
   const name = currentVenueName;
   if(!name) return;
   const willBeFavorite = !favoriteVenueSet.has(name);
-  const ok = await setFavoriteVenueRobust(name, willBeFavorite);
+  const result = await setFavoriteVenueRobust(name, willBeFavorite);
   populateVenuePresetSelect();
   updateFavVenueBtn();
   if(venuePinObjects[name]){
     venuePinObjects[name].type = favoriteVenueSet.has(name) ? 'favorite' : 'regular';
     renderVenuePinContent(name);
   }
-  if(!ok){
-    toast('즐겨찾기 저장에 실패했습니다. 잠시 후 다시 시도해 주시기 바랍니다.');
+  if(!result.ok){
+    toast(`즐겨찾기 저장에 실패했습니다: ${result.reason}`);
   } else {
     toast(willBeFavorite ? '즐겨찾기에 추가했습니다.' : '즐겨찾기에서 제거했습니다.');
   }
