@@ -419,9 +419,11 @@
      미묘하게 달라 보이는 문제가 있었는데, 버튼을 별도 줄에 두면 글자 길이와 무관하게 항상
      같은 자리(오른쪽 끝)에 고정됩니다. */
   .mc-status-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
-  .mc-action-row{display:flex;justify-content:flex-end;}
-  .mc-apply-btn{flex-shrink:0;width:100%;background:var(--pitch);color:#0b1410;border:none;border-radius:10px;padding:12px 18px;font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap;}
+  .mc-action-row{display:flex;justify-content:flex-end;gap:8px;}
+  .mc-apply-btn{flex:1;flex-shrink:0;background:var(--pitch);color:#0b1410;border:none;border-radius:10px;padding:12px 18px;font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap;}
   .mc-apply-btn:hover{filter:brightness(1.05);}
+  .mc-adopt-btn{flex-shrink:0;background:rgba(255,176,32,0.12);color:var(--amber);border:1px solid rgba(255,176,32,0.4);border-radius:10px;padding:12px 14px;font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap;}
+  .mc-adopt-btn:hover{background:rgba(255,176,32,0.2);}
   .match-loading{text-align:center;color:var(--muted);font-size:13px;padding:30px 0;}
   .match-more-btn{display:block;width:100%;margin-top:8px;background:var(--surface-2);border:1px dashed var(--line);color:var(--text);border-radius:12px;padding:13px;font-size:13px;font-weight:600;cursor:pointer;}
   .match-more-btn:hover{border-color:var(--pitch);color:var(--pitch);}
@@ -685,7 +687,7 @@
     .week-day-chip{min-width:56px;}
     .venue-row{flex-wrap:wrap;}
     .mc-status,.mc-type,.mc-loc-btn{font-size:11px;padding:4px 8px;}
-    .mc-apply-btn{padding:9px 14px;font-size:12px;}
+    .mc-apply-btn,.mc-adopt-btn{padding:9px 14px;font-size:12px;}
     .match-card{padding:12px 14px;}
     .venue-row select,
     .venue-row input,
