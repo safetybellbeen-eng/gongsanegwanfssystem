@@ -3165,6 +3165,50 @@ async function goToVenueOnMapTab(venueName){
   setTimeout(()=>{ try{ if(map) map.relayout(); if(map && currentVenueName && venuePinObjects[currentVenueName]) map.setCenter(venuePinObjects[currentVenueName].pos); }catch(e){} }, 150);
 }
 
+/* 경기 탭에서 고른 플랩풋볼 경기를 홈 탭 "확정 경기"로 그대로 가져옵니다.
+   - 그 날짜가 아직 확정되지 않았으면(weekOverride에 없고 자동 최다득표일도 아니면) 함께 확정 처리합니다.
+   - 경기장/시간/신청 링크를 플랩풋볼 정보 그대로 채워서 관리자가 다시 손으로 입력하지 않아도 되게 합니다.
+   - 이미 그 날짜에 저장된 경기장 정보가 있으면 실수로 덮어쓰지 않도록 확인을 먼저 받습니다. */
+async function adminAdoptMatchAsConfirmed(row){
+  if(!requireAdmin()) return;
+  const dateStr = row.match_date;
+  if(!dateStr){ toast('경기 날짜 정보가 없습니다.'); return; }
+
+  const weekKey = getWeekStart(dateStr);
+  const existingConfirmedDates = getWeekInfo(weekKey).confirmedDates;
+  const alreadyConfirmed = existingConfirmedDates.includes(dateStr);
+  const existingVenue = getVenueInfo(dateStr);
+
+  let confirmMsg = `${dateStr} 경기를 홈 화면 확정 경기로 등록하시겠습니까?\n\n📍 ${row.stadium_name||'경기장 미정'}\n🕒 ${row.match_time||'-'}`;
+  if(!alreadyConfirmed) confirmMsg += `\n\n⚠️ 이 날짜는 아직 확정되지 않았습니다. 이 날짜도 함께 확정 처리됩니다.`;
+  if(existingVenue && existingVenue.name) confirmMsg += `\n\n⚠️ 이미 등록된 경기장 정보(${existingVenue.name})를 덮어씁니다.`;
+  if(!confirm(confirmMsg)) return;
+
+  const preset = findVenuePreset(row.stadium_name);
+  const venueName = preset ? preset.name : (row.stadium_name || '');
+  const venueAddress = preset ? preset.address : '';
+  const timeStr = row.match_time ? String(row.match_time).slice(0,5) : '';
+  const link = row.match_url || '';
+
+  await mutateAppData(data=>{
+    if(!alreadyConfirmed){
+      if(!data.weekOverride) data.weekOverride = {};
+      const list = normalizeDateList(data.weekOverride[weekKey], getWeekDates(weekKey));
+      if(!list.includes(dateStr)) list.push(dateStr);
+      data.weekOverride[weekKey] = list;
+      resyncWeekDerivedVotes(data, weekKey);
+    }
+    data.venues[dateStr] = { name: venueName, address: venueAddress, time: timeStr, link };
+  });
+
+  renderCalendar();
+  await renderMatchPanel();
+  computeAttendanceStats();
+  renderMatchStats();
+  renderMatchVenueConfirmedHint();
+  toast('경기를 홈 화면 확정 경기로 등록했습니다.');
+}
+
 function renderMatchList(){
   const listEl = $('#matchListContainer');
   const countEl = $('#matchCountText');
@@ -3239,6 +3283,9 @@ function renderMatchList(){
     });
 
     const locBtnHtml = `<button type="button" class="mc-loc-btn" data-venue="${escapeHtml(r.stadium_name||'')}" title="지도에서 위치 보기">📍 위치</button>`;
+    const adoptBtnHtml = isAdminUser()
+      ? `<button type="button" class="mc-adopt-btn" data-row-id="${escapeHtml(String(r.id))}" title="이 경기를 홈 화면 확정 경기로 등록">🏆 확정 등록</button>`
+      : '';
 
     return `
       <div class="match-card">
@@ -3254,6 +3301,7 @@ function renderMatchList(){
         </div>
         <div class="mc-action-row">
           <button type="button" class="mc-apply-btn" data-url="${escapeHtml(r.match_url||'')}">신청하기 →</button>
+          ${adoptBtnHtml}
         </div>
       </div>
     `;
@@ -3275,6 +3323,13 @@ function renderMatchList(){
       e.stopPropagation();
       const venueName = btn.dataset.venue;
       if(venueName) goToVenueOnMapTab(venueName);
+    });
+  });
+  listEl.querySelectorAll('.mc-adopt-btn').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const row = lastMatchRows.find(r=>String(r.id)===btn.dataset.rowId);
+      if(row) adminAdoptMatchAsConfirmed(row);
     });
   });
   const moreBtn = $('#matchMoreBtn');
