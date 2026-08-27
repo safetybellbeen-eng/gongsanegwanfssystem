@@ -3439,34 +3439,63 @@ let tacticsRosterAll = [];  // 선택된 날짜의 전체 참석자 이름 목�
 let tacticsDirty = false;   // 마지막 저장 이후 변경 여부
 let tacticsDragState = null; // { name, svgEl }
 let tacticsFormat = '5';     // '5' | '6' (5:5, 6:6)
-let tacticsFormation = 'free'; // '2-2' | '1-2-1' | '3-1' | 'free'
+let tacticsFormation = 'free'; // 'free' 또는 TACTICS_FORMATIONS_BY_FORMAT[tacticsFormat]의 key
 let tacticsPendingRosterName = null; // 포메이션 모드에서 "배치 대기 중"인 로스터 선수 이름
 
-/* 포메이션별 필드 플레이어 슬롯 좌표 (골키퍼 제외, 공격 방향은 위쪽).
-   5:5는 필드 플레이어 4명, 6:6은 5명 기준입니다. */
-const TACTICS_FORMATIONS = {
-  '2-2': {
-    '5': [ {x:95,y:330}, {x:205,y:330}, {x:95,y:180}, {x:205,y:180} ],
-    '6': [ {x:95,y:340}, {x:205,y:340}, {x:70,y:190}, {x:150,y:170}, {x:230,y:190} ]
+/* 경기 형식(5:5/6:6)별로 완전히 다른 포메이션 이름과 필드 플레이어 슬롯 좌표를 씁니다.
+   5:5는 필드 플레이어 4명, 6:6은 5명 기준입니다. (골키퍼는 별도 고정 슬롯) */
+const TACTICS_FORMATIONS_BY_FORMAT = {
+  '5': {
+    '2-2':   [ {x:95,y:330}, {x:205,y:330}, {x:95,y:180}, {x:205,y:180} ],
+    '1-2-1': [ {x:150,y:360}, {x:80,y:250}, {x:220,y:250}, {x:150,y:150} ],
+    '3-1':   [ {x:60,y:320}, {x:150,y:340}, {x:240,y:320}, {x:150,y:170} ]
   },
-  '1-2-1': {
-    '5': [ {x:150,y:360}, {x:80,y:250}, {x:220,y:250}, {x:150,y:150} ],
-    '6': [ {x:150,y:370}, {x:70,y:270}, {x:150,y:250}, {x:230,y:270}, {x:150,y:140} ]
-  },
-  '3-1': {
-    '5': [ {x:60,y:320}, {x:150,y:340}, {x:240,y:320}, {x:150,y:170} ],
-    '6': [ {x:55,y:330}, {x:150,y:350}, {x:245,y:330}, {x:100,y:170}, {x:200,y:170} ]
+  '6': {
+    '3-2':   [ {x:60,y:340}, {x:150,y:360}, {x:240,y:340}, {x:95,y:180}, {x:205,y:180} ],
+    '2-1-2': [ {x:95,y:350}, {x:205,y:350}, {x:150,y:260}, {x:80,y:150}, {x:220,y:150} ],
+    '2-3':   [ {x:95,y:340}, {x:205,y:340}, {x:60,y:180}, {x:150,y:160}, {x:240,y:180} ]
   }
 };
 /* 골키퍼 고정 슬롯 (아래쪽 골문 앞) */
 const TACTICS_GK_SLOT = { x:150, y:430 };
 
+/* 지금 선택된 경기 형식(5:5/6:6)에서 고를 수 있는 포메이션 이름 목록입니다. */
+function tacticsFormationNamesForFormat(){
+  return Object.keys(TACTICS_FORMATIONS_BY_FORMAT[tacticsFormat] || {});
+}
+
 function tacticsFormationSlots(){
   if(tacticsFormation === 'free') return null;
-  const preset = TACTICS_FORMATIONS[tacticsFormation];
-  if(!preset) return null;
-  const fieldSlots = preset[tacticsFormat] || preset['5'];
+  const fieldSlots = (TACTICS_FORMATIONS_BY_FORMAT[tacticsFormat] || {})[tacticsFormation];
+  if(!fieldSlots) return null;
   return [ { role:'GK', ...TACTICS_GK_SLOT }, ...fieldSlots.map(s=>({ role:'FIELD', ...s })) ];
+}
+
+/* 형식(5:5/6:6)이 바뀔 때마다 포메이션 선택 칩을 그 형식에 맞는 이름들로 다시 그립니다. */
+function renderTacticsFormationChips(){
+  const wrap = $('#tacticsFormationChips');
+  if(!wrap) return;
+  const names = tacticsFormationNamesForFormat();
+  wrap.innerHTML = names.map(n=>`<button type="button" class="tactics-chip" data-formation="${n}">${n}</button>`).join('')
+    + `<button type="button" class="tactics-chip active" data-formation="free">자유 배치</button>`;
+  tacticsFormation = 'free';
+  wrap.querySelectorAll('.tactics-chip[data-formation]').forEach(chip=>{
+    chip.addEventListener('click', ()=>{
+      if(!requireAdmin()) return;
+      if(chip.dataset.formation === tacticsFormation) return;
+      if(tacticsPositions.length){
+        if(!confirm('포메이션을 바꾸면 지금 배치가 초기화됩니다. 계속하시겠습니까?')) return;
+        tacticsPositions = [];
+        tacticsDirty = true;
+      }
+      tacticsFormation = chip.dataset.formation;
+      wrap.querySelectorAll('.tactics-chip[data-formation]').forEach(c=>c.classList.toggle('active', c===chip));
+      tacticsPendingRosterName = null;
+      renderTacticsRoster();
+      renderTacticsCourt();
+      updateTacticsStatus();
+    });
+  });
 }
 
 /* appData.votes에 기록이 있는 모든 날짜(과거 포함)를 최신순으로 반환합니다.
@@ -3743,6 +3772,7 @@ async function handleTacticsDateChange(dateStr){
 
 function initTacticsTabOnce(){
   populateTacticsDateSelect();
+  renderTacticsFormationChips(); // 기본 형식(5:5)에 맞는 포메이션 이름들을 먼저 그립니다.
   const sel = $('#tacticsDateSelect');
   if(sel && !sel.value){
     const dates = getAllConfirmedDatesDesc();
@@ -3772,25 +3802,7 @@ function initTacticsTabOnce(){
       tacticsFormat = chip.dataset.format;
       formatRow.querySelectorAll('.tactics-chip[data-format]').forEach(c=>c.classList.toggle('active', c===chip));
       tacticsPendingRosterName = null;
-      renderTacticsRoster();
-      renderTacticsCourt();
-      updateTacticsStatus();
-    });
-  });
-
-  const formationRow = $('#tacticsFormationRow');
-  if(formationRow) formationRow.querySelectorAll('.tactics-chip[data-formation]').forEach(chip=>{
-    chip.addEventListener('click', ()=>{
-      if(!requireAdmin()) return;
-      if(chip.dataset.formation === tacticsFormation) return;
-      if(tacticsPositions.length){
-        if(!confirm('포메이션을 바꾸면 지금 배치가 초기화됩니다. 계속하시겠습니까?')) return;
-        tacticsPositions = [];
-        tacticsDirty = true;
-      }
-      tacticsFormation = chip.dataset.formation;
-      formationRow.querySelectorAll('.tactics-chip[data-formation]').forEach(c=>c.classList.toggle('active', c===chip));
-      tacticsPendingRosterName = null;
+      renderTacticsFormationChips(); // 형식이 바뀌면 포메이션 이름 목록 자체가 달라지므로 다시 그립니다.
       renderTacticsRoster();
       renderTacticsCourt();
       updateTacticsStatus();
