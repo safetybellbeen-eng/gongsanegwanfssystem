@@ -3431,13 +3431,43 @@ function initMatchesTabOnce(){
 /* ================= 전술 보드 (전술 탭) ================= */
 /* 코트는 SVG viewBox 0 0 300 460 기준 좌표계를 씁니다 (세로 방향 풋살 코트, 골대가 위/아래).
    positions는 [{ name, x, y }] 형태로 Supabase tactics_boards 테이블에 저장됩니다. */
-const TACTICS_COURT_W = 300, TACTICS_COURT_H = 460, TACTICS_PLAYER_R = 16;
+const TACTICS_COURT_W = 300, TACTICS_COURT_H = 460, TACTICS_PLAYER_R = 19;
 let tacticsTabInited = false;
 let tacticsSelectedDate = '';
 let tacticsPositions = []; // 현재 편집 중인 배치 [{name, x, y}]
 let tacticsRosterAll = [];  // 선택된 날짜의 전체 참석자 이름 목록
 let tacticsDirty = false;   // 마지막 저장 이후 변경 여부
 let tacticsDragState = null; // { name, svgEl }
+let tacticsFormat = '5';     // '5' | '6' (5:5, 6:6)
+let tacticsFormation = 'free'; // '2-2' | '1-2-1' | '3-1' | 'free'
+let tacticsPendingRosterName = null; // 포메이션 모드에서 "배치 대기 중"인 로스터 선수 이름
+
+/* 포메이션별 필드 플레이어 슬롯 좌표 (골키퍼 제외, 공격 방향은 위쪽).
+   5:5는 필드 플레이어 4명, 6:6은 5명 기준입니다. */
+const TACTICS_FORMATIONS = {
+  '2-2': {
+    '5': [ {x:95,y:330}, {x:205,y:330}, {x:95,y:180}, {x:205,y:180} ],
+    '6': [ {x:95,y:340}, {x:205,y:340}, {x:70,y:190}, {x:150,y:170}, {x:230,y:190} ]
+  },
+  '1-2-1': {
+    '5': [ {x:150,y:360}, {x:80,y:250}, {x:220,y:250}, {x:150,y:150} ],
+    '6': [ {x:150,y:370}, {x:70,y:270}, {x:150,y:250}, {x:230,y:270}, {x:150,y:140} ]
+  },
+  '3-1': {
+    '5': [ {x:60,y:320}, {x:150,y:340}, {x:240,y:320}, {x:150,y:170} ],
+    '6': [ {x:55,y:330}, {x:150,y:350}, {x:245,y:330}, {x:100,y:170}, {x:200,y:170} ]
+  }
+};
+/* 골키퍼 고정 슬롯 (아래쪽 골문 앞) */
+const TACTICS_GK_SLOT = { x:150, y:430 };
+
+function tacticsFormationSlots(){
+  if(tacticsFormation === 'free') return null;
+  const preset = TACTICS_FORMATIONS[tacticsFormation];
+  if(!preset) return null;
+  const fieldSlots = preset[tacticsFormat] || preset['5'];
+  return [ { role:'GK', ...TACTICS_GK_SLOT }, ...fieldSlots.map(s=>({ role:'FIELD', ...s })) ];
+}
 
 /* appData.votes에 기록이 있는 모든 날짜(과거 포함)를 최신순으로 반환합니다.
    findNearestUpcomingConfirmedDate()는 미래 날짜만 보므로, 지난 경기 복기를 위해 별도로 만듭니다. */
@@ -3501,12 +3531,17 @@ function drawTacticsCourtLines(){
   `;
 }
 
+/* 코트 위 선수 라벨에 성을 빼고 이름만 표시합니다 (예: "김종혁" → "종혁"). 팀원 이름은 항상 성 1글자 + 이름 2글자입니다. */
+function tacticsGivenName(fullName){
+  const s = String(fullName||'');
+  return s.length > 1 ? s.slice(1) : s;
+}
 function tacticsPlayerNode(p){
-  const initial = String(p.name||'').slice(0,1);
+  const label = tacticsGivenName(p.name);
   return `
     <g class="tactics-player-node" data-name="${escapeHtml(p.name)}" transform="translate(${p.x},${p.y})">
       <circle class="tactics-player-circle${isAdminUser()?'':' readonly'}" r="${TACTICS_PLAYER_R}"></circle>
-      <text class="tactics-player-label" y="4">${escapeHtml(initial)}</text>
+      <text class="tactics-player-label" y="4">${escapeHtml(label)}</text>
     </g>
   `;
 }
@@ -3514,9 +3549,42 @@ function tacticsPlayerNode(p){
 function renderTacticsCourt(){
   const svg = $('#tacticsCourt');
   if(!svg) return;
+  const slots = tacticsFormationSlots();
+  let slotsHtml = '';
+  if(slots){
+    const occupiedSlots = new Set();
+    // 이미 배치된 선수가 어느 슬롯에 있는지(좌표 일치) 확인해서, 빈 슬롯만 점선으로 그립니다.
+    tacticsPositions.forEach(p=>{
+      const idx = slots.findIndex(s=>!occupiedSlots.has(s) && s.x===p.x && s.y===p.y);
+      if(idx>=0) occupiedSlots.add(slots[idx]);
+    });
+    slotsHtml = slots.filter(s=>!occupiedSlots.has(s)).map((s,i)=>`
+      <circle class="tactics-slot-empty${tacticsPendingRosterName?' pickable':''}" data-slot-x="${s.x}" data-slot-y="${s.y}" cx="${s.x}" cy="${s.y}" r="${TACTICS_PLAYER_R}"></circle>
+      <text class="tactics-slot-label" x="${s.x}" y="${s.y+4}" pointer-events="none">${s.role==='GK'?'GK':''}</text>
+    `).join('');
+  }
   const placedHtml = tacticsPositions.map(p=>tacticsPlayerNode(p)).join('');
-  svg.innerHTML = drawTacticsCourtLines() + placedHtml;
+  svg.innerHTML = drawTacticsCourtLines() + slotsHtml + placedHtml;
   bindTacticsCourtDrag();
+  bindTacticsSlotClicks();
+}
+
+/* 포메이션 모드에서, 로스터에서 선수를 고른 뒤(tacticsPendingRosterName) 빈 슬롯을 탭하면 그 자리에 배치합니다. */
+function bindTacticsSlotClicks(){
+  if(!isAdminUser() || !tacticsPendingRosterName) return;
+  const svg = $('#tacticsCourt');
+  if(!svg) return;
+  svg.querySelectorAll('.tactics-slot-empty.pickable').forEach(slot=>{
+    slot.addEventListener('click', ()=>{
+      const x = parseFloat(slot.dataset.slotX), y = parseFloat(slot.dataset.slotY);
+      tacticsPositions.push({ name: tacticsPendingRosterName, x, y });
+      tacticsPendingRosterName = null;
+      tacticsDirty = true;
+      renderTacticsRoster();
+      renderTacticsCourt();
+      updateTacticsStatus();
+    });
+  });
 }
 
 function renderTacticsRoster(){
@@ -3525,7 +3593,12 @@ function renderTacticsRoster(){
   if(!rosterEl) return;
   const placedSet = new Set(tacticsPositions.map(p=>p.name));
   const remaining = tacticsRosterAll.filter(n=>!placedSet.has(n));
-  if(hintEl) hintEl.style.display = isAdminUser() ? 'block' : 'none';
+  if(hintEl){
+    hintEl.style.display = isAdminUser() ? 'block' : 'none';
+    hintEl.textContent = tacticsFormation === 'free'
+      ? '선수를 눌러 코트에 배치하세요. 코트 위 선수를 드래그해서 위치를 옮길 수 있습니다.'
+      : '선수를 먼저 누르고, 이어서 코트의 빈 자리를 눌러 배치하세요.';
+  }
   if(!isAdminUser()){
     // 팀원은 배치만 볼 수 있고, 남은 로스터 칩(아직 코트에 없는 사람)은 굳이 조작 대상이 아니므로 숨깁니다.
     rosterEl.innerHTML = remaining.length ? `<div class="tactics-roster-empty">코트에 배치되지 않은 인원: ${remaining.map(escapeHtml).join(', ')}</div>` : '';
@@ -3535,18 +3608,25 @@ function renderTacticsRoster(){
     rosterEl.innerHTML = '<div class="tactics-roster-empty">전원 배치 완료</div>';
     return;
   }
-  rosterEl.innerHTML = remaining.map(name=>`<button type="button" class="tactics-roster-chip" data-name="${escapeHtml(name)}">${escapeHtml(name)}</button>`).join('');
+  rosterEl.innerHTML = remaining.map(name=>`<button type="button" class="tactics-roster-chip${name===tacticsPendingRosterName?' pending':''}" data-name="${escapeHtml(name)}">${escapeHtml(name)}</button>`).join('');
   rosterEl.querySelectorAll('.tactics-roster-chip').forEach(chip=>{
     chip.addEventListener('click', ()=>{
       const name = chip.dataset.name;
-      // 처음 배치되는 자리는 코트 중앙 부근으로 잡고, 겹치지 않도록 이미 배치된 인원 수만큼 살짝 어긋나게 둡니다.
-      const idx = tacticsPositions.length;
-      const col = idx % 3, row = Math.floor(idx/3);
-      tacticsPositions.push({ name, x: 70 + col*80, y: 120 + row*80 });
-      tacticsDirty = true;
+      if(tacticsFormation === 'free'){
+        // 자유 배치: 탭하면 바로 코트에 놓습니다. 겹치지 않도록 이미 배치된 인원 수만큼 살짝 어긋나게 둡니다.
+        const idx = tacticsPositions.length;
+        const col = idx % 3, row = Math.floor(idx/3);
+        tacticsPositions.push({ name, x: 70 + col*80, y: 120 + row*80 });
+        tacticsDirty = true;
+        renderTacticsRoster();
+        renderTacticsCourt();
+        updateTacticsStatus();
+        return;
+      }
+      // 포메이션 모드: 같은 선수를 다시 누르면 배치 대기를 취소하고, 아니면 이 선수를 배치 대기 상태로 만듭니다.
+      tacticsPendingRosterName = (tacticsPendingRosterName === name) ? null : name;
       renderTacticsRoster();
       renderTacticsCourt();
-      updateTacticsStatus();
     });
   });
 }
@@ -3635,15 +3715,22 @@ function bindTacticsCourtDrag(){
 async function handleTacticsDateChange(dateStr){
   tacticsSelectedDate = dateStr;
   tacticsDirty = false;
+  tacticsPendingRosterName = null;
   const emptyEl = $('#tacticsEmpty');
   const boardWrap = $('#tacticsBoardWrap');
+  const formatRow = $('#tacticsFormatRow');
+  const formationRow = $('#tacticsFormationRow');
   if(!dateStr){
     if(emptyEl) emptyEl.style.display = 'block';
     if(boardWrap) boardWrap.style.display = 'none';
+    if(formatRow) formatRow.style.display = 'none';
+    if(formationRow) formationRow.style.display = 'none';
     return;
   }
   if(emptyEl) emptyEl.style.display = 'none';
   if(boardWrap) boardWrap.style.display = 'block';
+  if(formatRow) formatRow.style.display = 'flex';
+  if(formationRow) formationRow.style.display = 'flex';
   const breakdown = getVoteBreakdownForDate(dateStr);
   tacticsRosterAll = breakdown.yesList.slice();
   const saved = await loadTacticsBoard(dateStr);
@@ -3671,6 +3758,44 @@ function initTacticsTabOnce(){
   tacticsTabInited = true;
 
   if(sel) sel.addEventListener('change', ()=>handleTacticsDateChange(sel.value));
+
+  const formatRow = $('#tacticsFormatRow');
+  if(formatRow) formatRow.querySelectorAll('.tactics-chip[data-format]').forEach(chip=>{
+    chip.addEventListener('click', ()=>{
+      if(!requireAdmin()) return;
+      if(chip.dataset.format === tacticsFormat) return;
+      if(tacticsPositions.length && tacticsFormation !== 'free'){
+        if(!confirm('경기 형식을 바꾸면 지금 배치가 초기화됩니다. 계속하시겠습니까?')) return;
+        tacticsPositions = [];
+        tacticsDirty = true;
+      }
+      tacticsFormat = chip.dataset.format;
+      formatRow.querySelectorAll('.tactics-chip[data-format]').forEach(c=>c.classList.toggle('active', c===chip));
+      tacticsPendingRosterName = null;
+      renderTacticsRoster();
+      renderTacticsCourt();
+      updateTacticsStatus();
+    });
+  });
+
+  const formationRow = $('#tacticsFormationRow');
+  if(formationRow) formationRow.querySelectorAll('.tactics-chip[data-formation]').forEach(chip=>{
+    chip.addEventListener('click', ()=>{
+      if(!requireAdmin()) return;
+      if(chip.dataset.formation === tacticsFormation) return;
+      if(tacticsPositions.length){
+        if(!confirm('포메이션을 바꾸면 지금 배치가 초기화됩니다. 계속하시겠습니까?')) return;
+        tacticsPositions = [];
+        tacticsDirty = true;
+      }
+      tacticsFormation = chip.dataset.formation;
+      formationRow.querySelectorAll('.tactics-chip[data-formation]').forEach(c=>c.classList.toggle('active', c===chip));
+      tacticsPendingRosterName = null;
+      renderTacticsRoster();
+      renderTacticsCourt();
+      updateTacticsStatus();
+    });
+  });
 
   if(saveBtn) saveBtn.addEventListener('click', async ()=>{
     if(!requireAdmin()) return;
@@ -3707,7 +3832,7 @@ async function renderTacticsMiniForDate(dateStr, containerEl){
   const placedHtml = saved.map(p=>`
     <g transform="translate(${p.x},${p.y})">
       <circle r="${TACTICS_PLAYER_R}" fill="var(--pitch)" stroke="#0b1410" stroke-width="2"></circle>
-      <text y="4" font-size="11" font-weight="700" fill="#0b1410" text-anchor="middle">${escapeHtml(String(p.name||'').slice(0,1))}</text>
+      <text y="4" font-size="9" font-weight="700" fill="#0b1410" text-anchor="middle">${escapeHtml(tacticsGivenName(p.name))}</text>
     </g>
   `).join('');
   containerEl.innerHTML = `
