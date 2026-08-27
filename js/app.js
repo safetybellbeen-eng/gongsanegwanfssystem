@@ -2564,6 +2564,8 @@ function loadMatchVenueTimeEditorForDate(dateStr){
   if(timeInput) timeInput.value = info && info.time ? info.time : '';
   const linkInput = $('#matchVenueLinkInput');
   if(linkInput) linkInput.value = info && info.link ? info.link : '';
+  const formatSelect = $('#matchVenueFormatSelect');
+  if(formatSelect) formatSelect.value = (info && info.format) ? info.format : '';
   pendingMatchGuests = [...((appData.matchGuests && appData.matchGuests[dateStr]) || [])];
   renderMatchVenueGuestList();
 }
@@ -2584,6 +2586,7 @@ $('#saveMatchVenueTimeBtn').addEventListener('click', async ()=>{
   const venueName = $('#matchVenuePresetSelect').value;
   const timeStr = $('#matchVenueTimeInput').value.trim();
   const linkRaw = $('#matchVenueLinkInput').value.trim();
+  const formatVal = $('#matchVenueFormatSelect').value; // '5' | '6' | '' (미지정)
   if(!dateStr){ statusEl.textContent = '날짜를 선택해 주시기 바랍니다.'; statusEl.style.color='var(--danger)'; return; }
   if(!venueName){ statusEl.textContent = '경기장을 선택해 주시기 바랍니다.'; statusEl.style.color='var(--danger)'; return; }
   let link = '';
@@ -2595,7 +2598,7 @@ $('#saveMatchVenueTimeBtn').addEventListener('click', async ()=>{
   const preset = findVenuePreset(venueName);
   const isActuallyConfirmed = !!(appData.votes[dateStr] && appData.votes[dateStr].length>0);
   await mutateAppData(data=>{
-    data.venues[dateStr] = { name: venueName, address: preset ? preset.address : '', time: timeStr, link };
+    data.venues[dateStr] = { name: venueName, address: preset ? preset.address : '', time: timeStr, link, format: formatVal || null };
     if(!data.matchGuests) data.matchGuests = {};
     if(guests.length) data.matchGuests[dateStr] = guests;
     else delete data.matchGuests[dateStr];
@@ -3232,6 +3235,10 @@ async function adminAdoptMatchAsConfirmed(row){
   const venueAddress = preset ? preset.address : '';
   const timeStr = row.match_time ? String(row.match_time).slice(0,5) : '';
   const link = row.match_url || '';
+  // player_count("6vs6" 등)에서 경기 형식을 뽑아 함께 저장해두면, 전술 탭에서 이 경기의 형식을
+  // 관리자가 다시 고르지 않아도 자동으로 알 수 있습니다. 5:5/6:6이 아닌 값이면 저장하지 않습니다.
+  const parsedFormat = matchFormatNumber(row.player_count);
+  const format = (parsedFormat === '5' || parsedFormat === '6') ? parsedFormat : null;
 
   await mutateAppData(data=>{
     if(!alreadyConfirmed){
@@ -3241,7 +3248,7 @@ async function adminAdoptMatchAsConfirmed(row){
       data.weekOverride[weekKey] = list;
       resyncWeekDerivedVotes(data, weekKey);
     }
-    data.venues[dateStr] = { name: venueName, address: venueAddress, time: timeStr, link };
+    data.venues[dateStr] = { name: venueName, address: venueAddress, time: timeStr, link, format };
   });
 
   renderCalendar();
@@ -3749,17 +3756,38 @@ async function handleTacticsDateChange(dateStr){
   const boardWrap = $('#tacticsBoardWrap');
   const formatRow = $('#tacticsFormatRow');
   const formationRow = $('#tacticsFormationRow');
+  const formatLockedNote = $('#tacticsFormatLockedNote');
   if(!dateStr){
     if(emptyEl) emptyEl.style.display = 'block';
     if(boardWrap) boardWrap.style.display = 'none';
     if(formatRow) formatRow.style.display = 'none';
     if(formationRow) formationRow.style.display = 'none';
+    if(formatLockedNote) formatLockedNote.style.display = 'none';
     return;
   }
   if(emptyEl) emptyEl.style.display = 'none';
   if(boardWrap) boardWrap.style.display = 'block';
-  if(formatRow) formatRow.style.display = 'flex';
+
+  // 이 경기에 등록된 경기 형식(5:5/6:6)이 있으면 그대로 고정합니다. 관리자가 형식을 바꿀 필요가
+  // 없으므로 형식 선택 칩은 숨기고, 대신 "이 경기는 6:6으로 고정되어 있습니다" 안내만 보여줍니다.
+  // 형식 정보가 아직 없는 경기(예전에 확정했거나, 관리자 도구에서 형식을 지정하지 않은 경우)는
+  // 기존처럼 관리자가 직접 골라야 합니다.
+  const venueInfo = getVenueInfo(dateStr);
+  const lockedFormat = venueInfo && venueInfo.format;
+  if(lockedFormat === '5' || lockedFormat === '6'){
+    tacticsFormat = lockedFormat;
+    if(formatRow) formatRow.style.display = 'none';
+    if(formatLockedNote){
+      formatLockedNote.style.display = 'block';
+      formatLockedNote.textContent = `이 경기는 ${lockedFormat}:${lockedFormat} 형식으로 등록되어 있어, 그에 맞는 포메이션만 고를 수 있습니다.`;
+    }
+  } else {
+    if(formatRow) formatRow.style.display = 'flex';
+    if(formatLockedNote) formatLockedNote.style.display = 'none';
+  }
   if(formationRow) formationRow.style.display = 'flex';
+  renderTacticsFormationChips(); // 고정된(또는 선택된) 형식에 맞는 포메이션 이름들을 다시 그립니다.
+
   const breakdown = getVoteBreakdownForDate(dateStr);
   tacticsRosterAll = breakdown.yesList.slice();
   const saved = await loadTacticsBoard(dateStr);
