@@ -241,6 +241,7 @@
         <button type="button" class="tactics-chip" data-format="6">6:6</button>
       </div>
     </div>
+    <div class="tactics-format-locked-note" id="tacticsFormatLockedNote" style="display:none;"></div>
     <div class="tactics-subrow" id="tacticsFormationRow" style="display:none;">
       <span class="tactics-subrow-label">포메이션</span>
       <div class="tactics-chip-group" id="tacticsFormationChips"></div>
@@ -349,6 +350,13 @@
       </div>
       <div class="admin-row">
         <input type="text" id="matchVenueTimeInput" placeholder="경기 시간 (예: 20:00~22:00)">
+      </div>
+      <div class="admin-row">
+        <select id="matchVenueFormatSelect" style="background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:9px 10px;color:var(--text);font-size:13px;flex:1;">
+          <option value="">경기 형식 미지정</option>
+          <option value="5">5:5</option>
+          <option value="6">6:6</option>
+        </select>
       </div>
       <div class="admin-row">
         <input type="text" id="matchVenueLinkInput" placeholder="경기 링크 (예: https://www.plabfootball.com/match/123456)">
