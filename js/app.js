@@ -1439,11 +1439,16 @@ function updateAdminVisibility(){
   const eyebrow = $('#adminSectionEyebrow');
   const panel = $('#adminPanel');
   const badge = $('#adminBadge');
-  const tabBtn = $('#adminTabBtn');
+  const entryBtn = $('#adminEntryBtn');
   if(badge) badge.style.display = show ? 'inline-block' : 'none';
   if(eyebrow) eyebrow.style.display = show ? 'flex' : 'none';
   if(panel) panel.style.display = show ? 'block' : 'none';
-  if(tabBtn) tabBtn.style.display = show ? 'flex' : 'none';
+  if(entryBtn) entryBtn.style.display = show ? 'inline-block' : 'none';
+  const tacticsSaveBtn = $('#tacticsSaveBtn');
+  const tacticsResetBtn = $('#tacticsResetBtn');
+  if(tacticsSaveBtn) tacticsSaveBtn.style.display = show ? 'inline-block' : 'none';
+  if(tacticsResetBtn) tacticsResetBtn.style.display = show ? 'inline-block' : 'none';
+  if(tacticsSelectedDate){ renderTacticsRoster(); renderTacticsCourt(); updateTacticsStatus(); }
   if(show){
     populateMatchWindowSelects();
     renderAdminMemberTable();
@@ -1840,9 +1845,11 @@ function computeMatchStats(){
   const played = confirmedDates.filter(d=>d<=todayS);
   const upcoming = confirmedDates.filter(d=>d>todayS);
   const byMonth = {};
-  played.forEach(d=>{ const key=d.slice(0,7); byMonth[key]=(byMonth[key]||0)+1; });
+  const byMonthDates = {};
+  played.forEach(d=>{ const key=d.slice(0,7); byMonth[key]=(byMonth[key]||0)+1; (byMonthDates[key]=byMonthDates[key]||[]).push(d); });
   const months = Object.keys(byMonth).sort().reverse();
-  return { totalPlayed: played.length, upcomingCount: upcoming.length, byMonth, months };
+  Object.keys(byMonthDates).forEach(k=>byMonthDates[k].sort().reverse());
+  return { totalPlayed: played.length, upcomingCount: upcoming.length, byMonth, byMonthDates, months };
 }
 function renderMatchStats(){
   renderHeroMatch();
@@ -1873,12 +1880,39 @@ function renderMatchStats(){
       </div>` : ''}
     </div>
     <div class="stats-history">
-      <div class="stats-history-label">월별 진행 기록</div>
-      <div class="stats-history-list">
-        ${stats.months.length? stats.months.map(m=>`<div class="smh-row"><span>${m.replace('-','.')}</span><span>${stats.byMonth[m]}회</span></div>`).join('') : '<div class="rank-empty">아직 진행된 경기가 없습니다.</div>'}
+      <div class="stats-history-label">월별 진행 기록 (눌러서 경기별 전술 보기)</div>
+      <div class="stats-history-list" id="matchStatsMonthList">
+        ${stats.months.length? stats.months.map(m=>`<div class="smh-row" data-month="${m}"><span>${m.replace('-','.')}</span><span>${stats.byMonth[m]}회</span></div>`).join('') : '<div class="rank-empty">아직 진행된 경기가 없습니다.</div>'}
       </div>
+      <div class="stats-history-dates" id="matchStatsDateList" style="display:none;"></div>
+      <div id="matchStatsTacticsPreview"></div>
     </div>
   `;
+  window.__matchStatsData = stats; // 클릭 핸들러에서 재사용
+  el.querySelectorAll('#matchStatsMonthList .smh-row').forEach(row=>{
+    row.addEventListener('click', ()=>{
+      const month = row.dataset.month;
+      const dateListEl = $('#matchStatsDateList');
+      const previewEl = $('#matchStatsTacticsPreview');
+      const dates = stats.byMonthDates[month] || [];
+      const alreadyOpenForThisMonth = dateListEl.dataset.month === month && dateListEl.style.display !== 'none';
+      if(alreadyOpenForThisMonth){
+        dateListEl.style.display = 'none';
+        previewEl.innerHTML = '';
+        return;
+      }
+      dateListEl.dataset.month = month;
+      dateListEl.style.display = 'flex';
+      dateListEl.innerHTML = dates.map(d=>`<button type="button" class="smh-date-chip" data-date="${d}">${d}</button>`).join('');
+      previewEl.innerHTML = '';
+      dateListEl.querySelectorAll('.smh-date-chip').forEach(chip=>{
+        chip.addEventListener('click', ()=>{
+          dateListEl.querySelectorAll('.smh-date-chip').forEach(c=>c.classList.toggle('active', c===chip));
+          renderTacticsMiniForDate(chip.dataset.date, previewEl);
+        });
+      });
+    });
+  });
 }
 
 /* 최상단 히어로 카드: 오늘 이후로 가장 가까운 확정 경기를 D-day와 함께 보여줍니다. */
@@ -2906,16 +2940,25 @@ function tryRenderHomeTab(){
 function setActiveMobileSection(tabKey){
   document.querySelectorAll('.mobile-tabbar .tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab===tabKey));
   document.querySelectorAll('.app-section').forEach(s=>s.classList.remove('mobile-active'));
-  const idMap = { home:'sectionHome', weather:'sectionWeather', calendar:'sectionCalendar', matches:'sectionMatches', map:'sectionMap', records:'sectionRecords', admin:'sectionAdmin' };
+  const idMap = { home:'sectionHome', weather:'sectionWeather', calendar:'sectionCalendar', matches:'sectionMatches', map:'sectionMap', records:'sectionRecords', admin:'sectionAdmin', tactics:'sectionTactics' };
   const sec = document.getElementById(idMap[tabKey] || '');
   if(sec) sec.classList.add('mobile-active');
   window.scrollTo({top:0, behavior:'instant'});
   if(tabKey==='home') tryRenderHomeTab();
   if(tabKey==='map') loadDefaultMapVenue();
   if(tabKey==='matches') initMatchesTabOnce();
+  if(tabKey==='tactics') initTacticsTabOnce();
 }
 document.querySelectorAll('.mobile-tabbar .tab-btn').forEach(btn=>{
   btn.addEventListener('click', ()=>setActiveMobileSection(btn.dataset.tab));
+});
+// 기록/관리자는 하단 탭바가 아니라 헤더의 별도 버튼에서 진입합니다 (같은 화면 전환 방식을 그대로 재사용).
+const recordsEntryBtn = $('#recordsEntryBtn');
+if(recordsEntryBtn) recordsEntryBtn.addEventListener('click', ()=>setActiveMobileSection('records'));
+const adminEntryBtn = $('#adminEntryBtn');
+if(adminEntryBtn) adminEntryBtn.addEventListener('click', ()=>setActiveMobileSection('admin'));
+document.querySelectorAll('.section-back-btn[data-back-to]').forEach(btn=>{
+  btn.addEventListener('click', ()=>setActiveMobileSection(btn.dataset.backTo));
 });
 setActiveMobileSection('home'); // 모바일 폭에서 기본으로 보일 탭
 
@@ -3383,4 +3426,296 @@ function initMatchesTabOnce(){
     refreshBtn.textContent = orig;
     toast('최신 경기 정보를 불러왔습니다.');
   });
+}
+
+/* ================= 전술 보드 (전술 탭) ================= */
+/* 코트는 SVG viewBox 0 0 300 460 기준 좌표계를 씁니다 (세로 방향 풋살 코트, 골대가 위/아래).
+   positions는 [{ name, x, y }] 형태로 Supabase tactics_boards 테이블에 저장됩니다. */
+const TACTICS_COURT_W = 300, TACTICS_COURT_H = 460, TACTICS_PLAYER_R = 16;
+let tacticsTabInited = false;
+let tacticsSelectedDate = '';
+let tacticsPositions = []; // 현재 편집 중인 배치 [{name, x, y}]
+let tacticsRosterAll = [];  // 선택된 날짜의 전체 참석자 이름 목록
+let tacticsDirty = false;   // 마지막 저장 이후 변경 여부
+let tacticsDragState = null; // { name, svgEl }
+
+/* appData.votes에 기록이 있는 모든 날짜(과거 포함)를 최신순으로 반환합니다.
+   findNearestUpcomingConfirmedDate()는 미래 날짜만 보므로, 지난 경기 복기를 위해 별도로 만듭니다. */
+function getAllConfirmedDatesDesc(){
+  return Object.keys(appData.votes||{})
+    .filter(d=>/^\d{4}-\d{2}-\d{2}$/.test(d) && (appData.votes[d]||[]).length>0)
+    .sort().reverse();
+}
+
+function populateTacticsDateSelect(){
+  const sel = $('#tacticsDateSelect');
+  if(!sel) return;
+  const dates = getAllConfirmedDatesDesc();
+  const prevValue = sel.value;
+  const todayS = todayStr();
+  sel.innerHTML = '<option value="">확정 경기 선택</option>' + dates.map(d=>{
+    const tag = d===todayS ? ' (오늘)' : (d>todayS ? ' (예정)' : '');
+    return `<option value="${d}">${d}${tag}</option>`;
+  }).join('');
+  if(prevValue && dates.includes(prevValue)) sel.value = prevValue;
+}
+
+async function loadTacticsBoard(dateStr){
+  if(!supabaseClient) return [];
+  try{
+    const { data, error } = await supabaseClient.from('tactics_boards').select('positions').eq('match_date', dateStr).maybeSingle();
+    if(error) throw error;
+    return (data && Array.isArray(data.positions)) ? data.positions : [];
+  }catch(e){
+    console.error('[전술 보드] 불러오기 실패:', e);
+    return [];
+  }
+}
+
+async function saveTacticsBoard(dateStr, positions){
+  if(!supabaseClient) return { ok:false, reason:'서버에 연결할 수 없습니다.' };
+  try{
+    const { error } = await supabaseClient.from('tactics_boards').upsert({ match_date: dateStr, positions, updated_at: new Date().toISOString() });
+    if(error) throw error;
+    return { ok:true };
+  }catch(e){
+    console.error('[전술 보드] 저장 실패:', e);
+    let reason = e && e.message ? e.message : '알 수 없는 오류';
+    if(e && e.code === '42P01') reason = 'tactics_boards 테이블이 아직 없습니다. tactics-board-table.sql을 Supabase에서 실행해 주시기 바랍니다.';
+    else if(e && e.code === '42501') reason = '저장 권한이 없습니다(RLS 정책 확인 필요). tactics-board-table.sql을 Supabase에서 실행해 주시기 바랍니다.';
+    return { ok:false, reason };
+  }
+}
+
+/* 코트 배경(라인)을 그립니다. 선수 배치와 별개로 한 번만 그려도 되는 정적인 부분입니다. */
+function drawTacticsCourtLines(){
+  const w = TACTICS_COURT_W, h = TACTICS_COURT_H;
+  return `
+    <rect x="4" y="4" width="${w-8}" height="${h-8}" fill="none" stroke="#ffffff" stroke-opacity="0.55" stroke-width="2"/>
+    <line x1="4" y1="${h/2}" x2="${w-4}" y2="${h/2}" stroke="#ffffff" stroke-opacity="0.55" stroke-width="2"/>
+    <circle cx="${w/2}" cy="${h/2}" r="34" fill="none" stroke="#ffffff" stroke-opacity="0.55" stroke-width="2"/>
+    <rect x="${w/2-60}" y="4" width="120" height="46" fill="none" stroke="#ffffff" stroke-opacity="0.55" stroke-width="2"/>
+    <rect x="${w/2-60}" y="${h-50}" width="120" height="46" fill="none" stroke="#ffffff" stroke-opacity="0.55" stroke-width="2"/>
+    <rect x="${w/2-24}" y="4" width="48" height="14" fill="none" stroke="#ffffff" stroke-opacity="0.55" stroke-width="2"/>
+    <rect x="${w/2-24}" y="${h-18}" width="48" height="14" fill="none" stroke="#ffffff" stroke-opacity="0.55" stroke-width="2"/>
+  `;
+}
+
+function tacticsPlayerNode(p){
+  const initial = String(p.name||'').slice(0,1);
+  return `
+    <g class="tactics-player-node" data-name="${escapeHtml(p.name)}" transform="translate(${p.x},${p.y})">
+      <circle class="tactics-player-circle${isAdminUser()?'':' readonly'}" r="${TACTICS_PLAYER_R}"></circle>
+      <text class="tactics-player-label" y="4">${escapeHtml(initial)}</text>
+    </g>
+  `;
+}
+
+function renderTacticsCourt(){
+  const svg = $('#tacticsCourt');
+  if(!svg) return;
+  const placedHtml = tacticsPositions.map(p=>tacticsPlayerNode(p)).join('');
+  svg.innerHTML = drawTacticsCourtLines() + placedHtml;
+  bindTacticsCourtDrag();
+}
+
+function renderTacticsRoster(){
+  const rosterEl = $('#tacticsRoster');
+  const hintEl = $('#tacticsRosterHint');
+  if(!rosterEl) return;
+  const placedSet = new Set(tacticsPositions.map(p=>p.name));
+  const remaining = tacticsRosterAll.filter(n=>!placedSet.has(n));
+  if(hintEl) hintEl.style.display = isAdminUser() ? 'block' : 'none';
+  if(!isAdminUser()){
+    // 팀원은 배치만 볼 수 있고, 남은 로스터 칩(아직 코트에 없는 사람)은 굳이 조작 대상이 아니므로 숨깁니다.
+    rosterEl.innerHTML = remaining.length ? `<div class="tactics-roster-empty">코트에 배치되지 않은 인원: ${remaining.map(escapeHtml).join(', ')}</div>` : '';
+    return;
+  }
+  if(!remaining.length){
+    rosterEl.innerHTML = '<div class="tactics-roster-empty">전원 배치 완료</div>';
+    return;
+  }
+  rosterEl.innerHTML = remaining.map(name=>`<button type="button" class="tactics-roster-chip" data-name="${escapeHtml(name)}">${escapeHtml(name)}</button>`).join('');
+  rosterEl.querySelectorAll('.tactics-roster-chip').forEach(chip=>{
+    chip.addEventListener('click', ()=>{
+      const name = chip.dataset.name;
+      // 처음 배치되는 자리는 코트 중앙 부근으로 잡고, 겹치지 않도록 이미 배치된 인원 수만큼 살짝 어긋나게 둡니다.
+      const idx = tacticsPositions.length;
+      const col = idx % 3, row = Math.floor(idx/3);
+      tacticsPositions.push({ name, x: 70 + col*80, y: 120 + row*80 });
+      tacticsDirty = true;
+      renderTacticsRoster();
+      renderTacticsCourt();
+      updateTacticsStatus();
+    });
+  });
+}
+
+function updateTacticsStatus(){
+  const el = $('#tacticsStatus');
+  if(!el) return;
+  if(!isAdminUser()){ el.textContent = ''; return; }
+  el.textContent = tacticsDirty ? '변경사항이 있습니다. 저장 버튼을 눌러 반영해 주시기 바랍니다.' : '저장된 배치입니다.';
+}
+
+/* 코트 위 선수 아이콘의 드래그 이동을 처리합니다. 관리자만 동작하고, 팀원은 보기 전용입니다. */
+function bindTacticsCourtDrag(){
+  if(!isAdminUser()) return;
+  const svg = $('#tacticsCourt');
+  if(!svg) return;
+  svg.querySelectorAll('.tactics-player-node').forEach(node=>{
+    const name = node.dataset.name;
+    const circle = node.querySelector('.tactics-player-circle');
+    const startDrag = (clientX, clientY)=>{
+      tacticsDragState = { name };
+      circle.setAttribute('stroke', 'var(--amber)');
+    };
+    const moveDrag = (clientX, clientY)=>{
+      if(!tacticsDragState || tacticsDragState.name !== name) return;
+      const rect = svg.getBoundingClientRect();
+      let x = (clientX - rect.left) / rect.width * TACTICS_COURT_W;
+      let y = (clientY - rect.top) / rect.height * TACTICS_COURT_H;
+      x = Math.max(TACTICS_PLAYER_R, Math.min(TACTICS_COURT_W - TACTICS_PLAYER_R, x));
+      y = Math.max(TACTICS_PLAYER_R, Math.min(TACTICS_COURT_H - TACTICS_PLAYER_R, y));
+      node.setAttribute('transform', `translate(${x},${y})`);
+      const p = tacticsPositions.find(p=>p.name===name);
+      if(p){ p.x = Math.round(x); p.y = Math.round(y); }
+    };
+    const endDrag = ()=>{
+      if(tacticsDragState && tacticsDragState.name===name){
+        tacticsDragState = null;
+        tacticsDirty = true;
+        updateTacticsStatus();
+      }
+      circle.removeAttribute('stroke');
+      circle.setAttribute('stroke', '#0b1410');
+    };
+    // 마우스와 터치를 함께 지원합니다.
+    node.addEventListener('mousedown', (e)=>{ e.preventDefault(); startDrag(e.clientX, e.clientY); });
+    node.addEventListener('touchstart', (e)=>{ const t=e.touches[0]; startDrag(t.clientX, t.clientY); }, { passive:true });
+  });
+  // 코트를 벗어나 놓아도 이동이 끝나도록, 이동/종료 리스너는 document에 한 번만 등록합니다.
+  if(!svg.dataset.dragBound){
+    svg.dataset.dragBound = '1';
+    document.addEventListener('mousemove', (e)=>{
+      if(!tacticsDragState) return;
+      const node = svg.querySelector(`.tactics-player-node[data-name="${CSS.escape(tacticsDragState.name)}"]`);
+      if(!node) return;
+      const rect = svg.getBoundingClientRect();
+      let x = (e.clientX - rect.left) / rect.width * TACTICS_COURT_W;
+      let y = (e.clientY - rect.top) / rect.height * TACTICS_COURT_H;
+      x = Math.max(TACTICS_PLAYER_R, Math.min(TACTICS_COURT_W - TACTICS_PLAYER_R, x));
+      y = Math.max(TACTICS_PLAYER_R, Math.min(TACTICS_COURT_H - TACTICS_PLAYER_R, y));
+      node.setAttribute('transform', `translate(${x},${y})`);
+      const p = tacticsPositions.find(p=>p.name===tacticsDragState.name);
+      if(p){ p.x = Math.round(x); p.y = Math.round(y); }
+    });
+    document.addEventListener('touchmove', (e)=>{
+      if(!tacticsDragState) return;
+      const t = e.touches[0];
+      const node = svg.querySelector(`.tactics-player-node[data-name="${CSS.escape(tacticsDragState.name)}"]`);
+      if(!node) return;
+      const rect = svg.getBoundingClientRect();
+      let x = (t.clientX - rect.left) / rect.width * TACTICS_COURT_W;
+      let y = (t.clientY - rect.top) / rect.height * TACTICS_COURT_H;
+      x = Math.max(TACTICS_PLAYER_R, Math.min(TACTICS_COURT_W - TACTICS_PLAYER_R, x));
+      y = Math.max(TACTICS_PLAYER_R, Math.min(TACTICS_COURT_H - TACTICS_PLAYER_R, y));
+      node.setAttribute('transform', `translate(${x},${y})`);
+      const p = tacticsPositions.find(p=>p.name===tacticsDragState.name);
+      if(p){ p.x = Math.round(x); p.y = Math.round(y); }
+    }, { passive:true });
+    const endAll = ()=>{
+      if(tacticsDragState){ tacticsDragState = null; tacticsDirty = true; updateTacticsStatus(); }
+    };
+    document.addEventListener('mouseup', endAll);
+    document.addEventListener('touchend', endAll);
+  }
+}
+
+async function handleTacticsDateChange(dateStr){
+  tacticsSelectedDate = dateStr;
+  tacticsDirty = false;
+  const emptyEl = $('#tacticsEmpty');
+  const boardWrap = $('#tacticsBoardWrap');
+  if(!dateStr){
+    if(emptyEl) emptyEl.style.display = 'block';
+    if(boardWrap) boardWrap.style.display = 'none';
+    return;
+  }
+  if(emptyEl) emptyEl.style.display = 'none';
+  if(boardWrap) boardWrap.style.display = 'block';
+  const breakdown = getVoteBreakdownForDate(dateStr);
+  tacticsRosterAll = breakdown.yesList.slice();
+  const saved = await loadTacticsBoard(dateStr);
+  // 저장된 배치 중 이제는 그 날짜 참석자가 아닌 이름은 제외합니다 (참석 명단이 나중에 바뀐 경우 대비).
+  tacticsPositions = saved.filter(p=>tacticsRosterAll.includes(p.name));
+  renderTacticsRoster();
+  renderTacticsCourt();
+  updateTacticsStatus();
+}
+
+function initTacticsTabOnce(){
+  populateTacticsDateSelect();
+  const sel = $('#tacticsDateSelect');
+  if(sel && !sel.value){
+    const dates = getAllConfirmedDatesDesc();
+    const todayS = todayStr();
+    const defaultDate = dates.find(d=>d<=todayS) || dates[0] || '';
+    if(defaultDate){ sel.value = defaultDate; handleTacticsDateChange(defaultDate); }
+  }
+  const saveBtn = $('#tacticsSaveBtn');
+  const resetBtn = $('#tacticsResetBtn');
+  if(saveBtn) saveBtn.style.display = isAdminUser() ? 'inline-block' : 'none';
+  if(resetBtn) resetBtn.style.display = isAdminUser() ? 'inline-block' : 'none';
+  if(tacticsTabInited) return;
+  tacticsTabInited = true;
+
+  if(sel) sel.addEventListener('change', ()=>handleTacticsDateChange(sel.value));
+
+  if(saveBtn) saveBtn.addEventListener('click', async ()=>{
+    if(!requireAdmin()) return;
+    if(!tacticsSelectedDate){ toast('먼저 경기 날짜를 선택해 주시기 바랍니다.'); return; }
+    saveBtn.disabled = true;
+    const result = await saveTacticsBoard(tacticsSelectedDate, tacticsPositions);
+    saveBtn.disabled = false;
+    if(result.ok){
+      tacticsDirty = false;
+      updateTacticsStatus();
+      toast('전술 배치를 저장했습니다.');
+    } else {
+      toast(`전술 저장에 실패했습니다: ${result.reason}`);
+    }
+  });
+
+  if(resetBtn) resetBtn.addEventListener('click', ()=>{
+    if(!requireAdmin()) return;
+    if(!tacticsPositions.length){ return; }
+    if(!confirm('코트에 배치한 선수를 모두 초기화하시겠습니까? (저장 전까지는 취소할 수 있습니다)')) return;
+    tacticsPositions = [];
+    tacticsDirty = true;
+    renderTacticsRoster();
+    renderTacticsCourt();
+    updateTacticsStatus();
+  });
+}
+
+/* 기록 탭에서 지난 경기를 눌렀을 때, 그 날짜에 저장된 전술 배치가 있으면 작은 읽기 전용 코트로 보여줍니다. */
+async function renderTacticsMiniForDate(dateStr, containerEl){
+  if(!containerEl) return;
+  const saved = await loadTacticsBoard(dateStr);
+  if(!saved.length){ containerEl.innerHTML = ''; return; }
+  const placedHtml = saved.map(p=>`
+    <g transform="translate(${p.x},${p.y})">
+      <circle r="${TACTICS_PLAYER_R}" fill="var(--pitch)" stroke="#0b1410" stroke-width="2"></circle>
+      <text y="4" font-size="11" font-weight="700" fill="#0b1410" text-anchor="middle">${escapeHtml(String(p.name||'').slice(0,1))}</text>
+    </g>
+  `).join('');
+  containerEl.innerHTML = `
+    <div class="tactics-mini-court-wrap">
+      <svg class="tactics-mini-court" viewBox="0 0 ${TACTICS_COURT_W} ${TACTICS_COURT_H}" preserveAspectRatio="xMidYMid meet">
+        ${drawTacticsCourtLines()}
+        ${placedHtml}
+      </svg>
+    </div>
+  `;
 }
