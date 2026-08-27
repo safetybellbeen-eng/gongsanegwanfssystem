@@ -95,6 +95,9 @@
   .member-viewall-btn:hover{border-color:var(--pitch);background:var(--pitch-dim);}
   .my-injury-toggle-btn{flex-shrink:0;background:var(--surface-2);border:1px solid var(--line);color:var(--muted);border-radius:20px;padding:6px 14px;font-size:12px;cursor:pointer;white-space:nowrap;}
   .my-injury-toggle-btn:hover{border-color:var(--amber);color:var(--amber);}
+  .records-entry-btn,.admin-entry-btn{flex-shrink:0;background:var(--surface-2);border:1px solid var(--line);color:var(--muted);border-radius:20px;padding:6px 14px;font-size:12px;cursor:pointer;white-space:nowrap;}
+  .records-entry-btn:hover{border-color:var(--pitch);color:var(--pitch);}
+  .admin-entry-btn:hover{border-color:var(--amber);color:var(--amber);}
   .my-injury-panel{margin:16px 0 24px;}
 
   /* ---------- 팀 멤버 전체보기 팝업 ---------- */
@@ -322,9 +325,14 @@
   .stats-label{font-size:11px;color:var(--muted);margin-top:6px;}
   .stats-history-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px;}
   .stats-history-list{display:flex;flex-direction:column;gap:2px;}
-  .smh-row{display:flex;justify-content:space-between;padding:8px 4px;border-bottom:1px dashed var(--line);font-size:13px;}
+  .smh-row{display:flex;justify-content:space-between;padding:8px 4px;border-bottom:1px dashed var(--line);font-size:13px;cursor:pointer;}
+  .smh-row:hover{background:var(--surface-2);}
   .smh-row:last-child{border-bottom:none;}
   .smh-row span:last-child{color:var(--pitch);font-weight:600;font-family:'JetBrains Mono';}
+  .stats-history-dates{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;}
+  .smh-date-chip{background:var(--surface-2);border:1px solid var(--line);color:var(--text);border-radius:16px;padding:6px 12px;font-size:12px;cursor:pointer;white-space:nowrap;}
+  .smh-date-chip:hover{border-color:var(--pitch);}
+  .smh-date-chip.active{background:var(--pitch-dim);border-color:var(--pitch);color:var(--pitch);}
   .not-voted-row{margin-bottom:18px;}
   .daily-attend-block{padding-top:2px;}
   .daily-attend-block .label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px;}
@@ -604,7 +612,33 @@
   @media (min-width:769px){
     /* 웹 화면에서는 홈탭의 모바일 전용 미니 위젯을 숨기고, 히어로/공지 카드만 항상 상단에 노출합니다 */
     .mobile-only-widgets{display:none !important;}
+    /* 웹은 모든 섹션이 한 페이지에 쭉 나열되므로, 모바일 탭 전환 전용 "홈으로" 버튼은 필요 없습니다 */
+    .mobile-only-block{display:none !important;}
   }
+  .section-back-btn{background:none;border:none;color:var(--muted);font-size:13px;font-weight:600;padding:4px 0 14px;cursor:pointer;}
+  .section-back-btn:hover{color:var(--pitch);}
+
+  /* ---------- 전술 보드 ---------- */
+  .tactics-toolbar{display:flex;gap:8px;align-items:center;margin-bottom:16px;flex-wrap:wrap;}
+  .tactics-toolbar select{background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:10px 10px;color:var(--text);font-size:13px;flex:1;min-width:160px;}
+  .tactics-toolbar button{flex-shrink:0;background:var(--surface-2);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:9px 14px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;}
+  .tactics-toolbar #tacticsSaveBtn{background:var(--pitch-dim);border-color:var(--pitch);color:var(--pitch);}
+  .tactics-toolbar #tacticsResetBtn:hover{border-color:var(--danger);color:var(--danger);}
+  .tactics-empty{color:var(--muted);font-size:13px;text-align:center;padding:32px 12px;}
+  .tactics-roster{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;min-height:34px;}
+  .tactics-roster-hint{font-size:11px;color:var(--muted);margin-bottom:12px;}
+  .tactics-roster-chip{background:var(--surface-2);border:1px solid var(--pitch);color:var(--pitch);border-radius:20px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;}
+  .tactics-roster-chip:hover{background:var(--pitch-dim);}
+  .tactics-roster-empty{font-size:12px;color:var(--muted);padding:6px 0;}
+  .tactics-court-wrap{background:#0d3d1f;border-radius:12px;padding:8px;}
+  .tactics-court{width:100%;height:auto;display:block;touch-action:none;}
+  .tactics-player-circle{fill:var(--pitch);stroke:#0b1410;stroke-width:2;cursor:grab;}
+  .tactics-player-circle.readonly{cursor:default;}
+  .tactics-player-circle:active{cursor:grabbing;}
+  .tactics-player-label{font-size:11px;font-weight:700;fill:#0b1410;text-anchor:middle;pointer-events:none;user-select:none;}
+  .tactics-status{font-size:12px;color:var(--muted);margin-top:10px;text-align:center;}
+  .tactics-mini-court-wrap{background:#0d3d1f;border-radius:10px;padding:6px;margin-top:10px;}
+  .tactics-mini-court{width:100%;height:auto;display:block;}
 
   @media (max-width:900px){ .cal-layout{grid-template-columns:1fr;} }
 
@@ -620,10 +654,11 @@
     .wrap{padding-left:14px;padding-right:14px;}
     .eyebrow{margin:36px 0 14px;flex-wrap:wrap;row-gap:8px;}
     .eyebrow h2{font-size:20px;}
-    .user-box{gap:8px;width:100%;}
+    .user-box{gap:8px;width:100%;flex-wrap:wrap;}
     .user-box .info{margin-right:auto;}
     .user-box .who{font-size:12px;}
     .logout-btn{padding:6px 10px;font-size:10px;min-height:38px;}
+    .records-entry-btn,.admin-entry-btn,.my-injury-toggle-btn{padding:6px 10px;font-size:10px;min-height:38px;}
     .cal-layout{grid-template-columns:1fr; gap:14px;}
     .cal-card{padding:12px 10px;}
     .cal-nav{margin-bottom:8px;}
