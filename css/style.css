@@ -626,6 +626,7 @@
   .tactics-toolbar #tacticsResetBtn:hover{border-color:var(--danger);color:var(--danger);}
   .tactics-subrow{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap;}
   .tactics-subrow-label{font-size:12px;color:var(--muted);flex-shrink:0;white-space:nowrap;}
+  .tactics-format-locked-note{font-size:11px;color:var(--pitch);background:var(--pitch-dim);border-radius:8px;padding:8px 12px;margin-bottom:12px;}
   .tactics-chip-group{display:flex;gap:6px;flex-wrap:wrap;}
   .tactics-chip{background:var(--surface-2);border:1px solid var(--line);color:var(--muted);border-radius:16px;padding:6px 13px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;}
   .tactics-chip.active{background:var(--pitch-dim);border-color:var(--pitch);color:var(--pitch);}
