@@ -86,6 +86,8 @@
         <div class="my-rate" id="myRateTag"></div>
       </div>
     </div>
+    <button class="records-entry-btn" id="recordsEntryBtn" title="기록 보기">🏆 기록</button>
+    <button class="admin-entry-btn admin-only" id="adminEntryBtn" style="display:none;" title="관리자 도구">⚙️ 관리자</button>
     <button class="my-injury-toggle-btn" id="myInjuryToggleBtn">내 부상 설정</button>
     <button class="logout-btn" id="logoutBtn">로그아웃</button>
   </div>
@@ -221,8 +223,31 @@
   </div>
   </section>
 
+  <section class="app-section" id="sectionTactics">
+  <button class="section-back-btn mobile-only-block" data-back-to="home">← 홈으로</button>
+  <div class="eyebrow"><span class="num">04</span><h2>전술 보드</h2><div class="line"></div></div>
+  <div class="weather-card">
+    <div class="tactics-toolbar">
+      <select id="tacticsDateSelect">
+        <option value="">확정 경기 선택</option>
+      </select>
+      <button id="tacticsSaveBtn" class="admin-only" style="display:none;">💾 저장</button>
+      <button id="tacticsResetBtn" class="admin-only" style="display:none;">↺ 초기화</button>
+    </div>
+    <div class="tactics-empty" id="tacticsEmpty">확정된 경기를 선택하면 그 경기의 참석자로 전술을 짤 수 있습니다.</div>
+    <div id="tacticsBoardWrap" style="display:none;">
+      <div class="tactics-roster" id="tacticsRoster"></div>
+      <div class="tactics-roster-hint admin-only" id="tacticsRosterHint" style="display:none;">선수를 눌러 코트에 배치하세요. 코트 위 선수를 드래그해서 위치를 옮길 수 있습니다.</div>
+      <div class="tactics-court-wrap">
+        <svg class="tactics-court" id="tacticsCourt" viewBox="0 0 300 460" preserveAspectRatio="xMidYMid meet"></svg>
+      </div>
+      <div class="tactics-status" id="tacticsStatus"></div>
+    </div>
+  </div>
+  </section>
+
   <section class="app-section" id="sectionMap">
-  <div class="eyebrow"><span class="num">04</span><h2>경기장 지도 (카카오맵)</h2><div class="line"></div></div>
+  <div class="eyebrow"><span class="num">05</span><h2>경기장 지도 (카카오맵)</h2><div class="line"></div></div>
   <div class="map-card">
     <div class="venue-row">
       <select id="venuePresetSelect" style="background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:10px 8px;color:var(--text);font-size:12px;max-width:150px;">
@@ -256,7 +281,8 @@
   </section>
 
   <section class="app-section" id="sectionRecords">
-  <div class="eyebrow"><span class="num">05</span><h2>팀 순위</h2><div class="line"></div>
+  <button class="section-back-btn mobile-only-block" data-back-to="home">← 홈으로</button>
+  <div class="eyebrow"><span class="num">06</span><h2>팀 순위</h2><div class="line"></div>
     <button class="refresh-btn" id="rankRefresh"><span class="ic">⟳</span>새로고침</button>
   </div>
   <div class="weather-card" id="rankCard">
@@ -282,12 +308,13 @@
     </div>
   </div>
 
-  <div class="eyebrow"><span class="num">06</span><h2>경기 진행 기록</h2><div class="line"></div></div>
+  <div class="eyebrow"><span class="num">07</span><h2>경기 진행 기록</h2><div class="line"></div></div>
   <div class="weather-card" id="matchStatsCard"></div>
   </section>
 
   <section class="app-section admin-only-section" id="sectionAdmin">
-  <div class="eyebrow admin-only" id="adminSectionEyebrow" style="display:none;"><span class="num">07</span><h2>관리자 도구</h2><div class="line"></div></div>
+  <button class="section-back-btn mobile-only-block" data-back-to="home">← 홈으로</button>
+  <div class="eyebrow admin-only" id="adminSectionEyebrow" style="display:none;"><span class="num">08</span><h2>관리자 도구</h2><div class="line"></div></div>
   <div class="weather-card admin-only" id="adminPanel" style="display:none;">
     <div class="admin-block">
       <h4>실시간 데이터 새로고침</h4>
@@ -403,10 +430,9 @@
   <button class="tab-btn active" data-tab="home"><span class="tab-ic">🏠</span><span class="tab-lb">홈</span></button>
   <button class="tab-btn" data-tab="calendar"><span class="tab-ic">🗓️</span><span class="tab-lb">캘린더</span></button>
   <button class="tab-btn" data-tab="matches"><span class="tab-ic">⚽</span><span class="tab-lb">경기</span></button>
+  <button class="tab-btn" data-tab="tactics"><span class="tab-ic">♟️</span><span class="tab-lb">전술</span></button>
   <button class="tab-btn" data-tab="map"><span class="tab-ic">📍</span><span class="tab-lb">지도</span></button>
   <button class="tab-btn" data-tab="weather"><span class="tab-ic">☀️</span><span class="tab-lb">날씨</span></button>
-  <button class="tab-btn" data-tab="records"><span class="tab-ic">🏆</span><span class="tab-lb">기록</span></button>
-  <button class="tab-btn admin-only" id="adminTabBtn" data-tab="admin" style="display:none;"><span class="tab-ic">⚙️</span><span class="tab-lb">관리자</span></button>
 </nav>
 
 <div class="toast" id="toast"></div>
