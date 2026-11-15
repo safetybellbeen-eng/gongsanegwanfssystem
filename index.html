@@ -16,8 +16,51 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="공생관">
+<link rel="preload" as="image" href="./assets/splash.jpg">
+<style id="splashStyle">
+/* 스플래시 화면: style.css보다 먼저 적용되도록 head에 인라인으로 둠 */
+#splashScreen{position:fixed;inset:0;z-index:99999;display:none;background:#050a0d url("./assets/splash.jpg") center center/cover no-repeat;opacity:1;transition:opacity .45s ease}
+html.show-splash #splashScreen{display:block}
+#splashScreen.hide{opacity:0;pointer-events:none}
+#splashScreen .splash-bar{position:absolute;left:0;right:0;bottom:0;height:3px;background:rgba(255,255,255,.08);overflow:hidden}
+#splashScreen .splash-bar::after{content:"";position:absolute;top:0;bottom:0;width:38%;background:linear-gradient(90deg,transparent,#b6f23a,transparent);animation:splashBar 1.2s ease-in-out infinite}
+@keyframes splashBar{0%{left:-40%}100%{left:100%}}
+</style>
+<script>
+/* 휴대폰(모바일 화면 폭) 또는 설치형 앱(PWA/TWA)일 때만, 세션당 1회 스플래시를 보여줌 */
+(function(){
+  try{
+    var standalone = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true || /^android-app:\/\//.test(document.referrer || '');
+    var mobile = Math.min(window.screen.width||9999, window.innerWidth||9999) <= 820;
+    var seen = false;
+    try{ seen = sessionStorage.getItem('gsgSplashSeen') === '1'; }catch(e){}
+    if((standalone || mobile) && !seen){ document.documentElement.classList.add('show-splash'); }
+  }catch(e){}
+})();
+</script>
 </head>
 <body>
+
+<!-- 스플래시 화면 -->
+<div id="splashScreen" aria-hidden="true"><div class="splash-bar"></div></div>
+<script>
+(function(){
+  var el = document.getElementById('splashScreen');
+  if(!el || !document.documentElement.classList.contains('show-splash')) return;
+  var start = Date.now(), MIN = 1500, MAX = 6000, done = false;
+  function finish(){
+    if(done) return; done = true;
+    el.classList.add('hide');
+    try{ sessionStorage.setItem('gsgSplashSeen','1'); }catch(e){}
+    setTimeout(function(){ document.documentElement.classList.remove('show-splash'); if(el.parentNode) el.parentNode.removeChild(el); }, 520);
+  }
+  function ready(){ var wait = Math.max(0, MIN - (Date.now()-start)); setTimeout(finish, wait); }
+  if(document.readyState === 'complete') ready(); else window.addEventListener('load', ready);
+  setTimeout(finish, MAX); /* 안전장치: 로딩이 길어져도 6초 뒤에는 반드시 닫힘 */
+  el.addEventListener('click', finish);
+})();
+</script>
+
 
 
 <div id="loginOverlay">
@@ -212,6 +255,7 @@
       <button class="mf-chip" data-filter-time="afternoon">오후</button>
       <button class="mf-chip active" data-filter-time="evening">저녁</button>
       <button class="mf-chip mf-fav" id="matchFavFilterBtn">⭐ 즐겨찾기만</button>
+      <button class="mf-chip mf-hide-full active" id="matchHideFullBtn">🙈 마감경기 가리기</button>
     </div>
     <div class="match-filter-row" id="matchFormatFilterRow">
       <button class="mf-chip active" data-filter-format="all">전체 형식</button>
