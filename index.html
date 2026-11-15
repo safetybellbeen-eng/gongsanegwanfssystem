@@ -19,9 +19,12 @@
 <link rel="preload" as="image" href="./assets/splash.jpg">
 <style id="splashStyle">
 /* 스플래시 화면: style.css보다 먼저 적용되도록 head에 인라인으로 둠 */
-#splashScreen{position:fixed;inset:0;z-index:99999;display:none;background:#050a0d url("./assets/splash.jpg") center center/cover no-repeat;opacity:1;transition:opacity .45s ease}
+html.show-splash,html.show-splash body{background:#050a0d;overflow:hidden}
+#splashScreen{position:fixed;left:0;top:0;width:100vw;height:100vh;height:100lvh;z-index:99999;display:none;overflow:hidden;background:#050a0d;opacity:1;transition:opacity .45s ease}
 html.show-splash #splashScreen{display:block}
 #splashScreen.hide{opacity:0;pointer-events:none}
+#splashScreen .splash-img{position:absolute;left:0;top:0;width:100%;height:100%;object-fit:cover;object-position:center center;opacity:0;transition:opacity .2s ease;user-select:none;-webkit-user-drag:none}
+#splashScreen.img-ready .splash-img{opacity:1}
 #splashScreen .splash-bar{position:absolute;left:0;right:0;bottom:0;height:3px;background:rgba(255,255,255,.08);overflow:hidden}
 #splashScreen .splash-bar::after{content:"";position:absolute;top:0;bottom:0;width:38%;background:linear-gradient(90deg,transparent,#b6f23a,transparent);animation:splashBar 1.2s ease-in-out infinite}
 @keyframes splashBar{0%{left:-40%}100%{left:100%}}
@@ -42,12 +45,19 @@ html.show-splash #splashScreen{display:block}
 <body>
 
 <!-- 스플래시 화면 -->
-<div id="splashScreen" aria-hidden="true"><div class="splash-bar"></div></div>
+<div id="splashScreen" aria-hidden="true"><img class="splash-img" id="splashImg" src="./assets/splash.jpg" alt="" decoding="sync" draggable="false"><div class="splash-bar"></div></div>
 <script>
 (function(){
   var el = document.getElementById('splashScreen');
   if(!el || !document.documentElement.classList.contains('show-splash')) return;
   var start = Date.now(), MIN = 1500, MAX = 6000, done = false;
+  /* 이미지가 완전히 불러와진 뒤에야 보여줌 → 크기가 바뀌거나 깜빡이는 현상 방지 */
+  var img = document.getElementById('splashImg');
+  function showImg(){ el.classList.add('img-ready'); }
+  if(img){
+    if(img.complete && img.naturalWidth){ showImg(); }
+    else{ img.addEventListener('load', showImg); img.addEventListener('error', showImg); }
+  }
   function finish(){
     if(done) return; done = true;
     el.classList.add('hide');
