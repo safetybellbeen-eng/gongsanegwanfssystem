@@ -1143,3 +1143,46 @@ nav.mobile-tabbar button.active::before{content:"";position:absolute;top:-8px;le
 #homeVoteCard .hv-rate-top{display:flex;align-items:baseline;justify-content:flex-end;gap:8px;}
 .home-team-photo{height:150px;border-radius:18px;margin:0 0 16px;background:url("../assets/home-team.jpg") center/cover no-repeat;}
 @media (min-width:769px){.home-team-photo{height:190px;}}
+
+/* ===== 홈: 한 화면 맞춤 ===== */
+#sectionHome.mobile-active{display:flex;flex-direction:column;overflow:hidden;}
+#sectionHome > *{flex-shrink:0;}
+#sectionHome .home-hero-banner{flex:1 1 0;min-height:64px;height:auto;max-height:150px;margin-bottom:8px;}
+#sectionHome .home-hero-banner .hhb-text{font-size:clamp(14px,3.6vh,20px);}
+#sectionHome .home-quick{margin:0 0 8px;}
+#sectionHome .home-quick-btn{min-height:58px;padding:8px 2px 7px;gap:4px;font-size:12px;}
+#sectionHome .home-quick-btn svg{width:22px;height:22px;}
+#sectionHome #heroMatchCard{margin:0 0 8px;}
+.nm-body{min-height:0;}
+.nm-left{padding:8px 8px 10px 16px;gap:5px;}
+.nm-venue{font-size:19px;font-weight:800;color:var(--ink);letter-spacing:-.02em;line-height:1.2;}
+.nm-line{font-size:14px;}
+.nm-line svg{width:18px;height:18px;}
+.nm-actions{display:flex;align-items:center;gap:8px;margin-top:2px;flex-wrap:wrap;}
+.nm-format{background:var(--ink);color:var(--lime);font-weight:800;font-size:13px;border-radius:8px;padding:4px 10px;}
+#heroMatchCard .hero-link-btn{background:var(--lime);color:var(--ink);}
+#heroMatchCard .hero-label{font-size:12px;padding:4px 18px 4px 14px;}
+#sectionHome #homeVoteCard{margin:0 0 8px;padding:12px 14px;}
+#homeVoteCard .home-goto-btn{padding:10px;font-size:15px;margin-top:8px;}
+#sectionHome #noticeCard{margin:0 0 8px;padding:9px 14px;}
+#sectionHome .home-team-photo{flex:1 1 0;min-height:0;height:auto;margin:0;}
+@media (max-height:700px){#sectionHome .home-team-photo{display:none;}}
+@media (min-width:769px){#sectionHome .home-team-photo{height:auto;}}
+.nm-actions{align-items:stretch;}
+.nm-format{display:inline-flex;align-items:center;}
+#heroMatchCard .hero-link-btn{padding:4px 12px;line-height:1.2;}
+#homeVoteCard .hv-title b{white-space:nowrap;font-size:16px;}
+@media (max-height:760px){
+  #sectionHome .home-hero-banner{display:none;}
+  #sectionHome .home-quick{margin-top:4px;}
+  .nm-venue{font-size:17px;}
+}
+@media (max-height:620px){
+  #sectionHome .home-quick{display:none;}
+  #sectionHome #noticeCard{display:none !important;}
+}
+.nm-actions{align-items:center;flex:none;}
+.nm-format,#heroMatchCard .hero-link-btn{height:30px;box-sizing:border-box;padding:0 12px;display:inline-flex;align-items:center;margin:0;}
+@media (max-height:700px){#sectionHome #noticeCard{display:none !important;}}
+#sectionHome .home-hero-banner{min-height:124px;}
+@media (max-height:800px){#sectionHome .home-hero-banner{display:none;}}
