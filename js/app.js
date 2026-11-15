@@ -2015,27 +2015,35 @@ function renderHeroMatch(){
   ` : '';
 
   el.className = 'hero-match-card';
+  const svgI = (d)=>`<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+  const timeText = venue && venue.time ? ` ${escapeHtml(String(venue.time).slice(0,5))}` : '';
   el.innerHTML = `
-    <div class="hero-top">
-      <span class="hero-dday">${ddayLabel}</span>
-      <span class="hero-label">다음 경기</span>
-    </div>
-    <div class="hero-main-row">
-      <div class="hero-left">
-        <div class="hero-date">${dObj.getMonth()+1}.${dObj.getDate()}(${weekdayKR[dObj.getDay()]})</div>
-        ${venue && venue.time ? `<div class="hero-time">${escapeHtml(venue.time)}</div>` : ''}
-        ${venue ? `<div class="hero-venue">📍 ${escapeHtml(venue.name)}${venue.address?`<div class="addr">${escapeHtml(venue.address)}</div>`:''}</div>` : `<div class="hero-venue" style="color:var(--muted);">경기장 정보가 아직 등록되지 않았습니다</div>`}
+    <div class="hero-top"><span class="hero-label">다음 경기</span></div>
+    <div class="nm-body" id="nmBody">
+      <div class="nm-left">
+        <div class="nm-teams"><img src="./assets/club-emblem.png" alt=""><b>공생관 FS</b></div>
+        <div class="nm-line">${svgI('<rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10h18M8 3v4M16 3v4"/><path d="M8 14h.01M12 14h.01M16 14h.01"/>')}<span>${dObj.getMonth()+1}월 ${dObj.getDate()}일 (${weekdayKR[dObj.getDay()]})${timeText}</span></div>
+        <div class="nm-line">${svgI('<path d="M12 21s7-6.2 7-11.5a7 7 0 0 0-14 0C5 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>')}<span>${venue ? escapeHtml(venue.name) : '경기장 미등록'}</span></div>
+        ${venue && venue.link ? `<button class="hero-link-btn" id="heroLinkBtn" data-link="${escapeHtml(venue.link)}">🔗 경기 링크</button>` : ''}
       </div>
-      <div class="hero-right">
-        <div class="hero-count-label">참석 현황</div>
-        <div class="hero-count-big">${totalAttending}<span class="of">/${approvedTotal}명</span></div>
-        <div class="hero-avatars">${avatarsHtml}</div>
-      </div>
+      <span class="nm-chev">›</span>
+      <div class="nm-photo"></div>
     </div>
-    <div class="hero-attendee-list">${attendeeChips.length? attendeeChips.map(p=>`<span class="nv-chip">${escapeHtml(p.name)}${p.isGuest?' <span class="guest-tag">용병</span>':''}${admin?` <button class="chip-remove-btn" data-name="${escapeHtml(p.name)}" data-guest="${p.isGuest?'1':'0'}" title="제외">✕</button>`:''}</span>`).join('') : '<span class="nv-empty">아직 참석자가 없습니다</span>'}</div>
-    ${adminAddControl}
-    ${venue && venue.link ? `<button class="hero-link-btn" id="heroLinkBtn" data-link="${escapeHtml(venue.link)}">🔗 경기 링크</button>` : ''}
+    ${admin ? `
+    <details class="nm-admin">
+      <summary>관리자: 참석 인원 관리 (${totalAttending}/${approvedTotal}명)</summary>
+      <div class="hero-attendee-list">${attendeeChips.length? attendeeChips.map(p=>`<span class="nv-chip">${escapeHtml(p.name)}${p.isGuest?' <span class="guest-tag">용병</span>':''} <button class="chip-remove-btn" data-name="${escapeHtml(p.name)}" data-guest="${p.isGuest?'1':'0'}" title="제외">✕</button></span>`).join('') : '<span class="nv-empty">아직 참석자가 없습니다</span>'}</div>
+      ${adminAddControl}
+    </details>` : ''}
   `;
+  /* 카드를 누르면 그 경기가 속한 주의 출석 화면으로 이동합니다 */
+  const nmBody = document.getElementById('nmBody');
+  if(nmBody) nmBody.addEventListener('click', (e)=>{
+    if(e.target.closest('#heroLinkBtn')) return;
+    setActiveMobileSection('calendar');
+    if(typeof setAttendPane==='function') setAttendPane('vote');
+    if(typeof setSelectedDate==='function') setSelectedDate(date);
+  });
   const linkBtn = $('#heroLinkBtn');
   if(linkBtn){
     linkBtn.addEventListener('click', ()=>{
@@ -2107,7 +2115,7 @@ function renderNoticeCard(){
   el.style.display = 'block';
   const dateStr = notice.updatedAt ? new Date(notice.updatedAt).toLocaleDateString('ko-KR').replace(/\. /g,'.').replace(/\.$/,'') : '';
   el.innerHTML = `
-    <div class="nc-top"><span class="nc-tag">📢 공지사항</span><span class="nc-title">${escapeHtml(notice.title||'공지사항')}</span><span class="nc-chevron">›</span></div>
+    <div class="nc-top"><span class="nc-tag"><svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M3 10v4a1 1 0 0 0 1 1h2l5 4V5L6 9H4a1 1 0 0 0-1 1z"/><path d="M14 8.500a4.500 4.500 0 0 1 0 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>공지사항</span><span class="nc-title">${escapeHtml(notice.title||'공지사항')}</span><span class="nc-chevron">›</span></div>
     ${notice.body?`<div class="nc-body">${escapeHtml(notice.body)}</div>`:''}
     ${dateStr?`<div class="nc-date">${dateStr}</div>`:''}
   `;
@@ -2907,27 +2915,23 @@ function renderHomeTab(){
     const votedCount = eligible.filter(n=>(weekAvail[n] && weekAvail[n].length>0) || weekAbs[n]).length;
     const ratePct = eligible.length ? Math.round(votedCount/eligible.length*100) : 0;
     let subText;
-    if(info.confirmedDates.length){
-      const o = parseYMD(info.confirmedDates[0]);
-      subText = `${o.getMonth()+1}.${o.getDate()}(${weekdayKR[o.getDay()]}) 경기 확정`;
-    } else if(sorted.length){
-      const o = parseYMD(sorted[0].d);
-      subText = `${o.getMonth()+1}.${o.getDate()}(${weekdayKR[o.getDay()]}) 최다 투표 중`;
+    const pickDate = info.confirmedDates.length ? [...info.confirmedDates].sort()[0] : (sorted.length ? sorted[0].d : null);
+    if(pickDate){
+      const o = parseYMD(pickDate);
+      const vi = (typeof getVenueInfo==='function') ? getVenueInfo(pickDate) : null;
+      subText = `(${weekdayKR[o.getDay()]})${vi && vi.time ? ' '+String(vi.time).slice(0,5) : ''} 경기`;
     } else {
       subText = '아직 투표가 없습니다';
     }
     voteCard.innerHTML = `
       <div class="hv-head">
         <div class="hv-title">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><circle cx="17" cy="9" r="2.5"/><path d="M16.5 14.6c2.8-.2 4.9 1.6 4.9 4.4"/></svg>
+          <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="8" r="3.4"/><path d="M2.5 20c0-3.6 2.9-6 6.500-6s6.500 2.4 6.500 6z"/><circle cx="17" cy="9" r="2.6"/><path d="M16.300 14.100c3-.3 5.200 1.600 5.200 5.900h-4.400c0-2.200-.3-4.200-.8-5.900z"/></svg>
           <div><b>${escapeHtml(label)} 참석 투표</b><small>${escapeHtml(subText)}</small></div>
         </div>
-        <div class="hv-rate"><small>투표 참여율</small><b>${ratePct}%</b></div>
+        <div class="hv-rate"><div class="hv-rate-top"><small>참여율</small><b>${ratePct}%</b></div><div class="hv-progress"><div class="hv-progress-bar" style="width:${ratePct}%;"></div></div><div class="hv-people">${votedCount} / ${eligible.length}명</div></div>
       </div>
-      <div class="hv-progress"><div class="hv-progress-bar" style="width:${ratePct}%;"></div></div>
-      <div class="hv-people">${votedCount} / ${eligible.length}명</div>
-      ${rowsHtml}
-      <button class="home-goto-btn" id="homeGotoCalBtn">지금 참석 투표하기 ›</button>
+      <button class="home-goto-btn" id="homeGotoCalBtn"><span class="gt-chk"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.500 4.500 4.500L19 7.500"/></svg></span>지금 참석 투표하기<span class="gt-arrow">›</span></button>
     `;
     const gotoBtn = document.getElementById('homeGotoCalBtn');
     if(gotoBtn) gotoBtn.addEventListener('click', ()=>{
