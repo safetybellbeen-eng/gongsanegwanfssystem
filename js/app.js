@@ -1383,6 +1383,13 @@ function computeAttendanceStats(){
     missCounts[n] = Math.max(0, (missCounts[n]||0) + (a.missed||0));
   });
 
+  // 홈 화면 "팀 현황"에 쓰는 팀 평균 참석률 (전체 참석 / 전체 투표 기록)
+  (function(){
+    let y=0, t=0;
+    Object.keys(stats).forEach(n=>{ y+=stats[n].yes; t+=stats[n].total; });
+    window.__teamAttendanceRate = t>0 ? Math.round(y/t*100) : null;
+  })();
+
   // 4-1. 참석 순위
   const attendList = Object.keys(stats).map(name=>({
     name, yes: stats[name].yes, total: stats[name].total, rate: stats[name].yes/stats[name].total
@@ -1974,7 +1981,7 @@ function renderHeroMatch(){
   el.innerHTML = `
     <div class="hero-top">
       <span class="hero-dday">${ddayLabel}</span>
-      <span class="hero-label">확정 경기</span>
+      <span class="hero-label">다음 경기</span>
     </div>
     <div class="hero-main-row">
       <div class="hero-left">
@@ -2063,10 +2070,12 @@ function renderNoticeCard(){
   el.style.display = 'block';
   const dateStr = notice.updatedAt ? new Date(notice.updatedAt).toLocaleDateString('ko-KR').replace(/\. /g,'.').replace(/\.$/,'') : '';
   el.innerHTML = `
-    <div class="nc-top"><span class="nc-tag">중요</span><span class="nc-title">${escapeHtml(notice.title||'공지사항')}</span><span class="nc-chevron">›</span></div>
+    <div class="nc-top"><span class="nc-tag">📢 공지사항</span><span class="nc-title">${escapeHtml(notice.title||'공지사항')}</span><span class="nc-chevron">›</span></div>
     ${notice.body?`<div class="nc-body">${escapeHtml(notice.body)}</div>`:''}
     ${dateStr?`<div class="nc-date">${dateStr}</div>`:''}
   `;
+  // 모바일에서는 제목 한 줄만 보이고, 카드를 누르면 본문이 펼쳐집니다.
+  el.onclick = ()=>el.classList.toggle('open');
 }
 
 function renderGenericRankList(listSel, emptySel, list, metricKey, unit){
@@ -2854,10 +2863,34 @@ function renderHomeTab(){
         return `<div class="home-vote-row"><span class="hv-date">${o.getMonth()+1}.${o.getDate()}(${weekdayKR[o.getDay()]})${isConf?' 🏆':''}</span><div class="hv-bar-wrap"><div class="hv-bar" style="width:${Math.round(x.c/maxC*100)}%;"></div></div><span class="hv-count">${x.c}표</span></div>`;
       }).join('');
     }
+    // 투표 참여율: 그 주에 날짜를 하나라도 고르거나 "불참"을 선언한 사람 / 승인된 선수(관리자·부상 기간 제외)
+    const weekAvail = (appData.weekAvailability && appData.weekAvailability[weekKey]) || {};
+    const weekAbs = (appData.weekAbsence && appData.weekAbsence[weekKey]) || {};
+    const eligible = getApprovedNonAdminNames().filter(n=>!isInjuredDuringWeek(n, weekKey));
+    const votedCount = eligible.filter(n=>(weekAvail[n] && weekAvail[n].length>0) || weekAbs[n]).length;
+    const ratePct = eligible.length ? Math.round(votedCount/eligible.length*100) : 0;
+    let subText;
+    if(info.confirmedDates.length){
+      const o = parseYMD(info.confirmedDates[0]);
+      subText = `${o.getMonth()+1}.${o.getDate()}(${weekdayKR[o.getDay()]}) 경기 확정`;
+    } else if(sorted.length){
+      const o = parseYMD(sorted[0].d);
+      subText = `${o.getMonth()+1}.${o.getDate()}(${weekdayKR[o.getDay()]}) 최다 투표 중`;
+    } else {
+      subText = '아직 투표가 없습니다';
+    }
     voteCard.innerHTML = `
-      <div class="hero-top"><span class="hero-label">${escapeHtml(label)} 투표 현황</span></div>
+      <div class="hv-head">
+        <div class="hv-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><circle cx="17" cy="9" r="2.5"/><path d="M16.5 14.6c2.8-.2 4.9 1.6 4.9 4.4"/></svg>
+          <div><b>${escapeHtml(label)} 참석 투표</b><small>${escapeHtml(subText)}</small></div>
+        </div>
+        <div class="hv-rate"><small>투표 참여율</small><b>${ratePct}%</b></div>
+      </div>
+      <div class="hv-progress"><div class="hv-progress-bar" style="width:${ratePct}%;"></div></div>
+      <div class="hv-people">${votedCount} / ${eligible.length}명</div>
       ${rowsHtml}
-      <button class="home-goto-btn" id="homeGotoCalBtn">투표하러 가기</button>
+      <button class="home-goto-btn" id="homeGotoCalBtn">지금 참석 투표하기 ›</button>
     `;
     const gotoBtn = document.getElementById('homeGotoCalBtn');
     if(gotoBtn) gotoBtn.addEventListener('click', ()=>{
@@ -2865,6 +2898,24 @@ function renderHomeTab(){
       if(calBtn) calBtn.click();
       if(typeof setSelectedDate==='function') setSelectedDate(weekKey);
     });
+  }
+
+  const teamStat = document.getElementById('homeTeamStat');
+  if(teamStat){
+    const st = computeMatchStats();
+    const thisMonthKey = todayStr().slice(0,7);
+    const thisMonthCount = st.byMonth[thisMonthKey] || 0;
+    const rate = (typeof window.__teamAttendanceRate==='number') ? window.__teamAttendanceRate : null;
+    const sv = (d)=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+    teamStat.innerHTML = `
+      <div class="hts-title">팀 현황<small>(누적 기준)</small></div>
+      <div class="hts-grid">
+        <div class="hts-cell"><div class="lb">${sv('<circle cx="12" cy="12" r="9"/><path d="m12 8 3.2 2.3-1.2 3.8H10L8.8 10.3z"/>')}누적 경기</div><div class="v">${st.totalPlayed}<small>회</small></div></div>
+        <div class="hts-cell"><div class="lb">${sv('<rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10h18M8 3v4M16 3v4"/>')}이번 달</div><div class="v">${thisMonthCount}<small>회</small></div></div>
+        <div class="hts-cell"><div class="lb">${sv('<path d="M12 21s7-6.2 7-11.5a7 7 0 0 0-14 0C5 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>')}예정 경기</div><div class="v">${st.upcomingCount}<small>회</small></div></div>
+        <div class="hts-cell"><div class="lb">${sv('<path d="M5 20V12M12 20V5M19 20v-9"/>')}참가율</div><div class="v">${rate===null?'-':rate+'<small>%</small>'}</div></div>
+      </div>
+    `;
   }
 
   const wMini = document.getElementById('homeWeatherMini');
@@ -2937,7 +2988,53 @@ function renderHomeTab(){
 }
 function tryRenderHomeTab(){
   try{ renderHomeTab(); }catch(e){ console.error(e); }
+  try{ updateBellState(); updateUserMenuLabel(); }catch(e){ console.error(e); }
 }
+
+/* ---------- 홈 상단: 알림 벨 / 내 메뉴 / 퀵 버튼 ---------- */
+function updateBellState(){
+  const b = document.getElementById('bellBtn');
+  if(!b) return;
+  b.classList.toggle('on', typeof Notification!=='undefined' && Notification.permission==='granted');
+}
+function updateUserMenuLabel(){
+  const b = document.getElementById('userMenuBtn');
+  if(b && myName) b.textContent = myName.charAt(0);
+}
+(function initHomeHeaderControls(){
+  const bell = document.getElementById('bellBtn');
+  if(bell) bell.addEventListener('click', ()=>{
+    if(typeof Notification==='undefined'){ toast('이 기기에서는 알림을 지원하지 않습니다.'); return; }
+    if(Notification.permission==='granted'){ toast('알림이 켜져 있습니다. 경기 확정·투표 마감 소식을 알려드려요.'); }
+    else if(Notification.permission==='denied'){ toast('알림이 차단되어 있습니다. 브라우저(앱) 설정에서 허용해 주세요.'); }
+    else {
+      const en = document.getElementById('notifyEnableBtn');
+      if(en) en.click();
+      setTimeout(updateBellState, 1500);
+      setTimeout(updateBellState, 5000);
+    }
+  });
+  const menuBtn = document.getElementById('userMenuBtn');
+  const box = document.getElementById('userBox');
+  if(menuBtn && box){
+    menuBtn.addEventListener('click', (e)=>{ e.stopPropagation(); box.classList.toggle('open'); });
+    box.addEventListener('click', (e)=>{ if(e.target.closest('button')) box.classList.remove('open'); });
+    document.addEventListener('click', (e)=>{ if(!box.contains(e.target) && e.target!==menuBtn) box.classList.remove('open'); });
+  }
+  document.querySelectorAll('.home-quick-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const go = btn.dataset.go;
+      if(go==='vote'){
+        const next = parseYMD(getWeekStart(todayStr()));
+        next.setDate(next.getDate()+7);
+        setActiveMobileSection('calendar');
+        if(typeof setSelectedDate==='function') setSelectedDate(fmtDate(next));
+      } else {
+        setActiveMobileSection(go);
+      }
+    });
+  });
+})();
 
 /* ---------- 모바일 하단 탭 전환 (768px 이하에서만 시각적으로 의미가 있지만, 클래스 토글 자체는 항상 동작) ---------- */
 function setActiveMobileSection(tabKey){
@@ -3076,6 +3173,7 @@ let selectedMatchDate = null; // YYYY-MM-DD
 let matchTimeFilter = 'evening';  // all | morning | afternoon | evening (기본은 저녁 19시 이후)
 let matchFavOnly = false;
 let matchFormatFilter = 'all'; // all | '5' | '6' (player_count에서 뽑은 인원수 기준)
+let matchHideFull = true; // 마감(apply_status==='full') 경기 가리기. 기본값은 가림.
 let matchesTabInited = false;
 let lastMatchRows = [];
 let matchVisibleCount = 10;
@@ -3122,12 +3220,13 @@ function renderMatchDateScroller(){
   });
 }
 
-/* 모집 상태 판정: Supabase에는 apply_status가 'available'(모집중) 또는 'hurry'(마감임박)만
-   저장되어 있습니다 ('full'은 fetch-plab.js에서 애초에 저장하지 않습니다). */
+/* 모집 상태 판정: Supabase의 apply_status는 'available'(모집중) / 'hurry'(마감임박) /
+   'full'(마감) 세 가지입니다. (2026-08부터 fetch-plab.js가 hide_soldout 없이 수집해
+   마감 경기도 'full'로 저장합니다. 기본은 "마감경기 가리기" 필터로 화면에서 가려집니다.) */
 function getMatchStatus(row){
   if(row.apply_status === 'available') return 'open';
   if(row.apply_status === 'hurry') return 'closing';
-  return 'full'; // 예상 밖의 값이 들어온 경우를 위한 방어적 처리
+  return 'full'; // 'full' 또는 예상 밖의 값이 들어온 경우 모두 마감으로 처리
 }
 function matchStatusLabel(status){
   if(status==='full') return { text:'🔴 마감', cls:'status-full' };
@@ -3268,6 +3367,7 @@ function renderMatchList(){
   let rows = lastMatchRows.filter(r=>{
     if(matchTimeFilter !== 'all' && matchTimePeriod(r.match_time) !== matchTimeFilter) return false;
     if(matchFormatFilter !== 'all' && matchFormatNumber(r.player_count) !== matchFormatFilter) return false;
+    if(matchHideFull && getMatchStatus(r) === 'full') return false;
     // 오늘 날짜를 보고 있을 때는, 이미 시작 시각이 지난 경기는 신청해도 소용없으니 목록에서 제외합니다.
     if(selectedMatchDate === todayStr() && r.match_time){
       const now = kstNow();
@@ -3410,6 +3510,14 @@ function initMatchesTabOnce(){
     matchFavOnly = !matchFavOnly;
     matchVisibleCount = MATCHES_PER_PAGE;
     favBtn.classList.toggle('active', matchFavOnly);
+    renderMatchList();
+  });
+  const hideFullBtn = $('#matchHideFullBtn');
+  if(hideFullBtn) hideFullBtn.addEventListener('click', ()=>{
+    matchHideFull = !matchHideFull;
+    matchVisibleCount = MATCHES_PER_PAGE;
+    hideFullBtn.classList.toggle('active', matchHideFull);
+    hideFullBtn.textContent = matchHideFull ? '🙈 마감경기 가리기' : '👁️ 마감경기 보이기';
     renderMatchList();
   });
   const formatRow = $('#matchFormatFilterRow');
