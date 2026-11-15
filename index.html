@@ -228,6 +228,7 @@ html.show-splash #splashScreen{display:block}
   </section>
 
   <section class="app-section" id="sectionWeather">
+  <button class="section-back-btn mobile-only-block" data-back-to="more">← 더보기</button>
   <div class="eyebrow"><span class="num">01</span><h2>서울 날씨</h2><span class="weather-badge" id="weatherBadge">LOADING</span><div class="line"></div>
     <button class="refresh-btn" id="weatherRefresh"><span class="ic">⟳</span>새로고침</button>
   </div>
@@ -246,6 +247,16 @@ html.show-splash #splashScreen{display:block}
   </section>
 
   <section class="app-section" id="sectionCalendar">
+  <div class="page-banner">
+    <div class="pb-title"><span class="pb-ic"><svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10h18M8 3v4M16 3v4"/><path d="m9 15.5 2 2 4-4"/></svg></span><h2>출석</h2></div>
+    <p class="pb-sub" id="attendSubtitle">다음 주 경기가 가능한 날짜를 투표해 주세요!</p>
+  </div>
+  <div class="seg-tabs" id="attendSeg">
+    <button type="button" class="seg-btn active" data-pane="vote"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2.5"/><path d="m8 13 3 3 5-6"/></svg><span>출석투표</span></button>
+    <button type="button" class="seg-btn" data-pane="status"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><circle cx="17" cy="9" r="2.5"/><path d="M16.5 14.6c2.8-.2 4.9 1.6 4.9 4.4"/></svg><span>출석현황</span></button>
+    <button type="button" class="seg-btn" data-pane="recent"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10h18M8 3v4M16 3v4"/><path d="m9 15.5 2 2 4-4"/></svg><span>최근경기</span></button>
+  </div>
+  <div class="attend-pane active" data-pane="vote">
   <div class="eyebrow"><span class="num">02</span><h2>경기 캘린더 &amp; 참석 투표</h2><div class="line"></div>
     <div class="date-nav-mini">
       <button id="dateNavPrev" title="이전 날짜">‹</button>
@@ -267,9 +278,16 @@ html.show-splash #splashScreen{display:block}
       <div class="match-empty">날짜를 선택하면<br>참석 투표 현황을 확인할 수 있습니다.</div>
     </div>
   </div>
+  </div>
+  <div class="attend-pane" data-pane="status" id="attendStatusPane"></div>
+  <div class="attend-pane" data-pane="recent" id="attendRecentPane"></div>
   </section>
 
   <section class="app-section" id="sectionMatches">
+  <div class="page-banner">
+    <div class="pb-title"><span class="pb-ic"><svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></span><h2>경기</h2></div>
+    <p class="pb-sub">플랩풋볼에서 주변 풋살 경기를<br>찾고, 함께 참여하세요!</p>
+  </div>
   <div class="eyebrow"><span class="num">03</span><h2>경기 찾기 (플랩풋볼)</h2><div class="line"></div></div>
   <div class="weather-card">
     <div class="match-date-scroll" id="matchDateScroll"></div>
@@ -302,7 +320,7 @@ html.show-splash #splashScreen{display:block}
   </section>
 
   <section class="app-section" id="sectionTactics">
-  <button class="section-back-btn mobile-only-block" data-back-to="home">← 홈으로</button>
+  <button class="section-back-btn mobile-only-block" data-back-to="more">← 더보기</button>
   <div class="eyebrow"><span class="num">04</span><h2>전술 보드</h2><div class="line"></div></div>
   <div class="weather-card">
     <div class="tactics-toolbar">
@@ -337,6 +355,10 @@ html.show-splash #splashScreen{display:block}
   </section>
 
   <section class="app-section" id="sectionMap">
+  <div class="page-banner">
+    <div class="pb-title"><span class="pb-ic"><svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.2 7-11.5a7 7 0 0 0-14 0C5 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg></span><h2>지도 <small>(풋살장 안내)</small></h2></div>
+    <p class="pb-sub">경기장을 검색하고 위치를 확인하세요.</p>
+  </div>
   <div class="eyebrow"><span class="num">05</span><h2>경기장 지도 (카카오맵)</h2><div class="line"></div></div>
   <div class="map-card">
     <div class="venue-row">
@@ -371,7 +393,7 @@ html.show-splash #splashScreen{display:block}
   </section>
 
   <section class="app-section" id="sectionRecords">
-  <button class="section-back-btn mobile-only-block" data-back-to="home">← 홈으로</button>
+  <button class="section-back-btn mobile-only-block" data-back-to="more">← 더보기</button>
   <div class="eyebrow"><span class="num">06</span><h2>팀 순위</h2><div class="line"></div>
     <button class="refresh-btn" id="rankRefresh"><span class="ic">⟳</span>새로고침</button>
   </div>
@@ -402,8 +424,26 @@ html.show-splash #splashScreen{display:block}
   <div class="weather-card" id="matchStatsCard"></div>
   </section>
 
+  <section class="app-section" id="sectionMore">
+  <div class="page-banner">
+    <div class="pb-title"><span class="pb-ic"><svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/></svg></span><h2>더보기</h2></div>
+    <p class="pb-sub">팀 기능과 내 설정을 한곳에서 확인하세요.</p>
+  </div>
+  <div class="more-me" id="moreMeCard"></div>
+  <div class="more-list">
+    <button type="button" class="more-row" data-go="tactics"><span class="mr-ic"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M12 5v14"/><circle cx="12" cy="12" r="2.6"/></svg></span><span class="mr-tx"><b>전술 보드</b><small>확정 경기의 포메이션·선수 배치</small></span><span class="mr-ch">›</span></button>
+    <button type="button" class="more-row" data-go="records"><span class="mr-ic"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20V12M12 20V5M19 20v-9"/><path d="M3 20h18"/></svg></span><span class="mr-tx"><b>팀 기록</b><small>참석·미투표·불참 순위와 경기 통계</small></span><span class="mr-ch">›</span></button>
+    <button type="button" class="more-row" data-go="weather"><span class="mr-ic"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></span><span class="mr-tx"><b>날씨</b><small>경기 날짜별 날씨 예보</small></span><span class="mr-ch">›</span></button>
+    <button type="button" class="more-row" data-act="members"><span class="mr-ic"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><circle cx="17" cy="9" r="2.5"/><path d="M16.5 14.6c2.8-.2 4.9 1.6 4.9 4.4"/></svg></span><span class="mr-tx"><b>팀 멤버</b><small>팀 멤버 전체보기</small></span><span class="mr-ch">›</span></button>
+    <button type="button" class="more-row" data-act="bell"><span class="mr-ic"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg></span><span class="mr-tx"><b>알림 설정</b><small>경기 확정·투표 마감 알림</small></span><span class="mr-ch">›</span></button>
+    <button type="button" class="more-row admin" data-go="admin" id="moreAdminRow" style="display:none;"><span class="mr-ic"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 4.5-3.2 7.8-8 9-4.8-1.2-8-4.5-8-9V6z"/><path d="m9 12 2 2 4-4"/></svg></span><span class="mr-tx"><b>관리자 도구</b><small>회원·경기·공지 관리</small></span><span class="mr-ch">›</span></button>
+    <button type="button" class="more-row" data-act="injury"><span class="mr-ic"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-4.4-7-10a4.2 4.2 0 0 1 7-3 4.2 4.2 0 0 1 7 3c0 5.600-7 10-7 10z"/></svg></span><span class="mr-tx"><b>내 부상 설정</b><small>부상 기간에는 투표·집계에서 제외</small></span><span class="mr-ch">›</span></button>
+    <button type="button" class="more-row danger" data-act="logout"><span class="mr-ic"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg></span><span class="mr-tx"><b>로그아웃</b><small></small></span><span class="mr-ch">›</span></button>
+  </div>
+  </section>
+
   <section class="app-section admin-only-section" id="sectionAdmin">
-  <button class="section-back-btn mobile-only-block" data-back-to="home">← 홈으로</button>
+  <button class="section-back-btn mobile-only-block" data-back-to="more">← 더보기</button>
   <div class="eyebrow admin-only" id="adminSectionEyebrow" style="display:none;"><span class="num">08</span><h2>관리자 도구</h2><div class="line"></div></div>
   <div class="weather-card admin-only" id="adminPanel" style="display:none;">
     <div class="admin-block">
@@ -525,11 +565,10 @@ html.show-splash #splashScreen{display:block}
 
 <nav class="mobile-tabbar" id="mobileTabbar">
   <button class="tab-btn active" data-tab="home"><span class="tab-ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v10h13V10"/><path d="M10 20v-5h4v5"/></svg></span><span class="tab-lb">홈</span></button>
-  <button class="tab-btn" data-tab="calendar"><span class="tab-ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10h18M8 3v4M16 3v4"/><path d="M8 14h.01M12 14h.01M16 14h.01"/></svg></span><span class="tab-lb">캘린더</span></button>
+  <button class="tab-btn" data-tab="calendar"><span class="tab-ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10h18M8 3v4M16 3v4"/><path d="m9 15.5 2 2 4-4"/></svg></span><span class="tab-lb">출석</span></button>
   <button class="tab-btn" data-tab="matches"><span class="tab-ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m12 8 3.2 2.3-1.2 3.8H10L8.8 10.3z"/><path d="M12 3v5M20.5 9.5 15.2 10.3M17.5 19l-3.5-4.9M6.5 19l3.5-4.9M3.5 9.5l5.3.8"/></svg></span><span class="tab-lb">경기</span></button>
-  <button class="tab-btn" data-tab="tactics"><span class="tab-ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="5" height="5" rx="1.2"/><rect x="16" y="3" width="5" height="5" rx="1.2"/><rect x="3" y="16" width="5" height="5" rx="1.2"/><rect x="16" y="16" width="5" height="5" rx="1.2"/><path d="M8 5.5h8M5.5 8v8M18.5 8v8M8 18.5h8"/></svg></span><span class="tab-lb">전술</span></button>
-  <button class="tab-btn" data-tab="map"><span class="tab-ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.2 7-11.5a7 7 0 0 0-14 0C5 14.800 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg></span><span class="tab-lb">지도</span></button>
-  <button class="tab-btn" data-tab="weather"><span class="tab-ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></span><span class="tab-lb">날씨</span></button>
+  <button class="tab-btn" data-tab="map"><span class="tab-ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.2 7-11.5a7 7 0 0 0-14 0C5 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg></span><span class="tab-lb">지도</span></button>
+  <button class="tab-btn" data-tab="more"><span class="tab-ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/></svg></span><span class="tab-lb">더보기</span></button>
 </nav>
 
 <div class="toast" id="toast"></div>
