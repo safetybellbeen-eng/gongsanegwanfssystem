@@ -2021,10 +2021,13 @@ function renderHeroMatch(){
     <div class="hero-top"><span class="hero-label">다음 경기</span></div>
     <div class="nm-body" id="nmBody">
       <div class="nm-left">
-        <div class="nm-teams"><img src="./assets/club-emblem.png" alt=""><b>공생관 FS</b></div>
-        <div class="nm-line">${svgI('<rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10h18M8 3v4M16 3v4"/><path d="M8 14h.01M12 14h.01M16 14h.01"/>')}<span>${dObj.getMonth()+1}월 ${dObj.getDate()}일 (${weekdayKR[dObj.getDay()]})${timeText}</span></div>
-        <div class="nm-line">${svgI('<path d="M12 21s7-6.2 7-11.5a7 7 0 0 0-14 0C5 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>')}<span>${venue ? escapeHtml(venue.name) : '경기장 미등록'}</span></div>
-        ${venue && venue.link ? `<button class="hero-link-btn" id="heroLinkBtn" data-link="${escapeHtml(venue.link)}">🔗 경기 링크</button>` : ''}
+        <div class="nm-venue">${venue ? escapeHtml(venue.name) : '경기장 미등록'}</div>
+        <div class="nm-line">${svgI('<rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10h18M8 3v4M16 3v4"/>')}<span>${dObj.getMonth()+1}월 ${dObj.getDate()}일 (${weekdayKR[dObj.getDay()]})</span></div>
+        <div class="nm-line">${svgI('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>')}<span>${venue && venue.time ? escapeHtml(String(venue.time).slice(0,5)) : '시간 미정'}</span></div>
+        <div class="nm-actions">
+          ${venue && (venue.format==='5'||venue.format==='6') ? `<span class="nm-format">${venue.format} vs ${venue.format}</span>` : ''}
+          ${venue && venue.link ? `<button class="hero-link-btn" id="heroLinkBtn" data-link="${escapeHtml(venue.link)}">경기 링크 ›</button>` : ''}
+        </div>
       </div>
       <span class="nm-chev">›</span>
       <div class="nm-photo"></div>
@@ -2891,9 +2894,7 @@ function renderHomeTab(){
   const voteCard = document.getElementById('homeVoteCard');
   if(voteCard){
     const thisWeekKey = getWeekStart(todayStr());
-    const nextWeekDate = parseYMD(thisWeekKey);
-    nextWeekDate.setDate(nextWeekDate.getDate()+7);
-    const weekKey = fmtDate(nextWeekDate);
+    const weekKey = thisWeekKey;
     const info = getWeekInfo(weekKey);
     const sorted = info.dates.map(d=>({d, c: info.counts[d]||0})).filter(x=>x.c>0).sort((a,b)=>b.c-a.c).slice(0,3);
     const label = getWeekLabel(weekKey);
@@ -2927,7 +2928,7 @@ function renderHomeTab(){
       <div class="hv-head">
         <div class="hv-title">
           <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="8" r="3.4"/><path d="M2.5 20c0-3.6 2.9-6 6.500-6s6.500 2.4 6.500 6z"/><circle cx="17" cy="9" r="2.6"/><path d="M16.300 14.100c3-.3 5.200 1.600 5.200 5.900h-4.400c0-2.200-.3-4.200-.8-5.900z"/></svg>
-          <div><b>${escapeHtml(label)} 참석 투표</b><small>${escapeHtml(subText)}</small></div>
+          <div><b>이번 주 참석 투표</b><small>${escapeHtml(subText)}</small></div>
         </div>
         <div class="hv-rate"><div class="hv-rate-top"><small>참여율</small><b>${ratePct}%</b></div><div class="hv-progress"><div class="hv-progress-bar" style="width:${ratePct}%;"></div></div><div class="hv-people">${votedCount} / ${eligible.length}명</div></div>
       </div>
@@ -3067,11 +3068,9 @@ function updateUserMenuLabel(){
     btn.addEventListener('click', ()=>{
       const go = btn.dataset.go;
       if(go==='vote'){
-        const next = parseYMD(getWeekStart(todayStr()));
-        next.setDate(next.getDate()+7);
         setActiveMobileSection('calendar');
         if(typeof setAttendPane==='function') setAttendPane('vote');
-        if(typeof setSelectedDate==='function') setSelectedDate(fmtDate(next));
+        if(typeof setSelectedDate==='function') setSelectedDate(getWeekStart(todayStr()));
       } else {
         setActiveMobileSection(go);
       }
@@ -4181,3 +4180,19 @@ async function renderTacticsMiniForDate(dateStr, containerEl){
     </div>
   `;
 }
+
+
+/* ---------- 홈: 한 화면에 맞추기 (스크롤 없이) ---------- */
+function fitHomeToScreen(){
+  const sec = document.getElementById('sectionHome');
+  if(!sec || !sec.classList.contains('mobile-active')) return;
+  sec.style.height = '';
+  const tab = document.querySelector('nav.mobile-tabbar');
+  const top = sec.getBoundingClientRect().top + window.scrollY;
+  const tabH = tab ? tab.offsetHeight + 12 : 80;
+  const h = Math.max(320, window.innerHeight - top - tabH);
+  sec.style.height = h + 'px';
+}
+window.addEventListener('resize', fitHomeToScreen);
+window.addEventListener('orientationchange', ()=>setTimeout(fitHomeToScreen,200));
+setInterval(fitHomeToScreen, 1000); // 탭 전환·데이터 로딩 후 높이 재계산(가벼운 계산)
