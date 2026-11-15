@@ -1106,15 +1106,7 @@ nav.mobile-tabbar button.active::before{content:"";position:absolute;top:-8px;le
   #sectionMore{max-width:720px;margin:0 auto;}
   .seg-tabs{max-width:640px;}
 }
-@media (min-width:1000px){
-  /* 홈: 2열 배치 */
-  #sectionHome{display:none;}
-  #sectionHome.mobile-active{display:grid;grid-template-columns:1fr 1fr;gap:0 20px;align-items:start;}
-  #sectionHome > .home-hero-banner,#sectionHome > .home-quick,#sectionHome > .notify-banner,#sectionHome > .member-strip-wrap{grid-column:1 / -1;}
-  #sectionHome > .hero-match-card{grid-column:1;}
-  #sectionHome > .mobile-only-widgets:nth-of-type(1){grid-column:2;}
-  #sectionHome > .notice-card{grid-column:1 / -1;}
-}
+
 .da-detail{margin-top:10px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);padding:2px 12px;}
 .da-detail summary{cursor:pointer;font-size:13px;font-weight:700;padding:10px 0;color:#dbe4e8;list-style:none;}
 .da-detail summary::-webkit-details-marker{display:none;}
@@ -1125,3 +1117,29 @@ nav.mobile-tabbar button.active::before{content:"";position:absolute;top:-8px;le
 .vs-cols{align-items:stretch;}
 .vs-col{display:grid;grid-template-rows:auto auto 64px auto;justify-items:center;gap:2px;}
 .vs-bar{align-self:end;margin-top:0;}
+
+/* ===== 홈: 시안과 동일한 구성 (단일 컬럼) ===== */
+#sectionHome{max-width:760px;margin:0 auto;}
+#sectionHome #heroMatchCard{padding:0;overflow:hidden;position:relative;background:linear-gradient(135deg,#ffffff 0%,#e3e9ec 100%);}
+#heroMatchCard .hero-top{padding:0;display:block;}
+#heroMatchCard .hero-label{display:inline-block;background:linear-gradient(90deg,#8fd61f,var(--lime));color:var(--ink);font-weight:800;font-size:14px;padding:7px 22px 7px 16px;border-radius:0 0 14px 0;}
+.nm-body{display:flex;align-items:stretch;cursor:pointer;min-height:150px;position:relative;}
+.nm-left{flex:1;min-width:0;padding:14px 8px 16px 18px;display:flex;flex-direction:column;justify-content:center;gap:10px;}
+.nm-teams{display:flex;align-items:center;gap:10px;}
+.nm-teams img{width:46px;height:46px;object-fit:contain;}
+.nm-teams b{font-size:21px;font-weight:800;color:var(--ink);letter-spacing:-.02em;}
+.nm-line{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:600;color:var(--ink);}
+.nm-line svg{flex-shrink:0;color:#3b7d00;width:22px;height:22px;}
+.nm-chev{align-self:center;font-size:28px;color:var(--ink-sub);padding:0 6px;z-index:1;}
+.nm-photo{width:38%;max-width:260px;flex-shrink:0;background:url("../assets/home-stadium.jpg") center/cover no-repeat;clip-path:polygon(18% 0,100% 0,100% 100%,0 100%);margin-left:-36px;}
+.nm-chev{position:absolute;right:calc(38% - 6px);top:50%;transform:translateY(-50%);color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.5);}
+.nm-admin{margin:0 14px 12px;border-top:1px solid rgba(0,0,0,.09);padding-top:8px;font-size:13px;color:var(--ink);}
+.nm-admin summary{cursor:pointer;font-weight:700;padding:4px 0;}
+#heroMatchCard .hero-link-btn{width:auto;display:inline-block;align-self:flex-start;padding:6px 12px;font-size:12px;border-radius:10px;border:none;font-weight:700;cursor:pointer;}
+#homeVoteCard .home-goto-btn{display:flex;align-items:center;justify-content:center;gap:10px;position:relative;}
+#homeVoteCard .gt-chk{width:26px;height:26px;border-radius:50%;background:var(--ink);color:var(--lime);display:inline-flex;align-items:center;justify-content:center;}
+#homeVoteCard .gt-arrow{position:absolute;right:18px;font-size:24px;line-height:1;}
+#homeVoteCard .hv-rate{min-width:46%;}
+#homeVoteCard .hv-rate-top{display:flex;align-items:baseline;justify-content:flex-end;gap:8px;}
+.home-team-photo{height:150px;border-radius:18px;margin:0 0 16px;background:url("../assets/home-team.jpg") center/cover no-repeat;}
+@media (min-width:769px){.home-team-photo{height:190px;}}
