@@ -182,7 +182,6 @@ html.show-splash #splashScreen{display:block}
 
   <section class="app-section" id="sectionHome">
 
-  <!-- (모바일 전용) 상단 배너 + 퀵 버튼 -->
   <div class="home-hero-banner mobile-only-block" id="homeHeroBanner">
     <div class="hhb-text">함께 뛰고,<br>함께 성장하는<span class="hhb-name">공생관 FS</span><i class="hhb-line"></i></div>
   </div>
@@ -202,27 +201,24 @@ html.show-splash #splashScreen{display:block}
   </div>
   <div class="hero-match-card" id="heroMatchCard"></div>
 
-  <!-- (모바일 전용) 이번 주 참석 투표 / 팀 현황 -->
-  <div class="mobile-only-widgets">
-    <div class="weather-card home-vote-card" id="homeVoteCard"></div>
-    <div class="home-team-stat" id="homeTeamStat"></div>
-  </div>
+  <div class="weather-card home-vote-card" id="homeVoteCard"></div>
 
   <div class="notice-card" id="noticeCard" style="display:none;"></div>
 
+  <div class="home-team-photo" aria-hidden="true"></div>
+
+  <!-- 시안에 없는 기존 홈 위젯: 화면에는 보이지 않지만 기존 JS가 참조하므로 마크업은 보존합니다 -->
+  <div id="homeLegacy" style="display:none;">
   <div class="member-strip-wrap">
     <span class="member-strip-label">팀 멤버</span>
     <div class="member-strip" id="memberStrip"></div>
     <button class="member-viewall-btn" id="memberViewAllBtn" title="팀 멤버 전체보기">전체보기</button>
   </div>
-
-  <div class="mobile-only-widgets">
+    <div class="home-team-stat" id="homeTeamStat"></div>
     <div class="home-mini-grid">
       <div class="weather-card home-mini" id="homeWeatherMini"></div>
       <div class="weather-card home-mini" id="homeBdayMini"></div>
     </div>
-
-    <div class="eyebrow"><span class="num"></span><h2>최근 경기 기록</h2><div class="line"></div></div>
     <div class="weather-card" id="homeRecentCard"></div>
   </div>
   </section>
