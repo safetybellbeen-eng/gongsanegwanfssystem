@@ -788,6 +788,7 @@ function normalizeDateList(val, validDates){
 /* 특정 주의 가능 인원 수를 집계하고, 확정된 경기 날짜(들)를 계산합니다.
    - 자동: 단독 1위 날짜가 있으면 자동으로 확정됩니다. 공동 1위(동점)면 관리자가 수동으로 확정하기 전까지는 미확정 상태입니다.
    - 수동: 관리자가 weekOverride에 추가한 날짜는 투표 결과와 무관하게 항상 확정 목록에 추가됩니다(소수 인원 선택 경기 등, 한 주에 여러 날짜를 확정할 수 있습니다). */
+function autoWinnerDate(info){ return info && info.autoWinner ? info.autoWinner : null; }
 function getWeekInfo(weekKey){
   const dates = getWeekDates(weekKey);
   const avail = (appData.weekAvailability && appData.weekAvailability[weekKey]) || {};
@@ -1065,6 +1066,9 @@ async function renderMatchPanel(){
     return `
       <div class="da-row ${isConfirmedDay?'confirmed':''} ${isTieTop?'tie':''} ${picked?'picked':''} ${disabled?'disabled':''}" data-date="${d}">
         <div class="da-head">
+          <span class="da-dow">${weekdayKR[i]}</span>
+          <span class="da-day">${dObj.getDate()}일</span>
+          <span class="da-check">${picked?'✓':''}</span>
           <span class="da-date">${dObj.getMonth()+1}.${dObj.getDate()}(${weekdayKR[i]})</span>
           <span class="da-count">${counts[d]}명</span>
           ${isConfirmedDay?'<span class="wbadge">확정</span>':(isTieTop?'<span class="wbadge tie">예정</span>':'')}
@@ -1073,6 +1077,32 @@ async function renderMatchPanel(){
       </div>
     `;
   }).join('');
+
+  const voteBarsHtml = `
+    <div class="vote-status">
+      <div class="vs-head"><b>투표 현황</b><small>(총 ${approvedNames.length}명)</small></div>
+      <div class="vs-cols">
+        ${dates.map((d,i)=>{
+          const o = parseYMD(d);
+          const c = counts[d]||0;
+          const isTop = max>0 && c===max;
+          const h = max>0 ? Math.max(8, Math.round(c/max*54)) : 8;
+          return `<div class="vs-col ${isTop?'top':''} ${c>0?'has':''}"><span class="vs-dow">${isTop?'<i class="vs-crown">♛</i>':''}${weekdayKR[i]}</span><span class="vs-date">${o.getDate()}일</span><span class="vs-bar" style="height:${h}px;"></span><span class="vs-num">${c}명</span></div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  let gameDayHtml = '';
+  if(confirmedDates.length){
+    const cd = [...confirmedDates].sort()[0];
+    const co = parseYMD(cd);
+    const viaVotes = autoWinnerDate(info) === cd;
+    gameDayHtml = `
+      <div class="gameday-card">
+        <div class="gd-label"><span class="gd-trophy">🏆</span>${escapeHtml(weekLabel)} 경기일</div>
+        <div class="gd-main"><b>${co.getMonth()+1}월 ${co.getDate()}일 (${weekdayKR[co.getDay()]}) <em>확정!</em></b>
+        <small>${viaVotes ? `가장 많은 ${counts[cd]}명이 선택한 날짜로 경기를 진행합니다.` : '관리자가 지정한 경기일입니다.'}</small></div>
+      </div>`;
+  }
 
   const mainHtml = `
     <div class="match-head">
@@ -1091,7 +1121,12 @@ async function renderMatchPanel(){
     <div class="daily-attend-block">
       <div class="label">날짜 선택(누르면 이름이 추가 또는 제거됩니다)</div>
       <div class="daily-attend-list">${dayVoteListHtml}</div>
+      <details class="da-detail"><summary>날짜별 투표자 보기</summary>
+        ${dates.map((d,i)=>{ const o=parseYMD(d); const nm=Object.keys(avail).filter(n=>(avail[n]||[]).includes(d)); return `<div class="dd-row"><span class="dd-d">${o.getMonth()+1}.${o.getDate()}(${weekdayKR[i]}) · ${counts[d]}명</span><div class="dd-n">${nm.length? nm.map(n=>`<span class="nv-chip ${n===myName?'me':''}">${escapeHtml(n)}</span>`).join('') : '<span class="nv-empty">없음</span>'}</div></div>`; }).join('')}
+      </details>
     </div>
+    ${voteBarsHtml}
+    ${gameDayHtml}
   `;
 
   /* 관리자 전용: 이번 주 전체 날짜의 확정 상태를 한눈에 보고 여러 날짜를 확정/해제할 수 있는 보조 패널 (항상 표시) */
@@ -1412,7 +1447,9 @@ function computeAttendanceStats(){
   renderGenericRankList('#rankListNoShow', '#rankEmptyNoShow', noShowList, 'no', '회');
 
   const mine = stats[myName];
+  window.__myAttend = { yes: mine?mine.yes:0, no: mine?mine.no:0, total: mine?mine.total:0, miss: (missCounts[myName]||0) };
   const myRank = attendList.findIndex(r=>r.name===myName);
+  setTimeout(()=>{ try{ tryRenderAttendPanes(); }catch(e){} }, 0);
   const medal = myRank===0?'🥇':myRank===1?'🥈':myRank===2?'🥉':'';
   const rateTag = $('#myRateTag');
   const ratePie = $('#myRatePie');
@@ -2896,6 +2933,7 @@ function renderHomeTab(){
     if(gotoBtn) gotoBtn.addEventListener('click', ()=>{
       const calBtn = document.querySelector('.mobile-tabbar .tab-btn[data-tab="calendar"]');
       if(calBtn) calBtn.click();
+      if(typeof setAttendPane==='function') setAttendPane('vote');
       if(typeof setSelectedDate==='function') setSelectedDate(weekKey);
     });
   }
@@ -2935,7 +2973,7 @@ function renderHomeTab(){
     } else {
       wMini.innerHTML = `<div class="hm-label">날씨 정보 <span>›</span></div><div class="hm-sub">불러오는 중...</div>`;
     }
-    wMini.onclick = ()=>{ const b = document.querySelector('.mobile-tabbar .tab-btn[data-tab="weather"]'); if(b) b.click(); };
+    wMini.onclick = ()=>setActiveMobileSection('weather');
   }
 
   const bMini = document.getElementById('homeBdayMini');
@@ -2965,7 +3003,7 @@ function renderHomeTab(){
     } else {
       bMini.innerHTML = `<div class="hm-label">이번 달 생일 <span>›</span></div><div class="hm-sub">이번 달 생일자가 없습니다</div>`;
     }
-    bMini.onclick = ()=>{ const b = document.querySelector('.mobile-tabbar .tab-btn[data-tab="records"]'); if(b) b.click(); };
+    bMini.onclick = ()=>setActiveMobileSection('records');
   }
 
   const recentCard = document.getElementById('homeRecentCard');
@@ -3028,6 +3066,7 @@ function updateUserMenuLabel(){
         const next = parseYMD(getWeekStart(todayStr()));
         next.setDate(next.getDate()+7);
         setActiveMobileSection('calendar');
+        if(typeof setAttendPane==='function') setAttendPane('vote');
         if(typeof setSelectedDate==='function') setSelectedDate(fmtDate(next));
       } else {
         setActiveMobileSection(go);
@@ -3036,15 +3075,161 @@ function updateUserMenuLabel(){
   });
 })();
 
+/* ---------- 출석 화면: 세그먼트(출석투표 / 출석현황 / 최근경기) ---------- */
+const ATTEND_SUBTITLES = {
+  vote: '다음 주 경기가 가능한 날짜를 투표해 주세요!',
+  status: '경기 참석 현황을 한눈에 확인하세요!',
+  recent: '최근에 진행된 경기를 확인하세요!'
+};
+let attendPane = 'vote';
+let attendRecordFilter = 'all';
+function setAttendPane(pane){
+  attendPane = pane;
+  document.querySelectorAll('#attendSeg .seg-btn').forEach(b=>b.classList.toggle('active', b.dataset.pane===pane));
+  document.querySelectorAll('#sectionCalendar .attend-pane').forEach(el=>el.classList.toggle('active', el.dataset.pane===pane));
+  const sub = document.getElementById('attendSubtitle');
+  if(sub) sub.textContent = ATTEND_SUBTITLES[pane] || '';
+  tryRenderAttendPanes();
+}
+/* 지난 확정 경기 날짜 목록 (최신순) — 기존 투표 데이터에서만 가져옵니다 */
+function getPlayedMatchDates(limit){
+  const todayS = todayStr();
+  const excluded = new Set(appData.excludedWeeks || []);
+  return Object.keys(appData.votes||{})
+    .filter(d=>/^\d{4}-\d{2}-\d{2}$/.test(d) && d<=todayS && (appData.votes[d]||[]).length>0 && !excluded.has(getWeekStart(d)))
+    .sort().reverse().slice(0, limit||30);
+}
+function renderAttendStatus(){
+  const el = document.getElementById('attendStatusPane');
+  if(!el || !appData || !myName) return;
+  if(myName===ADMIN_NAME){
+    el.innerHTML = '<div class="rank-empty">관리자 계정은 선수가 아니라 운영 계정이라 출석 집계에서 제외됩니다.</div>';
+    return;
+  }
+  const st = window.__myAttend || {yes:0,no:0,total:0,miss:0};
+  const rate = st.total ? Math.round(st.yes/st.total*100) : 0;
+  const ic = (d)=>`<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+  const icYes = '<circle cx="12" cy="12" r="9"/><path d="m8 12.5 2.8 2.8L16 9.5"/>';
+  const icMiss = '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.6 2.2c-.8.4-1.1.9-1.1 1.8M12 17h.01"/>';
+  const icNo = '<circle cx="12" cy="12" r="9"/><path d="m9 9 6 6M15 9l-6 6"/>';
+
+  const dates = getPlayedMatchDates(30);
+  const rows = [];
+  dates.forEach(d=>{
+    const bd = getVoteBreakdownForDate(d);
+    let status = null;
+    if(bd.yesList.includes(myName)) status = 'yes';
+    else if(bd.noList.includes(myName)) status = 'no';
+    else if(bd.notVotedList.includes(myName)) status = 'miss';
+    if(!status) return;
+    if(typeof isInjuredOnDate==='function' && isInjuredOnDate(myName, d)) return;
+    rows.push({d, status});
+  });
+  const shown = rows.filter(r=>attendRecordFilter==='all' || r.status===attendRecordFilter);
+  const label = {yes:'참석', no:'불참', miss:'미투표'};
+  const rowHtml = shown.length ? shown.map(r=>{
+    const o = parseYMD(r.d); const v = getVenueInfo(r.d);
+    return `<div class="ar-row"><span class="ar-date">${o.getMonth()+1}/${o.getDate()}<small>(${weekdayKR[o.getDay()]})</small></span><span class="ar-name">${escapeHtml(v ? v.name : '경기장 미등록')}</span><span class="ar-badge ${r.status}">${label[r.status]}</span></div>`;
+  }).join('') : '<div class="rank-empty">표시할 기록이 없습니다.</div>';
+
+  el.innerHTML = `
+    <div class="sec-title"><i></i>내 출석 현황</div>
+    <div class="as-cards">
+      <div class="as-card yes">${ic(icYes)}<span>참석</span><b>${st.yes}회</b></div>
+      <div class="as-card miss">${ic(icMiss)}<span>미투표</span><b>${st.miss}회</b></div>
+      <div class="as-card no">${ic(icNo)}<span>불참</span><b>${st.no}회</b></div>
+    </div>
+    <div class="as-donut-card">
+      <div class="as-donut" style="background:conic-gradient(var(--lime) 0% ${rate}%, rgba(255,255,255,.12) ${rate}% 100%);"><div class="as-donut-in"><small>참석률</small><b>${st.total ? rate+'%' : '-'}</b></div></div>
+      <div class="as-legend">
+        <div><span class="lg">총 일정</span><b>${st.total}회</b></div>
+        <div><span class="lg yes">참석</span><b>${st.yes}회</b></div>
+        <div><span class="lg miss">미투표</span><b>${st.miss}회</b></div>
+        <div><span class="lg no">불참</span><b>${st.no}회</b></div>
+      </div>
+    </div>
+    <div class="sec-title between"><span><i></i>회차별 출석 기록</span>
+      <div class="ar-filter" id="attendFilterRow">
+        ${[['all','전체'],['yes','참석'],['no','불참'],['miss','미투표']].map(([k,t])=>`<button type="button" class="${attendRecordFilter===k?'active':''}" data-f="${k}">${t}</button>`).join('')}
+      </div>
+    </div>
+    <div class="ar-list">${rowHtml}</div>
+  `;
+  el.querySelectorAll('#attendFilterRow button').forEach(b=>b.addEventListener('click', ()=>{ attendRecordFilter=b.dataset.f; renderAttendStatus(); }));
+}
+function renderAttendRecent(){
+  const el = document.getElementById('attendRecentPane');
+  if(!el || !appData) return;
+  const dates = getPlayedMatchDates(15);
+  el.innerHTML = `<div class="sec-title"><i></i>최근 경기 일정</div>` + (dates.length ? dates.map(d=>{
+    const o = parseYMD(d); const v = getVenueInfo(d);
+    return `<div class="rc-item" data-date="${d}">
+      <div class="rc-card">
+        <div class="rc-date"><span>${o.getMonth()+1}월</span><b>${o.getDate()}일 (${weekdayKR[o.getDay()]})</b></div>
+        <div class="rc-info">
+          <div class="rc-venue"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.2 7-11.5a7 7 0 0 0-14 0C5 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>${escapeHtml(v ? v.name : '경기장 미등록')}</div>
+          ${v && v.time ? `<div class="rc-time"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>${escapeHtml(v.time)}</div>` : ''}
+        </div>
+        <span class="rc-chev">›</span>
+      </div>
+      <div class="rc-tactics" style="display:none;"></div>
+    </div>`;
+  }).join('') : '<div class="rank-empty">아직 진행된 경기가 없습니다.</div>');
+  /* 카드를 누르면 그 경기의 전술(포메이션) 미리보기를 펼칩니다 — 기존 기록 탭과 같은 기능 */
+  el.querySelectorAll('.rc-item').forEach(item=>{
+    item.querySelector('.rc-card').addEventListener('click', ()=>{
+      const box = item.querySelector('.rc-tactics');
+      const open = box.style.display !== 'none';
+      if(open){ box.style.display='none'; item.classList.remove('open'); return; }
+      box.style.display='block'; item.classList.add('open');
+      try{ renderTacticsMiniForDate(item.dataset.date, box); }catch(e){ console.error(e); }
+    });
+  });
+}
+function tryRenderAttendPanes(){
+  try{
+    if(attendPane==='status') renderAttendStatus();
+    if(attendPane==='recent') renderAttendRecent();
+  }catch(e){ console.error(e); }
+}
+document.querySelectorAll('#attendSeg .seg-btn').forEach(b=>b.addEventListener('click', ()=>setAttendPane(b.dataset.pane)));
+
+/* ---------- 더보기 화면 ---------- */
+function tryRenderMoreTab(){
+  try{
+    const me = document.getElementById('moreMeCard');
+    if(me && myName){
+      const rate = document.getElementById('myRateTag');
+      me.innerHTML = `<div class="mm-avatar">${escapeHtml(myName.charAt(0))}</div><div class="mm-tx"><b>${escapeHtml(myName)}${isAdminUser()?' <span class="admin-badge">관리자</span>':''}</b><small>${escapeHtml(rate ? rate.textContent : '')}</small></div>`;
+    }
+    const adminRow = document.getElementById('moreAdminRow');
+    if(adminRow) adminRow.style.display = isAdminUser() ? 'flex' : 'none';
+  }catch(e){ console.error(e); }
+}
+document.querySelectorAll('#sectionMore .more-row').forEach(row=>{
+  row.addEventListener('click', ()=>{
+    if(row.dataset.go){ setActiveMobileSection(row.dataset.go); return; }
+    const act = row.dataset.act;
+    const click = (id)=>{ const b=document.getElementById(id); if(b) b.click(); };
+    if(act==='members') click('memberViewAllBtn');
+    else if(act==='bell') click('bellBtn');
+    else if(act==='logout') click('logoutBtn');
+    else if(act==='injury'){ click('myInjuryToggleBtn'); window.scrollTo({top:0,behavior:'smooth'}); }
+  });
+});
+
 /* ---------- 모바일 하단 탭 전환 (768px 이하에서만 시각적으로 의미가 있지만, 클래스 토글 자체는 항상 동작) ---------- */
 function setActiveMobileSection(tabKey){
-  document.querySelectorAll('.mobile-tabbar .tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab===tabKey));
+  const tabHi = ['tactics','weather','records','admin'].includes(tabKey) ? 'more' : tabKey;
+  document.querySelectorAll('.mobile-tabbar .tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab===tabHi));
   document.querySelectorAll('.app-section').forEach(s=>s.classList.remove('mobile-active'));
-  const idMap = { home:'sectionHome', weather:'sectionWeather', calendar:'sectionCalendar', matches:'sectionMatches', map:'sectionMap', records:'sectionRecords', admin:'sectionAdmin', tactics:'sectionTactics' };
+  const idMap = { home:'sectionHome', weather:'sectionWeather', calendar:'sectionCalendar', matches:'sectionMatches', map:'sectionMap', records:'sectionRecords', admin:'sectionAdmin', tactics:'sectionTactics', more:'sectionMore' };
   const sec = document.getElementById(idMap[tabKey] || '');
   if(sec) sec.classList.add('mobile-active');
   window.scrollTo({top:0, behavior:'instant'});
   if(tabKey==='home') tryRenderHomeTab();
+  if(tabKey==='more') tryRenderMoreTab();
+  if(tabKey==='calendar') tryRenderAttendPanes();
   if(tabKey==='map') loadDefaultMapVenue();
   if(tabKey==='matches') initMatchesTabOnce();
   if(tabKey==='tactics') initTacticsTabOnce();
