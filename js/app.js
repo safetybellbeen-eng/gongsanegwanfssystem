@@ -2200,8 +2200,10 @@ function renderHeroMatch(){
       e.stopPropagation();
       const vname = venue ? String(venue.name) : '';
       if(!vname) return;
+      mapDefaultLoaded = true; // 지도 탭의 기본 경기장 자동 표시와 겹치지 않도록
       setActiveMobileSection('map');
       const inp = $('#venueInput'); if(inp) inp.value = vname;
+      const sel = $('#venuePresetSelect'); if(sel) sel.value = findVenuePreset(vname) ? findVenuePreset(vname).name : '';
       lookupVenueOnMap();
     });
   }
@@ -2511,7 +2513,23 @@ async function lookupVenueOnMap(){
 
 /* 지도 렌더링의 핵심 로직 (직접 검색과 "기본 경기장 자동 표시"가 공통으로 사용합니다) */
 let currentVenueName = null; // 지도에 지금 표시 중인 경기장의 확정된 이름 (즐겨찾기 버튼이 기준으로 삼는 이름)
-async function showVenueOnMap(info){
+let showVenueChain = Promise.resolve();
+function showVenueOnMap(info){
+  const run = ()=>showVenueOnMapImpl(info);
+  showVenueChain = showVenueChain.then(run, run);
+  return showVenueChain;
+}
+let currentVenuePos = null;
+function recenterOnCurrentVenue(){
+  try{
+    if(!map) return;
+    map.relayout();
+    const o = currentVenueName && venuePinObjects[currentVenueName];
+    const pos = (o && o.pos) || currentVenuePos;
+    if(pos) map.setCenter(pos);
+  }catch(e){}
+}
+async function showVenueOnMapImpl(info){
   if(location.protocol === 'file:'){
     toast('파일을 직접 열어서는(file://) 경기장 검색이 동작하지 않습니다. 로컬 서버나 실제 배포 주소에서 열어주시기 바랍니다.');
     return;
@@ -2529,6 +2547,9 @@ async function showVenueOnMap(info){
   await renderAllVenuePins(); // 목록에 있는 모든 경기장 핀을 먼저 준비합니다 (첫 실행 후에는 캐시되어 즉시 완료됨).
   await placeVenueMarker(info);
   currentVenueName = info.name;
+  // 탭이 막 열려 지도 크기가 늦게 확정되는 경우를 대비해, 크기 확정 후 핀을 화면 가운데로 다시 맞춥니다.
+  requestAnimationFrame(recenterOnCurrentVenue);
+  [150, 450, 1100].forEach(ms=>setTimeout(recenterOnCurrentVenue, ms));
 
   const addrRow = $('#venueAddressRow');
   if(info.address){
@@ -2600,7 +2621,13 @@ function expandVenuePin(name){
   updateFavVenueBtn();
 }
 
-async function renderAllVenuePins(){
+let venuePinsPromise = null;
+function renderAllVenuePins(){
+  if(!map) return Promise.resolve();
+  if(!venuePinsPromise) venuePinsPromise = renderAllVenuePinsImpl();
+  return venuePinsPromise;
+}
+async function renderAllVenuePinsImpl(){
   if(!map || allVenuePinsPlaced) return;
   allVenuePinsPlaced = true;
   for(const v of FUTSAL_VENUES){
@@ -3089,6 +3116,8 @@ async function placeVenueMarker(info){
   if(existing){
     expandVenuePin(info.name);
     map.setLevel(3);
+    currentVenuePos = existing.pos;
+    map.setCenter(existing.pos);
     return;
   }
 
@@ -3113,6 +3142,7 @@ async function placeVenueMarker(info){
   }
   if(!coords){ toast(`'${info.name}' 위치를 찾지 못했습니다. 지도에서 직접 검색해 보시기 바랍니다.`); return; }
   const pos = new kakao.maps.LatLng(coords.lat, coords.lng);
+  currentVenuePos = pos;
   map.setCenter(pos);
   map.setLevel(3);
   collapseAllVenuePins();
