@@ -3,7 +3,7 @@
    - 우리 도메인의 정적 파일만 캐시하고, 외부 API(JSONBin·카카오맵·날씨·폰트 등)는 그대로 네트워크로 보냄
    - 알림을 눌렀을 때 앱 창을 포커스하거나 새로 여는 역할
 */
-const CACHE_NAME = 'gongsaengwan-v12';
+const CACHE_NAME = 'gongsaengwan-v13';
 const CORE_ASSETS = [
   './',
   './index.html',
@@ -76,4 +76,17 @@ self.addEventListener('notificationclick', (event) => {
       if (self.clients.openWindow) return self.clients.openWindow('./index.html');
     })
   );
+});
+
+// 서버에서 보내는 푸시(경기 알림)를 받아 표시합니다.
+self.addEventListener('push', (event) => {
+  let d = {};
+  try { d = event.data ? event.data.json() : {}; } catch (_) { d = { body: event.data ? event.data.text() : '' }; }
+  event.waitUntil(self.registration.showNotification(d.title || '공생관 알림', {
+    body: d.body || '',
+    icon: './assets/icon-192.png',
+    badge: './assets/icon-192.png',
+    tag: 'match-alert',
+    renotify: true
+  }));
 });
