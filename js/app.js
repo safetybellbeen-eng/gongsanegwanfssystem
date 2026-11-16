@@ -1835,17 +1835,23 @@ async function adminSetMemberRole(name, role){
   renderMemberList();
   toast(`'${name}' 님을 ${label} 등급으로 변경했습니다.`);
 }
+const INVITE_MESSAGE = `공생관 FS - 경기운영시스템 초대링크
+
+https://safetybellbeen-eng.github.io/gongsanegwanfssystem/
+
+투표시스템 공지
+
+1. 최초 로그인이 가입
+   - 이름 / 생년월일 6자리 / 참석코드 jb0309
+2. 투표의 경우, 2-3주차까지 미리 진행 권장.`;
 async function shareInviteLink(){
-  const url = location.origin + location.pathname.replace(/index\.html$/,'');
-  const text = '공생관 FS 풋살팀 앱에 초대합니다. 링크로 접속해 이름·생년월일로 가입하면 관리자가 승인해 드립니다.';
   if(navigator.share){
-    try{ await navigator.share({ title:'공생관 FS 초대', text, url }); }
+    try{ await navigator.share({ title:'공생관 FS 초대', text: INVITE_MESSAGE }); }
     catch(err){ if(err && err.name!=='AbortError') toast('공유하지 못했습니다.'); }
     return;
   }
-  const full = text + '\n' + url;
-  try{ await navigator.clipboard.writeText(full); toast('초대 문구와 링크를 복사했습니다. 카카오톡에 붙여넣어 보내세요.'); }
-  catch(_){ window.prompt('아래 내용을 복사해 카카오톡에 붙여넣어 보내세요.', full); }
+  try{ await navigator.clipboard.writeText(INVITE_MESSAGE); toast('초대 문구를 복사했습니다. 카카오톡에 붙여넣어 보내세요.'); }
+  catch(_){ window.prompt('아래 내용을 복사해 카카오톡에 붙여넣어 보내세요.', INVITE_MESSAGE); }
 }
 let lastAdminState = null;
 function renderMemberList(){
