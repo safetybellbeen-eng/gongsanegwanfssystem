@@ -1755,3 +1755,17 @@ body.sheet-open{overflow:hidden;}
 
 .home-quick-btn.notify-on{border-color:#4f7d1d;color:#b6f23a;}
 .home-quick-btn.notify-on span{color:#b6f23a;}
+
+/* ===== 여백 제거: 화면 전체 사용 (상단 배너는 상태표시줄 뒤까지, 탭바는 맨 아래까지) ===== */
+@media (max-width:768px){
+  html,body{height:var(--app-h,100%);}
+  nav.mobile-tabbar{position:absolute;left:0;right:0;bottom:0;padding-bottom:max(8px,calc(env(safe-area-inset-bottom) - 12px));}
+  body.hide-header .app-section.mobile-active{padding-top:0;}
+  .page-banner.pb-slim{margin-top:0 !important;}
+  #sectionCalendar .page-banner.pb-slim,#sectionMatches .page-banner.pb-slim,#sectionMap .page-banner.pb-slim,
+  #sectionMore .page-banner.pb-slim,#sectionWeather .page-banner.pb-slim,#sectionTactics .page-banner.pb-slim,
+  #sectionRecords .page-banner.pb-slim,#sectionAdmin .page-banner.pb-slim{
+    margin-top:0;height:calc(84px + env(safe-area-inset-top));min-height:calc(84px + env(safe-area-inset-top));
+    padding-top:calc(11px + env(safe-area-inset-top));}
+  .pb-back{top:calc(12px + env(safe-area-inset-top));}
+}
