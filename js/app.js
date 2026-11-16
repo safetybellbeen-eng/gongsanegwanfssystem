@@ -3793,7 +3793,7 @@ function renderMatchList(){
     const shareText = `${rawName}\n${dateText} ${timeStr}${fmtBadge?' · '+fmtBadge:''}`;
 
     const adminNow = isAdminUser();
-    const subLine = [r.area_group, r.level, r.gender].filter(Boolean).map(String).join(' · ');
+    const subLine = [r.level, r.gender].filter(Boolean).map(String).join(' · ');
     const shareIc = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="2.6"/><circle cx="6" cy="12" r="2.6"/><circle cx="18" cy="19" r="2.6"/><path d="m8.3 10.8 7.4-4.300M8.3 13.200l7.400 4.300"/></svg>';
     return `
       <div class="mr ${status==='full'?'is-full':''}" data-rid="${escapeHtml(String(r.id))}">
@@ -3889,9 +3889,30 @@ function renderMatchList(){
   });
 }
 
+/* 경기탭 필터 바: index.html이 예전 버전이어도 새 1줄 필터가 나오도록, 없으면 여기서 만들어 교체합니다. */
+function ensureMatchFilterBar(){
+  if(document.getElementById('matchTimeSel')) return;
+  const old1 = document.getElementById('matchFilterRow');
+  if(!old1) return;
+  const bar = document.createElement('div');
+  bar.className = 'mf2'; bar.id = 'matchFilterRow';
+  bar.innerHTML = `
+    <label class="mf2-sel ${matchTimeFilter!=='all'?'on':''}"><select id="matchTimeSel" aria-label="시간대"><option value="all">전체 시간</option><option value="morning">오전</option><option value="afternoon">오후</option><option value="evening">저녁</option></select></label>
+    <label class="mf2-sel ${matchFormatFilter!=='all'?'on':''}"><select id="matchFmtSel" aria-label="경기 형식"><option value="all">전체</option><option value="5">5:5</option><option value="6">6:6</option></select></label>
+    <button type="button" class="mf2-fav" id="matchFavFilterBtn" title="즐겨찾기 경기장만 보기" hidden><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="m12 2.800 2.800 5.800 6.300.9-4.600 4.400 1.100 6.300L12 17.200l-5.600 3 1.100-6.300L2.900 9.500l6.300-.9z"/></svg></button>
+    <span class="mf2-sp"></span>
+    <button type="button" class="mf2-tg ${matchHideFull?'on':''}" id="matchHideFullBtn" aria-pressed="${matchHideFull}"><span>마감숨김</span><i></i></button>`;
+  bar.querySelector('#matchTimeSel').value = matchTimeFilter;
+  bar.querySelector('#matchFmtSel').value = matchFormatFilter;
+  old1.replaceWith(bar);
+  const old2 = document.getElementById('matchFormatFilterRow'); if(old2) old2.remove();
+  document.querySelectorAll('.mt-meta .mf-hide-full').forEach(b=>b.remove());
+}
+
 function initMatchesTabOnce(){
   if(matchesTabInited) return;
   if(!$('#matchDateScroll')) return; // 아직 로그인 전 등, DOM이 없을 수 있음
+  ensureMatchFilterBar();
   matchesTabInited = true;
   selectedMatchDate = todayStr();
   renderMatchDateScroller();
