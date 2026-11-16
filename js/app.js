@@ -2154,6 +2154,7 @@ function renderHeroMatch(){
         <div class="nm3-act">
           ${venue && venue.link ? `<button type="button" class="hero-link-btn" id="heroLinkBtn" data-link="${escapeHtml(venue.link)}">경기 링크 ›</button>` : ''}
           <button type="button" class="hero-alert-btn" id="heroAlertBtn">${svgI('<path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>')}경기 알림</button>
+          ${venue ? `<button type="button" class="hero-pin-btn" id="heroPinBtn" aria-label="경기장 위치" title="경기장 위치 보기">${svgI('<path d="M12 22s7.5-6.6 7.5-12.3A7.5 7.5 0 0 0 4.5 9.7C4.5 15.4 12 22 12 22z"/><circle cx="12" cy="9.8" r="2.6"/>')}</button>` : ''}
           ${venue ? `<button type="button" class="hero-share-btn" id="heroShareBtn" aria-label="공유" title="공유">${svgI('<circle cx="18" cy="5" r="2.6"/><circle cx="6" cy="12" r="2.6"/><circle cx="18" cy="19" r="2.6"/><path d="m8.3 10.8 7.4-4.300M8.3 13.200l7.400 4.300"/>')}</button>` : ''}
         </div>
       </div>
@@ -2191,6 +2192,17 @@ function renderHeroMatch(){
         const r = await sendMatchAlert('⚽ 공생관 경기 알림', `${when} · ${vn}${myName ? ' (' + myName + ')' : ''}`);
         toast(r);
       }finally{ alertBtn.disabled = false; }
+    });
+  }
+  const pinBtn = $('#heroPinBtn');
+  if(pinBtn){
+    pinBtn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const vname = venue ? String(venue.name) : '';
+      if(!vname) return;
+      setActiveMobileSection('map');
+      const inp = $('#venueInput'); if(inp) inp.value = vname;
+      lookupVenueOnMap();
     });
   }
   const shareBtn = $('#heroShareBtn');
@@ -3340,10 +3352,50 @@ function tryRenderHomeTab(){
 }
 
 /* ---------- 홈 상단: 알림 벨 / 내 메뉴 / 퀵 버튼 ---------- */
+/* 홈 '알림 설정' 타일: 알림 허용 + 푸시 구독 등록 */
+function updateNotifyTile(){
+  const b=document.getElementById('homeNotifyBtn'), lb=document.getElementById('homeNotifyLb');
+  if(!b||!lb) return;
+  const on = typeof Notification!=='undefined' && Notification.permission==='granted';
+  b.classList.toggle('notify-on', on);
+  lb.textContent = on ? '알림 켜짐' : '알림 설정';
+}
+async function enableAppNotifications(){
+  if(typeof Notification==='undefined'){
+    const ua=navigator.userAgent||'';
+    if(/iPhone|iPad|iPod/i.test(ua) && !isStandaloneApp()){
+      toast('아이폰은 홈 화면에 추가한 앱에서만 알림을 켤 수 있습니다.');
+      showInstallGuide();
+    } else toast('이 기기·브라우저에서는 알림을 지원하지 않습니다.');
+    return;
+  }
+  if(Notification.permission==='denied'){
+    alert('알림이 차단되어 있습니다.\n\n[아이폰] 설정 → 알림 → 공생관 → 알림 허용\n[안드로이드] 앱 길게 누르기 → 앱 정보 → 알림 허용\n\n허용한 뒤 앱을 다시 열어 주세요.');
+    return;
+  }
+  if(Notification.permission==='granted'){
+    try{ ensurePushSubscription(); }catch(e){ console.error(e); }
+    toast('알림이 켜져 있습니다. 경기 알림·투표 알림을 받을 수 있어요.');
+    updateNotifyTile(); updateBellState();
+    return;
+  }
+  let perm='default';
+  try{ perm = await Notification.requestPermission(); }catch(e){ console.error(e); }
+  if(perm==='granted'){
+    try{ ensurePushSubscription(); }catch(e){ console.error(e); }
+    toast('알림이 켜졌습니다. 경기 알림·투표 알림을 받을 수 있어요.');
+    try{ sendLocalNotification('공생관 알림이 켜졌습니다',{body:'경기 확정, 투표 소식을 알려드리겠습니다.',icon:'./assets/icon-192.png'}); }catch(e){}
+  } else if(perm==='denied'){
+    toast('알림이 차단되었습니다. 기기 설정에서 허용해 주세요.');
+  }
+  updateNotifyTile(); updateBellState();
+  if(typeof updateNotifyBanner==='function') updateNotifyBanner();
+}
 function updateBellState(){
   const b = document.getElementById('bellBtn');
   if(!b) return;
   b.classList.toggle('on', typeof Notification!=='undefined' && Notification.permission==='granted');
+  try{ updateNotifyTile(); }catch(e){}
 }
 function updateUserMenuLabel(){
   const b = document.getElementById('userMenuBtn');
@@ -3377,6 +3429,8 @@ function updateUserMenuLabel(){
         if(typeof setAttendPane==='function') setAttendPane('vote');
         if(typeof setSelectedDate==='function') setSelectedDate(getWeekStart(todayStr()));
         openVoteSheet();
+      } else if(go==='notify'){
+        enableAppNotifications();
       } else if(go==='install'){
         installToHomeScreen();
       } else {
