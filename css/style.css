@@ -1769,3 +1769,17 @@ body.sheet-open{overflow:hidden;}
     padding-top:calc(11px + env(safe-area-inset-top));}
   .pb-back{top:calc(12px + env(safe-area-inset-top));}
 }
+
+/* 팀 멤버 페이지 · 멤버 등급 */
+.mp-lab{font-size:11.5px;color:#7d8e98;margin:14px 2px 7px;letter-spacing:.04em;}
+.mp-row{display:flex;align-items:center;gap:11px;padding:11px 12px;background:#121b21;border:1px solid #232f37;border-radius:14px;margin-bottom:8px;}
+.mp-av{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#d7ff6a,#8fd61f);color:#0b1218;font-weight:900;font-size:15px;display:grid;place-items:center;flex-shrink:0;}
+.mp-n{flex:1;min-width:0;font-size:14.5px;font-weight:700;}
+.mp-n.me{color:#b6f23a;}
+.mp-n small{display:block;font-size:11px;color:#8fa0a8;font-weight:500;margin-top:2px;}
+.mp-chip{font-size:11px;font-weight:800;padding:4px 10px;border-radius:10px;background:#1a252c;color:#b9c6cd;border:1px solid #2f3d46;white-space:nowrap;}
+.mp-chip.a{background:#26340f;color:#b6f23a;border-color:#4f7d1d;}
+.role-seg{display:flex;background:#0e161b;border:1px solid #2a3841;border-radius:12px;padding:3px;gap:3px;flex-shrink:0;}
+.role-seg button{border:0;background:transparent;font-size:12px;font-weight:800;padding:6px 12px;border-radius:9px;color:#8fa0a8;cursor:pointer;}
+.role-seg button.on{background:#b6f23a;color:#0b1218;}
+.role-seg.disabled{opacity:.55;}
