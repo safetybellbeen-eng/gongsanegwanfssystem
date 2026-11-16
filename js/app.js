@@ -128,6 +128,7 @@ async function initAppUI(){
   }
   populateVenuePresetSelect();
   renderCalendar();
+  renderMatchPanel();
   renderMemberList();
   loadWeather();
   computeAttendanceStats();
@@ -729,7 +730,7 @@ async function loadAppData(){ appData = await remoteLoad(); }
 
 /* ================= CALENDAR & VOTES ================= */
 let viewYear, viewMonth;
-let selectedDate = null;
+let selectedDate = todayStr(); // 출석 탭을 열면 이번 주 투표 화면이 바로 보이도록 오늘을 기본 선택
 let adminAttendanceEditDate = null; // 관리자가 현재 "실제 참석"을 편집 중인 날짜
 let map = null, marker = null;
 
@@ -853,45 +854,63 @@ function getBirthdayMembersForDate(month, day){
   });
 }
 function renderCalendar(){
-  const first = new Date(viewYear, viewMonth, 1);
-  const startDow = first.getDay();
   const daysInMonth = new Date(viewYear, viewMonth+1, 0).getDate();
-  $('#monthLabel').textContent = `${viewYear}.${pad(viewMonth+1)}`;
+  $('#monthLabel').textContent = `${viewYear}년 ${viewMonth+1}월`;
   const grid = $('#calGrid');
   grid.innerHTML='';
-  ['일','월','화','수','목','금','토'].forEach(d=>{ const el=document.createElement('div'); el.className='cal-dow'; el.textContent=d; grid.appendChild(el); });
-  for(let i=0;i<startDow;i++){ const el=document.createElement('div'); el.className='cal-cell empty'; grid.appendChild(el); }
+  grid.classList.toggle('week-mode', !!window.__calWeekMode);
+  const head = document.createElement('div');
+  head.className = 'cal-wk cal-wk-head';
+  head.innerHTML = '<span class="wk-label"></span>' + ['일','월','화','수','목','금','토'].map((d,i)=>`<div class="cal-dow ${i===0?'sun':(i===6?'sat':'')}">${d}</div>`).join('');
+  grid.appendChild(head);
+
   const todayS = todayStr();
+  const thisWk = getWeekStart(todayS);
+  const nextWkD = parseYMD(thisWk); nextWkD.setDate(nextWkD.getDate()+7);
+  const nextWk = fmtDate(nextWkD);
+  const selWk = selectedDate ? getWeekStart(selectedDate) : null;
   const weekCache = {};
-  const selectedWeekDates = selectedDate ? getWeekDates(getWeekStart(selectedDate)) : [];
-  for(let day=1; day<=daysInMonth; day++){
-    const dateStr = fmtDate(new Date(viewYear, viewMonth, day));
-    const weekKey = getWeekStart(dateStr);
-    if(!weekCache[weekKey]) weekCache[weekKey] = getWeekInfo(weekKey);
-    const info = weekCache[weekKey];
-    const count = info.counts[dateStr] || 0;
-    const isWinner = info.confirmedDates.includes(dateStr);
-    const isPendingTop = info.isTie && info.topDates.includes(dateStr);
-
-    const votesForDay = appData.votes[dateStr] || [];
-    const myVoteForDay = votesForDay.find(v=>v.name===myName);
-    let dotClass = '';
-    if(myVoteForDay){ dotClass = myVoteForDay.choice==='yes' ? 'dot-yes' : 'dot-no'; }
-    const bdayNames = getBirthdayMembersForDate(viewMonth+1, day);
-
-    const isWeekActive = selectedWeekDates.includes(dateStr);
-    const isExactSelected = dateStr === selectedDate;
-
-    const el = document.createElement('div');
-    el.className='cal-cell'+(dateStr===todayS?' today':'')+(isWeekActive?' week-active':'')+(isExactSelected?' selected':'')+(isWinner?' confirmed':'')+(isPendingTop?' pending':'');
-    el.innerHTML = `
-      <div class="d">${day}</div>
-      ${bdayNames.length?`<div class="bday-badge" title="${escapeHtml(bdayNames.join(', '))} 생일">🎂</div>`:''}
-      ${count>0?`<div class="vote-count ${isWinner?'confirmed':(isPendingTop?'pending':'')}">${count}명${isWinner?' 확정':(isPendingTop?' 예정':'')}</div>`:''}
-      ${dotClass?`<div class="dot ${dotClass}"></div>`:''}
-    `;
-    el.addEventListener('click', ()=>setSelectedDate(dateStr));
-    grid.appendChild(el);
+  const firstOfMonth = new Date(viewYear, viewMonth, 1);
+  const cur = new Date(viewYear, viewMonth, 1 - firstOfMonth.getDay());
+  const lastOfMonth = new Date(viewYear, viewMonth, daysInMonth);
+  const end = new Date(viewYear, viewMonth, daysInMonth + (6 - lastOfMonth.getDay()));
+  while(cur <= end){
+    const weekStartStr = fmtDate(cur);
+    const row = document.createElement('div');
+    const isThis = weekStartStr === thisWk, isNext = weekStartStr === nextWk, isSel = weekStartStr === selWk;
+    row.className = 'cal-wk' + (isThis?' is-this':'') + (isNext?' is-next':'') + (isSel?' is-sel':'');
+    const sd = new Date(cur), ed = new Date(cur); ed.setDate(ed.getDate()+6);
+    row.innerHTML = (isThis||isNext)
+      ? `<span class="wk-label"><i class="wk-no">${isThis?1:2}</i><span><b>${isThis?'이번 주':'다음 주'}</b><small>(${sd.getMonth()+1}/${sd.getDate()}~${ed.getMonth()+1}/${ed.getDate()})</small></span></span>`
+      : '<span class="wk-label"></span>';
+    for(let i=0;i<7;i++){
+      const dObj = new Date(cur);
+      const dateStr = fmtDate(dObj);
+      const day = dObj.getDate();
+      const wKey = getWeekStart(dateStr);
+      if(!weekCache[wKey]) weekCache[wKey] = getWeekInfo(wKey);
+      const info = weekCache[wKey];
+      const count = info.counts[dateStr] || 0;
+      const isWinner = info.confirmedDates.includes(dateStr);
+      const isPendingTop = info.isTie && info.topDates.includes(dateStr);
+      const votesForDay = appData.votes[dateStr] || [];
+      const myVoteForDay = votesForDay.find(v=>v.name===myName);
+      const myPick = ((info.avail && info.avail[myName]) || []).includes(dateStr);
+      const bdayNames = getBirthdayMembersForDate(dObj.getMonth()+1, day);
+      const el = document.createElement('div');
+      el.className='cal-cell'+(dObj.getMonth()!==viewMonth?' out':'')+(dateStr===todayS?' today':'')+(dateStr===selectedDate?' selected':'')+(isWinner?' confirmed':'')+(isPendingTop?' pending':'')+(i===0?' sun':(i===6?' sat':''));
+      const dots = Math.min(2, count>=6 ? 2 : (count>0 ? 1 : 0));
+      el.innerHTML = `
+        <div class="d">${day}</div>
+        ${bdayNames.length?`<div class="bday-badge" title="${escapeHtml(bdayNames.join(', '))} 생일">🎂</div>`:''}
+        <div class="dots" title="${count}명 가능">${'<i></i>'.repeat(dots)}</div>
+        ${(myPick || (myVoteForDay && myVoteForDay.choice==='yes')) ? '<span class="my-mark" title="내가 선택한 날짜"></span>' : ''}
+      `;
+      el.addEventListener('click', ()=>setSelectedDate(dateStr));
+      row.appendChild(el);
+      cur.setDate(cur.getDate()+1);
+    }
+    grid.appendChild(row);
   }
 }
 
@@ -1052,35 +1071,29 @@ async function renderMatchPanel(){
     `;
   }
 
-  /* 날짜 선택(가로 요일칩) 대신, 세로로 나열된 날짜 목록에서 직접 선택합니다.
-     선택하면 그 날짜의 명단에 본인 이름이 바로 추가 또는 제거됩니다. */
+  /* 날짜 칩을 눌러 후보를 고른 뒤, "참석 가능일 투표하기" 버튼으로 한 번에 저장합니다. */
   const myAvail = avail[myName] || [];
-  const dayVoteListHtml = dates.map((d,i)=>{
+  if(!window.__voteDraft || window.__voteDraft.weekKey!==weekKey || !window.__voteDraft.dirty){
+    window.__voteDraft = { weekKey, picks: new Set(myAvail), dirty:false };
+  }
+  const draft = window.__voteDraft;
+  const dayChipsHtml = dates.map((d,i)=>{
     const dObj = parseYMD(d);
     const isPast = d < todayStr();
-    const picked = myAvail.includes(d);
+    const picked = draft.picks.has(d);
     const isConfirmedDay = confirmedDates.includes(d);
-    const isTieTop = isTie && topDates.includes(d);
-    const names = Object.keys(avail).filter(n=>(avail[n]||[]).includes(d));
     const disabled = isPast || iAmAbsent || iAmInjured;
-    return `
-      <div class="da-row ${isConfirmedDay?'confirmed':''} ${isTieTop?'tie':''} ${picked?'picked':''} ${disabled?'disabled':''}" data-date="${d}">
-        <div class="da-head">
-          <span class="da-dow">${weekdayKR[i]}</span>
-          <span class="da-day">${dObj.getDate()}일</span>
-          <span class="da-check">${picked?'✓':''}</span>
-          <span class="da-date">${dObj.getMonth()+1}.${dObj.getDate()}(${weekdayKR[i]})</span>
-          <span class="da-count">${counts[d]}명</span>
-          ${isConfirmedDay?'<span class="wbadge">확정</span>':(isTieTop?'<span class="wbadge tie">예정</span>':'')}
-        </div>
-        <div class="da-names">${names.length? names.map(n=>`<span class="nv-chip ${n===myName?'me':''}">${escapeHtml(n)}</span>`).join('') : '<span class="nv-empty">없음</span>'}</div>
-      </div>
-    `;
+    return `<button type="button" class="vp-day ${picked?'picked':''} ${isConfirmedDay?'confirmed':''} ${disabled?'disabled':''} ${i===0?'sun':(i===6?'sat':'')}" data-date="${d}" ${disabled?'disabled':''} aria-pressed="${picked}">
+      <span class="vp-dow">${weekdayKR[i]}</span><span class="vp-dd">${dObj.getDate()}일</span><span class="vp-box">${picked?'<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.500 4.500 4.500L19 7.500"/></svg>':''}</span></button>`;
   }).join('');
+  const dm = (o)=>`${o.getMonth()+1}월 ${o.getDate()}일`;
+  const statusChip = isSelectedConfirmed || confirmedDates.length ? '확정 완료' : (isTie ? '동점 · 확정 대기' : '투표 진행 중');
+  const iconCal = '<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10h18M8 3v4M16 3v4"/><path d="m9 15.500 2 2 4-4"/></svg>';
 
   const voteBarsHtml = `
     <div class="vote-status">
-      <div class="vs-head"><b>투표 현황</b><small>(총 ${approvedNames.length}명)</small></div>
+      <div class="vs-head"><b>투표 현황</b><small>(총 ${approvedNames.length}명)</small>
+        <button type="button" class="vs-refresh" id="vsRefreshBtn">실시간 집계 <span>⟳</span></button></div>
       <div class="vs-cols">
         ${dates.map((d,i)=>{
           const o = parseYMD(d);
@@ -1105,28 +1118,30 @@ async function renderMatchPanel(){
   }
 
   const mainHtml = `
-    <div class="match-head">
-      <div class="match-date">${weekLabel}<span class="sub">${rangeLabel}</span></div>
-    </div>
-    ${banner}
-    ${confirmedSummaryHtml}
-    ${iAmInjured ? `<div class="confirm-banner" style="background:rgba(255,93,93,0.1);border-color:rgba(255,93,93,0.4);color:var(--danger);white-space:normal;">🤕 부상 중에는 투표할 수 없습니다. (복귀 예정일: ${escapeHtml(appData.members[myName].injuryEnd)})</div>` : ''}
-    ${isSelectedConfirmed ? '' : `<div class="week-summary-row">
-      <span>참여 의사 ${availableNames.length}명</span><span class="dot-sep">|</span>
-      <span>불참 ${absentNames.length}명</span><span class="dot-sep">|</span>
-      <span>미투표 ${notVoted.length}명</span>
-    </div>`}
-    <button class="absence-btn ${iAmAbsent?'active':''}" id="absenceBtn" ${iAmInjured?'disabled':''}>${iAmAbsent?`✕ ${weekLabel} 불참 취소`:`${weekLabel} 전체 불참`}</button>
-    ${notVotedHtml}
-    <div class="daily-attend-block">
-      <div class="label">날짜 선택(누르면 이름이 추가 또는 제거됩니다)</div>
-      <div class="daily-attend-list">${dayVoteListHtml}</div>
-      <details class="da-detail"><summary>날짜별 투표자 보기</summary>
+    <div class="vp-card" id="weekVoteCard">
+      <div class="vp-head">
+        <div class="vp-title">${iconCal}<b>주간 투표</b><button type="button" class="vp-help" id="vpHelpBtn" aria-label="도움말">?</button></div>
+        <span class="vp-chip">${statusChip}</span>
+      </div>
+      <div class="vp-help-text" id="vpHelpText" hidden>가능한 날짜를 모두 고른 뒤 아래 버튼을 눌러야 저장됩니다. 가장 많은 인원이 선택한 날짜가 경기일로 자동 확정되고, 동점이면 관리자가 확정합니다.</div>
+      <div class="vp-weeknav"><button type="button" id="vpPrevWeek" aria-label="이전 주">‹</button><span>${weekLabel} 투표 기간 (${dm(s0)} ~ ${dm(s6)})</span><button type="button" id="vpNextWeek" aria-label="다음 주">›</button></div>
+      <p class="vp-instr">해당 주에 풋살이 가능한 날짜(여러 개 선택 가능)를 투표해 주세요.</p>
+      ${iAmInjured ? `<div class="confirm-banner" style="background:rgba(255,93,93,0.1);border-color:rgba(255,93,93,0.4);color:var(--danger);white-space:normal;">🤕 부상 중에는 투표할 수 없습니다. (복귀 예정일: ${escapeHtml(appData.members[myName].injuryEnd)})</div>` : ''}
+      ${isTie && !isSelectedConfirmed ? banner : ''}
+      <div class="vp-days">${dayChipsHtml}</div>
+      <button type="button" class="vp-submit" id="vpSubmit" ${(iAmInjured||iAmAbsent)?'disabled':''}><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><rect x="3.500" y="3.500" width="17" height="17" rx="3"/><path d="m8 12.500 3 3 5-6"/></svg>참석 가능일 투표하기</button>
+      <div class="vp-meta">
+        <span>참여 의사 ${availableNames.length}명 · 불참 ${absentNames.length}명 · 미투표 ${notVoted.length}명</span>
+        <button class="absence-btn ${iAmAbsent?'active':''}" id="absenceBtn" ${iAmInjured?'disabled':''}>${iAmAbsent?`✕ ${weekLabel} 불참 취소`:`${weekLabel} 전체 불참`}</button>
+      </div>
+      <details class="da-detail"><summary>미투표·불참 명단 / 날짜별 투표자 보기</summary>
+        ${notVotedHtml}
         ${dates.map((d,i)=>{ const o=parseYMD(d); const nm=Object.keys(avail).filter(n=>(avail[n]||[]).includes(d)); return `<div class="dd-row"><span class="dd-d">${o.getMonth()+1}.${o.getDate()}(${weekdayKR[i]}) · ${counts[d]}명</span><div class="dd-n">${nm.length? nm.map(n=>`<span class="nv-chip ${n===myName?'me':''}">${escapeHtml(n)}</span>`).join('') : '<span class="nv-empty">없음</span>'}</div></div>`; }).join('')}
       </details>
     </div>
     ${voteBarsHtml}
     ${gameDayHtml}
+    ${isSelectedConfirmed ? `<div class="vp-card">${banner}${confirmedSummaryHtml}</div>` : ''}
   `;
 
   /* 관리자 전용: 이번 주 전체 날짜의 확정 상태를 한눈에 보고 여러 날짜를 확정/해제할 수 있는 보조 패널 (항상 표시) */
@@ -1192,9 +1207,30 @@ async function renderMatchPanel(){
 
   panel.innerHTML = mainHtml + adminHtml;
 
-  panel.querySelectorAll('.da-row:not(.disabled)').forEach(el=>{
-    el.addEventListener('click', ()=>toggleWeekDay(el.dataset.date));
+  panel.querySelectorAll('.vp-day:not(.disabled)').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const d = el.dataset.date;
+      const dr = window.__voteDraft;
+      if(!dr || dr.weekKey!==weekKey) return;
+      if(dr.picks.has(d)) dr.picks.delete(d); else dr.picks.add(d);
+      dr.dirty = true;
+      const on = dr.picks.has(d);
+      el.classList.toggle('picked', on);
+      el.setAttribute('aria-pressed', on);
+      const box = el.querySelector('.vp-box');
+      if(box) box.innerHTML = on ? '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.500 4.500 4.500L19 7.500"/></svg>' : '';
+    });
   });
+  const vpSubmit = panel.querySelector('#vpSubmit');
+  if(vpSubmit) vpSubmit.addEventListener('click', ()=>saveWeekVotes(weekKey));
+  const vpHelpBtn = panel.querySelector('#vpHelpBtn'), vpHelpText = panel.querySelector('#vpHelpText');
+  if(vpHelpBtn && vpHelpText) vpHelpBtn.addEventListener('click', ()=>{ vpHelpText.hidden = !vpHelpText.hidden; });
+  const shiftWeek = (n)=>{ const d=parseYMD(weekKey); d.setDate(d.getDate()+n); setSelectedDate(fmtDate(d)); };
+  const pw = panel.querySelector('#vpPrevWeek'), nw = panel.querySelector('#vpNextWeek');
+  if(pw) pw.addEventListener('click', ()=>shiftWeek(-7));
+  if(nw) nw.addEventListener('click', ()=>shiftWeek(7));
+  const vsr = panel.querySelector('#vsRefreshBtn');
+  if(vsr) vsr.addEventListener('click', ()=>{ window.__voteDraft = null; const rb = document.getElementById('calRefresh'); if(rb) rb.click(); });
   panel.querySelectorAll('.wconfirm-btn[data-confirm]').forEach(btn=>{
     btn.addEventListener('click', (e)=>{ e.stopPropagation(); adminToggleConfirmDate(weekKey, btn.dataset.confirm); });
   });
@@ -1255,6 +1291,32 @@ async function adminToggleConfirmDate(weekKey, dateStr){
 }
 
 /* 주간 가능일 복수선택 토글: 이미 선택했으면 해제, 아니면 추가 */
+async function saveWeekVotes(weekKey){
+  if(isCurrentlyInjured(myName)){ toast(`부상 중에는 투표할 수 없습니다. (복귀 예정일: ${appData.members[myName].injuryEnd})`); return; }
+  const dr = window.__voteDraft;
+  if(!dr || dr.weekKey!==weekKey) return;
+  const picks = [...dr.picks].filter(d=>d>=todayStr()).sort();
+  const saved = ((appData.weekAvailability && appData.weekAvailability[weekKey] && appData.weekAvailability[weekKey][myName]) || []);
+  if(!picks.length && !saved.length){ toast('참석 가능한 날짜를 먼저 선택해 주세요.'); return; }
+  await mutateAppData(data=>{
+    if(!data.weekAvailability) data.weekAvailability = {};
+    if(!data.weekAvailability[weekKey]) data.weekAvailability[weekKey] = {};
+    // 이미 지난 날짜의 기존 선택은 보존하고, 오늘 이후 날짜만 이번 선택으로 교체합니다.
+    const keepPast = (data.weekAvailability[weekKey][myName] || []).filter(d=>d<todayStr());
+    data.weekAvailability[weekKey][myName] = [...keepPast, ...picks].sort();
+    if(picks.length){
+      if(!data.weekAbsence) data.weekAbsence = {};
+      if(data.weekAbsence[weekKey]) delete data.weekAbsence[weekKey][myName];
+    }
+    resyncWeekDerivedVotes(data, weekKey);
+  });
+  window.__voteDraft = null;
+  toast(picks.length ? '참석 가능일을 저장했습니다.' : '선택을 해제했습니다.');
+  renderCalendar();
+  await renderMatchPanel();
+  computeAttendanceStats();
+  renderMatchStats();
+}
 async function toggleWeekDay(dateStr){
   if(dateStr < todayStr()){ toast('지난 날짜는 선택할 수 없습니다.'); return; }
   if(isCurrentlyInjured(myName)){ toast(`부상 중에는 투표할 수 없습니다. (복귀 예정일: ${appData.members[myName].injuryEnd})`); return; }
@@ -1336,6 +1398,7 @@ setInterval(async ()=>{
 
 $('#calRefresh').addEventListener('click', async ()=>{
   const btn = $('#calRefresh');
+  window.__voteDraft = null;
   btn.classList.add('spinning');
   await loadAppData();
   renderCalendar();
@@ -2825,8 +2888,19 @@ async function placeVenueMarker(info){
 }
 
 /* ---------- Init ---------- */
-$('#prevMonth').addEventListener('click', ()=>{ viewMonth--; if(viewMonth<0){viewMonth=11; viewYear--;} renderCalendar(); });
-$('#nextMonth').addEventListener('click', ()=>{ viewMonth++; if(viewMonth>11){viewMonth=0; viewYear++;} renderCalendar(); });
+$('#prevMonth').addEventListener('click', ()=>{ if(window.__calWeekMode && selectedDate){ const d=parseYMD(selectedDate); d.setDate(d.getDate()-7); setSelectedDate(fmtDate(d)); return; } viewMonth--; if(viewMonth<0){viewMonth=11; viewYear--;} renderCalendar(); });
+$('#nextMonth').addEventListener('click', ()=>{ if(window.__calWeekMode && selectedDate){ const d=parseYMD(selectedDate); d.setDate(d.getDate()+7); setSelectedDate(fmtDate(d)); return; } viewMonth++; if(viewMonth>11){viewMonth=0; viewYear++;} renderCalendar(); });
+(function(){
+  const b = document.getElementById('calWeekModeBtn');
+  if(!b) return;
+  b.addEventListener('click', ()=>{
+    window.__calWeekMode = !window.__calWeekMode;
+    b.classList.toggle('on', !!window.__calWeekMode);
+    const span = b.querySelector('span'); if(span) span.textContent = window.__calWeekMode ? '월간보기' : '주간보기';
+    if(window.__calWeekMode && !selectedDate) selectedDate = todayStr();
+    if(selectedDate) syncCalendarWithDate(selectedDate); else renderCalendar();
+  });
+})();
 
 function shiftSelectedDate(days){
   const base = selectedDate ? parseYMD(selectedDate) : new Date();
