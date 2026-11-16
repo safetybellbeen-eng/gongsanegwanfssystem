@@ -1596,7 +1596,19 @@ function getApprovedNonAdminNames(){
   return Object.keys(appData.members||{}).filter(n=>appData.members[n].approved && n!==ADMIN_NAME);
 }
 const ADMIN_BIRTH = '260402';
-function isAdminUser(){ return myName===ADMIN_NAME && myBirth===ADMIN_BIRTH; }
+function isOwnerUser(){ return myName===ADMIN_NAME && myBirth===ADMIN_BIRTH; }
+/* 멤버 등급: 최고 관리자(기존 '관리자' 계정) / 관리자(role==='admin') / 회원 */
+function memberRole(name){
+  if(name===ADMIN_NAME) return 'owner';
+  try{ const m = appData && appData.members && appData.members[name]; return (m && m.role==='admin') ? 'admin' : 'member'; }catch(e){ return 'member'; }
+}
+function isAdminUser(){
+  if(isOwnerUser()) return true;
+  try{
+    const m = appData && appData.members && appData.members[myName];
+    return !!(m && m.approved && m.role==='admin' && String(m.birth||'')===String(myBirth||''));
+  }catch(e){ return false; }
+}
 function isAdmin(){ return isAdminUser(); } // 하위 호환용 별칭
 function requireAdmin(){
   if(!isAdminUser()){ toast('관리자만 사용할 수 있는 기능입니다.'); return false; }
@@ -1773,7 +1785,74 @@ async function setInjuryPeriod(name, startDate, endDate){
   computeAttendanceStats();
 }
 
+const ROLE_LABEL = { owner:'최고 관리자', admin:'관리자', member:'회원' };
+function renderMembersPage(){
+  const el = document.getElementById('membersPageList');
+  if(!el || !appData) return;
+  const names = Object.keys(appData.members||{}).filter(n=>appData.members[n].approved).sort((a,b)=>a.localeCompare(b,'ko'));
+  const row = (name)=>{
+    const m = appData.members[name] || {};
+    const role = memberRole(name);
+    const injured = isCurrentlyInjured(name);
+    const sub = injured ? `🤕 부상 중 (~${escapeHtml(m.injuryEnd)})` : (m.status==='online' ? '접속 중' : '');
+    return `<div class="mp-row"><div class="mp-av">${escapeHtml(name.charAt(0))}</div><div class="mp-n ${name===myName?'me':''}">${escapeHtml(name)}${sub?`<small>${sub}</small>`:''}</div><span class="mp-chip ${role!=='member'?'a':''}">${ROLE_LABEL[role]}</span></div>`;
+  };
+  const admins = names.filter(n=>memberRole(n)!=='member');
+  const members = names.filter(n=>memberRole(n)==='member');
+  el.innerHTML = (admins.length?`<div class="mp-lab">관리자 ${admins.length}명</div>${admins.map(row).join('')}`:'')
+    + (members.length?`<div class="mp-lab">회원 ${members.length}명</div>${members.map(row).join('')}`:'')
+    + (!names.length?'<div class="rank-empty">아직 승인된 멤버가 없습니다.</div>':'');
+}
+function renderAdminRoleList(){
+  const el = document.getElementById('adminRoleList');
+  if(!el || !appData) return;
+  if(!isAdminUser()){ el.innerHTML=''; return; }
+  const names = Object.keys(appData.members||{}).filter(n=>appData.members[n].approved).sort((a,b)=>a.localeCompare(b,'ko'));
+  el.innerHTML = names.map(name=>{
+    const role = memberRole(name);
+    const fixed = role==='owner';
+    const self = name===myName;
+    const ctl = fixed ? '<span class="mp-chip a">최고 관리자</span>'
+      : `<div class="role-seg ${self?'disabled':''}" data-name="${escapeHtml(name)}"><button type="button" data-role="member" class="${role==='member'?'on':''}" ${self?'disabled':''}>회원</button><button type="button" data-role="admin" class="${role==='admin'?'on':''}" ${self?'disabled':''}>관리자</button></div>`;
+    return `<div class="mp-row"><div class="mp-av">${escapeHtml(name.charAt(0))}</div><div class="mp-n ${self?'me':''}">${escapeHtml(name)}<small>${fixed?'최고 관리자 · 변경 불가':(self?'내 계정 · 본인 등급은 변경할 수 없습니다':'')}</small></div>${ctl}</div>`;
+  }).join('') || '<div class="rank-empty">승인된 회원이 없습니다.</div>';
+  el.querySelectorAll('.role-seg button').forEach(b=>b.addEventListener('click', ()=>{
+    adminSetMemberRole(b.closest('.role-seg').dataset.name, b.dataset.role);
+  }));
+}
+async function adminSetMemberRole(name, role){
+  if(!requireAdmin()) return;
+  if(name===ADMIN_NAME){ toast('최고 관리자의 등급은 변경할 수 없습니다.'); return; }
+  if(name===myName){ toast('본인 등급은 변경할 수 없습니다.'); return; }
+  if(memberRole(name)===role) return;
+  const label = role==='admin' ? '관리자' : '회원';
+  if(!confirm(`'${name}' 님을 ${label} 등급으로 변경할까요?`)) return;
+  await mutateAppData(data=>{
+    if(data.members && data.members[name]){
+      if(role==='admin') data.members[name].role = 'admin'; else delete data.members[name].role;
+    }
+  });
+  renderMemberList();
+  toast(`'${name}' 님을 ${label} 등급으로 변경했습니다.`);
+}
+async function shareInviteLink(){
+  const url = location.origin + location.pathname.replace(/index\.html$/,'');
+  const text = '공생관 FS 풋살팀 앱에 초대합니다. 링크로 접속해 이름·생년월일로 가입하면 관리자가 승인해 드립니다.';
+  if(navigator.share){
+    try{ await navigator.share({ title:'공생관 FS 초대', text, url }); }
+    catch(err){ if(err && err.name!=='AbortError') toast('공유하지 못했습니다.'); }
+    return;
+  }
+  const full = text + '\n' + url;
+  try{ await navigator.clipboard.writeText(full); toast('초대 문구와 링크를 복사했습니다. 카카오톡에 붙여넣어 보내세요.'); }
+  catch(_){ window.prompt('아래 내용을 복사해 카카오톡에 붙여넣어 보내세요.', full); }
+}
+let lastAdminState = null;
 function renderMemberList(){
+  try{ renderMembersPage(); renderAdminRoleList(); }catch(e){ console.error(e); }
+  const nowAdmin = isAdminUser();
+  if(lastAdminState !== null && lastAdminState !== nowAdmin){ try{ updateAdminVisibility(); tryRenderMoreTab(); }catch(e){ console.error(e); } }
+  lastAdminState = nowAdmin;
   const strip = $('#memberStrip');
   if(!strip) return;
   const names = Object.keys(appData.members||{}).filter(n=>appData.members[n].approved).sort((a,b)=>a.localeCompare(b,'ko'));
@@ -3388,7 +3467,8 @@ function updateNotifyTile(){
   if(!b||!lb) return;
   const on = typeof Notification!=='undefined' && Notification.permission==='granted';
   b.classList.toggle('notify-on', on);
-  lb.textContent = on ? '알림 켜짐' : '알림 설정';
+  lb.textContent = on ? '알림 켜짐' : '알림 꺼짐';
+  const bs = document.getElementById('moreBellSub'); if(bs) bs.textContent = (on ? '켜짐' : '꺼짐') + ' · 경기 알림·투표 알림';
 }
 async function enableAppNotifications(){
   if(typeof Notification==='undefined'){
@@ -3421,6 +3501,8 @@ async function enableAppNotifications(){
   updateNotifyTile(); updateBellState();
   if(typeof updateNotifyBanner==='function') updateNotifyBanner();
 }
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) try{ updateNotifyTile(); }catch(e){} });
+window.addEventListener('focus', ()=>{ try{ updateNotifyTile(); }catch(e){} });
 function updateBellState(){
   const b = document.getElementById('bellBtn');
   if(!b) return;
@@ -3634,7 +3716,7 @@ function tryRenderMoreTab(){
     const me = document.getElementById('moreMeCard');
     if(me && myName){
       const rate = document.getElementById('myRateTag');
-      me.innerHTML = `<div class="mm-avatar">${escapeHtml(myName.charAt(0))}</div><div class="mm-tx"><b>${escapeHtml(myName)}${isAdminUser()?' <span class="admin-badge">관리자</span>':''}</b><small>${escapeHtml(rate ? rate.textContent : '')}</small></div>`;
+      me.innerHTML = `<div class="mm-avatar">${escapeHtml(myName.charAt(0))}</div><div class="mm-tx"><b>${escapeHtml(myName)}${isAdminUser()?` <span class="admin-badge">${isOwnerUser()?'최고 관리자':'관리자'}</span>`:''}</b><small>${escapeHtml(rate ? rate.textContent : '')}</small></div>`;
     }
     const adminRow = document.getElementById('moreAdminRow');
     if(adminRow) adminRow.style.display = isAdminUser() ? 'flex' : 'none';
@@ -3645,8 +3727,8 @@ document.querySelectorAll('#sectionMore .more-row').forEach(row=>{
     if(row.dataset.go){ setActiveMobileSection(row.dataset.go); return; }
     const act = row.dataset.act;
     const click = (id)=>{ const b=document.getElementById(id); if(b) b.click(); };
-    if(act==='members') click('memberViewAllBtn');
-    else if(act==='bell') click('bellBtn');
+    if(act==='invite') shareInviteLink();
+    else if(act==='bell') enableAppNotifications();
     else if(act==='logout') click('logoutBtn');
     else if(act==='injury'){ click('myInjuryToggleBtn'); pageScrollTop('smooth'); }
   });
@@ -3654,10 +3736,10 @@ document.querySelectorAll('#sectionMore .more-row').forEach(row=>{
 
 /* ---------- 모바일 하단 탭 전환 (768px 이하에서만 시각적으로 의미가 있지만, 클래스 토글 자체는 항상 동작) ---------- */
 function setActiveMobileSection(tabKey){
-  const tabHi = ['tactics','weather','records','admin'].includes(tabKey) ? 'more' : tabKey;
+  const tabHi = ['tactics','weather','records','admin','members'].includes(tabKey) ? 'more' : tabKey;
   document.querySelectorAll('.mobile-tabbar .tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab===tabHi));
   document.querySelectorAll('.app-section').forEach(s=>s.classList.remove('mobile-active'));
-  const idMap = { home:'sectionHome', weather:'sectionWeather', calendar:'sectionCalendar', matches:'sectionMatches', map:'sectionMap', records:'sectionRecords', admin:'sectionAdmin', tactics:'sectionTactics', more:'sectionMore' };
+  const idMap = { home:'sectionHome', weather:'sectionWeather', calendar:'sectionCalendar', matches:'sectionMatches', map:'sectionMap', records:'sectionRecords', admin:'sectionAdmin', tactics:'sectionTactics', more:'sectionMore', members:'sectionMembers' };
   const sec = document.getElementById(idMap[tabKey] || '');
   if(sec) sec.classList.add('mobile-active');
   // 상단 헤더(공생관 FS·알림·사용자 버튼)는 홈 화면에서만 보여줍니다.
@@ -3665,6 +3747,7 @@ function setActiveMobileSection(tabKey){
   pageScrollTop('instant');
   if(tabKey==='home') tryRenderHomeTab();
   if(tabKey==='more') tryRenderMoreTab();
+  if(tabKey==='members'){ try{ renderMembersPage(); }catch(e){ console.error(e); } }
   if(tabKey==='calendar') tryRenderAttendPanes();
   if(tabKey==='map') loadDefaultMapVenue();
   if(tabKey==='matches') initMatchesTabOnce();
