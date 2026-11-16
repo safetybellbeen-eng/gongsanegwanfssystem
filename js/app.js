@@ -3694,26 +3694,33 @@ function renderMatchList(){
       return a && b && (a===b || a.includes(b) || b.includes(a));
     });
 
-    const locBtnHtml = `<button type="button" class="mc-loc-btn" data-venue="${escapeHtml(r.stadium_name||'')}" title="지도에서 위치 보기">📍 위치</button>`;
+    const fmtN = matchFormatNumber(r.player_count);
+    const fmtBadge = fmtN ? `${fmtN}:${fmtN}` : (formatText || '');
+    const mo = r.match_date ? parseYMD(r.match_date) : (selectedMatchDate ? parseYMD(selectedMatchDate) : null);
+    const dateText = mo ? `${mo.getMonth()+1}월 ${mo.getDate()}일 (${weekdayKR[mo.getDay()]})` : '';
+    const subParts = [label.text.replace(/^[^\s]+\s/, ''), countText, ...extraTags.map(String)].filter(Boolean);
     const adoptBtnHtml = isAdminUser()
       ? `<button type="button" class="mc-adopt-btn" data-row-id="${escapeHtml(String(r.id))}" title="이 경기를 홈 화면 확정 경기로 등록">🏆 확정 등록</button>`
       : '';
+    const pinSvg = '<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M12 22s7.500-6.600 7.500-12.300A7.500 7.500 0 0 0 4.500 9.700C4.500 15.400 12 22 12 22z"/><circle cx="12" cy="9.800" r="2.800" fill="#0c1319"/></svg>';
+    const calSvg = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10h18M8 3v4M16 3v4"/><path d="m9 15.500 2 2 4-4"/></svg>';
+    const clkSvg = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
+    const starSvg = '<svg viewBox="0 0 24 24" width="22" height="22" fill="'+(isFav?'currentColor':'none')+'" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="m12 2.800 2.800 5.800 6.300.9-4.600 4.400 1.100 6.300L12 17.200l-5.600 3 1.100-6.300L2.900 9.500l6.300-.9z"/></svg>';
+    const extSvg = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>';
 
     return `
-      <div class="match-card">
-        <div class="mc-top-row">
-          <span class="mc-time">${escapeHtml(timeStr)}</span>
-          <span class="mc-venue">📍 ${escapeHtml(r.stadium_name || '경기장 미정')}</span>
-        </div>
-        ${extraTagsHtml}
-        <div class="mc-status-row">
-          <span class="mc-status ${label.cls}">${label.text}</span>
-          ${typeHtml}
-          ${r.stadium_name ? locBtnHtml : ''}
-        </div>
-        <div class="mc-action-row">
-          <button type="button" class="mc-apply-btn" data-url="${escapeHtml(r.match_url||'')}">신청하기 →</button>
+      <div class="match-card mt-card ${status==='full'?'is-full':''}">
+        <div class="mt-info">
+          <div class="mt-venue">${r.stadium_name ? `<button type="button" class="mc-loc-btn" data-venue="${escapeHtml(r.stadium_name)}" title="지도에서 위치 보기">${pinSvg}</button>` : `<span class="mc-loc-btn">${pinSvg}</span>`}<b>${escapeHtml(r.stadium_name || '경기장 미정')}</b></div>
+          <div class="mt-line">${calSvg}<span>${escapeHtml(dateText)}</span></div>
+          <div class="mt-line">${clkSvg}<span>${escapeHtml(timeStr)}</span></div>
+          ${subParts.length ? `<div class="mt-sub ${label.cls}">${escapeHtml(subParts.join(' · '))}</div>` : ''}
           ${adoptBtnHtml}
+        </div>
+        <div class="mt-actions">
+          ${fmtBadge ? `<span class="mt-fmt">${escapeHtml(fmtBadge)}</span>` : ''}
+          <button type="button" class="mt-icon-btn mt-fav ${isFav?'on':''}" data-venue="${escapeHtml(r.stadium_name||'')}" title="즐겨찾기">${starSvg}</button>
+          <button type="button" class="mt-icon-btn mc-apply-btn" data-url="${escapeHtml(r.match_url||'')}" title="플랩풋볼에서 신청하기">${extSvg}</button>
         </div>
       </div>
     `;
@@ -3730,7 +3737,24 @@ function renderMatchList(){
       if(btn.dataset.url) window.open(btn.dataset.url, '_blank', 'noopener');
     });
   });
-  listEl.querySelectorAll('.mc-loc-btn').forEach(btn=>{
+  listEl.querySelectorAll('.mt-fav').forEach(btn=>{
+    btn.addEventListener('click', async (e)=>{
+      e.stopPropagation();
+      if(!requireAdmin()) return;
+      const name = btn.dataset.venue; if(!name) return;
+      const norm = (x)=>String(x||'').replace(/\s+/g,'');
+      const matched = [...favoriteVenueSet].filter(f=>norm(f)===norm(name) || norm(f).includes(norm(name)) || norm(name).includes(norm(f)));
+      const makeFav = matched.length===0;
+      let res = {ok:true};
+      if(makeFav) res = await setFavoriteVenueRobust(name, true);
+      else for(const f of matched){ res = await setFavoriteVenueRobust(f, false); if(!res.ok) break; }
+      if(!res.ok){ toast('즐겨찾기 저장 실패: '+res.reason); return; }
+      try{ populateVenuePresetSelect(); }catch(_){}
+      renderMatchList();
+      toast(makeFav ? '즐겨찾기에 추가했습니다.' : '즐겨찾기에서 해제했습니다.');
+    });
+  });
+  listEl.querySelectorAll('.mc-loc-btn[data-venue]').forEach(btn=>{
     btn.addEventListener('click', (e)=>{
       e.stopPropagation();
       const venueName = btn.dataset.venue;
