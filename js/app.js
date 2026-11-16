@@ -3564,7 +3564,7 @@ document.querySelectorAll('#sectionMore .more-row').forEach(row=>{
     if(act==='members') click('memberViewAllBtn');
     else if(act==='bell') click('bellBtn');
     else if(act==='logout') click('logoutBtn');
-    else if(act==='injury'){ click('myInjuryToggleBtn'); window.scrollTo({top:0,behavior:'smooth'}); }
+    else if(act==='injury'){ click('myInjuryToggleBtn'); pageScrollTop('smooth'); }
   });
 });
 
@@ -3578,7 +3578,7 @@ function setActiveMobileSection(tabKey){
   if(sec) sec.classList.add('mobile-active');
   // 상단 헤더(공생관 FS·알림·사용자 버튼)는 홈 화면에서만 보여줍니다.
   document.body.classList.toggle('hide-header', tabKey!=='home');
-  window.scrollTo({top:0, behavior:'instant'});
+  pageScrollTop('instant');
   if(tabKey==='home') tryRenderHomeTab();
   if(tabKey==='more') tryRenderMoreTab();
   if(tabKey==='calendar') tryRenderAttendPanes();
@@ -4674,6 +4674,13 @@ async function renderTacticsMiniForDate(dateStr, containerEl){
 
 
 /* ---------- 홈: 한 화면에 맞추기 (스크롤 없이) ---------- */
+/* 폰 화면: 문서 스크롤 대신 .wrap 안에서 스크롤 (하단 탭바를 항상 화면 맨 아래에 고정) */
+function isPhoneShell(){ return window.matchMedia('(max-width:768px)').matches; }
+function pageScrollTop(behavior){
+  const w = document.querySelector('.wrap');
+  try{ if(w) w.scrollTo({top:0, behavior}); }catch(e){ if(w) w.scrollTop = 0; }
+  try{ window.scrollTo({top:0, behavior}); }catch(e){}
+}
 function fitHomeToScreen(){
   /* 모든 탭이 하단 탭바 바로 위까지 화면을 꽉 채우도록 현재 탭의 높이를 맞춥니다.
      - 홈: 한 화면에 딱 맞게(넘치지 않게) 높이 고정
@@ -4686,8 +4693,15 @@ function fitHomeToScreen(){
   const padB = wrap ? parseFloat(getComputedStyle(wrap).paddingBottom) || 96 : 96;
   const prevH = sec.style.height, prevMin = sec.style.minHeight;
   sec.style.height = ''; sec.style.minHeight = '';
-  const top = sec.getBoundingClientRect().top + window.scrollY;
-  const h = Math.max(320, Math.floor(window.innerHeight - top - padB));
+  let top, avail;
+  if(isPhoneShell() && wrap){
+    top = sec.getBoundingClientRect().top - wrap.getBoundingClientRect().top + wrap.scrollTop;
+    avail = wrap.clientHeight;
+  }else{
+    top = sec.getBoundingClientRect().top + window.scrollY;
+    avail = window.innerHeight;
+  }
+  const h = Math.max(320, Math.floor(avail - top - padB));
   if(isHome) sec.style.height = h + 'px'; else sec.style.minHeight = h + 'px';
   if((isHome ? sec.style.height : sec.style.minHeight) !== (isHome ? prevH : prevMin) && sec.id === 'sectionMap'){
     try{ if(map) map.relayout(); }catch(e){}
