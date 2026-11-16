@@ -1742,3 +1742,16 @@ body.sheet-open{overflow:hidden;}
   nav.mobile-tabbar{position:fixed;left:0;right:0;bottom:0;}
 }
 @media (max-width:768px){ .wrap{min-width:0;width:100%;max-width:100%;box-sizing:border-box;} }
+
+/* 홈 다음경기 카드: 버튼 높이 통일(40px) + 위치 핀 버튼 */
+#heroMatchCard .nm3-act{align-items:center;gap:8px;}
+#heroMatchCard .nm3-act .hero-link-btn,#heroMatchCard .nm3-act .hero-alert-btn{height:40px;box-sizing:border-box;line-height:1;}
+#heroMatchCard .nm3-act .hero-link-btn{display:inline-flex;align-items:center;justify-content:center;}
+#heroMatchCard .nm3-act .hero-share-btn,#heroMatchCard .nm3-act .hero-pin-btn{width:40px;height:40px;flex:0 0 40px;box-sizing:border-box;border-radius:11px;
+  background:rgba(11,17,21,.75);border:1px solid #3a4a54;display:inline-flex;align-items:center;justify-content:center;padding:0;cursor:pointer;}
+#heroMatchCard .nm3-act .hero-pin-btn{color:#b6f23a;}
+#heroMatchCard .nm3-act .hero-pin-btn svg,#heroMatchCard .nm3-act .hero-share-btn svg{width:18px;height:18px;}
+#sectionHome #heroMatchCard .nm3-act > button{height:40px !important;min-height:40px !important;max-height:40px !important;box-sizing:border-box;margin:0;}
+
+.home-quick-btn.notify-on{border-color:#4f7d1d;color:#b6f23a;}
+.home-quick-btn.notify-on span{color:#b6f23a;}
