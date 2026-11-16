@@ -3241,12 +3241,53 @@ function updateUserMenuLabel(){
         if(typeof setAttendPane==='function') setAttendPane('vote');
         if(typeof setSelectedDate==='function') setSelectedDate(getWeekStart(todayStr()));
         openVoteSheet();
+      } else if(go==='install'){
+        installToHomeScreen();
       } else {
         setActiveMobileSection(go);
       }
     });
   });
 })();
+
+/* ---------- 홈 화면 추가 (PWA 설치) ---------- */
+let deferredInstallPrompt = null;
+window.addEventListener('beforeinstallprompt', (e)=>{ e.preventDefault(); deferredInstallPrompt = e; });
+window.addEventListener('appinstalled', ()=>{ deferredInstallPrompt = null; try{ toast('홈 화면에 추가되었습니다.'); }catch(_){} });
+function isStandaloneApp(){
+  return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
+}
+function showInstallGuide(){
+  const ua = navigator.userAgent || '';
+  const isIOS = /iPhone|iPad|iPod/i.test(ua);
+  const inApp = /KAKAOTALK|NAVER|Line\/|FBAN|FBAV|Instagram/i.test(ua);
+  let steps;
+  if(inApp){
+    steps = ['오른쪽 위(또는 아래) 메뉴(⋯)를 누르세요.', isIOS ? '"Safari로 열기"를 선택하세요.' : '"다른 브라우저로 열기" → Chrome을 선택하세요.', '열린 화면에서 이 버튼을 다시 눌러 주세요.'];
+  } else if(isIOS){
+    steps = ['Safari 하단의 공유 버튼(□↑)을 누르세요.', '"홈 화면에 추가"를 선택하세요.', '오른쪽 위 "추가"를 누르면 완료됩니다.'];
+  } else {
+    steps = ['브라우저 오른쪽 위 메뉴(⋮)를 누르세요.', '"홈 화면에 추가" 또는 "앱 설치"를 선택하세요.', '"설치"를 누르면 완료됩니다.'];
+  }
+  const old = document.getElementById('installGuide'); if(old) old.remove();
+  const el = document.createElement('div');
+  el.id = 'installGuide'; el.className = 'install-guide';
+  el.innerHTML = `<div class="ig-box" role="dialog" aria-label="홈 화면 추가 방법">
+    <b>홈 화면에 추가하기</b>
+    <ol>${steps.map(t=>`<li>${t}</li>`).join('')}</ol>
+    <button type="button" class="ig-close">확인</button></div>`;
+  el.addEventListener('click', (e)=>{ if(e.target===el || e.target.closest('.ig-close')) el.remove(); });
+  document.body.appendChild(el);
+}
+async function installToHomeScreen(){
+  if(isStandaloneApp()){ toast('이미 홈 화면에서 실행 중입니다.'); return; }
+  if(deferredInstallPrompt){
+    const dp = deferredInstallPrompt; deferredInstallPrompt = null;
+    try{ dp.prompt(); await dp.userChoice; }catch(e){ console.error(e); showInstallGuide(); }
+    return;
+  }
+  showInstallGuide();
+}
 
 /* ---------- 출석 화면: 세그먼트(출석투표 / 출석현황 / 최근경기) ---------- */
 const ATTEND_SUBTITLES = {
