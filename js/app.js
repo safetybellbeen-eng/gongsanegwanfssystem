@@ -3708,19 +3708,38 @@ function renderMatchList(){
     const starSvg = '<svg viewBox="0 0 24 24" width="22" height="22" fill="'+(isFav?'currentColor':'none')+'" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="m12 2.800 2.800 5.800 6.300.9-4.600 4.400 1.100 6.300L12 17.200l-5.600 3 1.100-6.300L2.900 9.500l6.300-.9z"/></svg>';
     const extSvg = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>';
 
+    // 경기장명 앞의 "플랩 스타디움"은 작은 태그로 분리해 이름을 한 줄로 보이게 합니다(저장 데이터는 그대로).
+    const rawName = r.stadium_name || '경기장 미정';
+    const PLAB_PREFIX = /^플랩\s*스타디움\s+/;
+    const hasPrefix = PLAB_PREFIX.test(rawName);
+    const shortName = hasPrefix ? rawName.replace(PLAB_PREFIX, '') : rawName;
+    const statusText = [label.text.replace(/^[^\s]+\s/, ''), countText].filter(Boolean).join(' ');
+    const shareSvg = '<svg viewBox="0 0 24 24" width="15" height="15" fill="#191919"><path d="M12 3C6.500 3 2 6.500 2 10.800c0 2.800 1.900 5.300 4.700 6.700l-1 3.700c-.1.400.3.600.6.400l4.300-2.900c.5.100.9.100 1.400.1 5.500 0 10-3.500 10-7.800S17.500 3 12 3z"/></svg>';
+    const arrowSvg = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
+    const pinSm = '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 22s7.500-6.600 7.500-12.300A7.500 7.500 0 0 0 4.500 9.700C4.500 15.400 12 22 12 22z"/><circle cx="12" cy="9.800" r="2.800" fill="#0c1319"/></svg>';
+    const calSm = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>';
+    const clkSm = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
+    const starSm = '<svg viewBox="0 0 24 24" width="17" height="17" fill="'+(isFav?'currentColor':'none')+'" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="m12 2.800 2.800 5.800 6.300.9-4.600 4.400 1.100 6.300L12 17.200l-5.600 3 1.100-6.300L2.900 9.500l6.300-.9z"/></svg>';
+    const shareText = `${rawName}\n${dateText} ${timeStr}${fmtBadge?' · '+fmtBadge:''}`;
+
     return `
       <div class="match-card mt-card ${status==='full'?'is-full':''}">
-        <div class="mt-info">
-          <div class="mt-venue">${r.stadium_name ? `<button type="button" class="mc-loc-btn" data-venue="${escapeHtml(r.stadium_name)}" title="지도에서 위치 보기">${pinSvg}</button>` : `<span class="mc-loc-btn">${pinSvg}</span>`}<b>${escapeHtml(r.stadium_name || '경기장 미정')}</b></div>
-          <div class="mt-line">${calSvg}<span>${escapeHtml(dateText)}</span></div>
-          <div class="mt-line">${clkSvg}<span>${escapeHtml(timeStr)}</span></div>
-          ${subParts.length ? `<div class="mt-sub ${label.cls}">${escapeHtml(subParts.join(' · '))}</div>` : ''}
-          ${adoptBtnHtml}
+        <div class="mt-venue">
+          ${r.stadium_name ? `<button type="button" class="mc-loc-btn" data-venue="${escapeHtml(r.stadium_name)}" title="지도에서 위치 보기">${pinSm}</button>` : `<span class="mc-loc-btn">${pinSm}</span>`}
+          <b title="${escapeHtml(rawName)}">${escapeHtml(shortName)}</b>
+          ${hasPrefix ? '<span class="mt-tag">플랩 스타디움</span>' : ''}
         </div>
-        <div class="mt-actions">
+        <div class="mt-row">
+          <span class="mt-dt">${calSm}${escapeHtml(dateText)}</span>
+          <span class="mt-dt">${clkSm}${escapeHtml(timeStr)}</span>
           ${fmtBadge ? `<span class="mt-fmt">${escapeHtml(fmtBadge)}</span>` : ''}
-          <button type="button" class="mt-icon-btn mt-fav ${isFav?'on':''}" data-venue="${escapeHtml(r.stadium_name||'')}" title="즐겨찾기">${starSvg}</button>
-          <button type="button" class="mt-icon-btn mc-apply-btn" data-url="${escapeHtml(r.match_url||'')}" title="플랩풋볼에서 신청하기">${extSvg}</button>
+          ${statusText ? `<span class="mt-st ${label.cls}">${escapeHtml(statusText)}</span>` : ''}
+        </div>
+        <div class="mt-btns">
+          <button type="button" class="mt-ib mt-fav ${isFav?'on':''}" data-venue="${escapeHtml(r.stadium_name||'')}" title="즐겨찾기">${starSm}</button>
+          <button type="button" class="mt-kk mc-share-btn" data-share-text="${escapeHtml(shareText)}" data-url="${escapeHtml(r.match_url||'')}" title="카카오톡 등으로 공유">${shareSvg}공유</button>
+          <button type="button" class="mt-ap mc-apply-btn" data-url="${escapeHtml(r.match_url||'')}" title="플랩풋볼 신청 페이지 열기">신청하기 ${arrowSvg}</button>
+          ${adoptBtnHtml ? adoptBtnHtml.replace('class="mc-adopt-btn"','class="mc-adopt-btn mt-ib"').replace('🏆 확정 등록','🏆') : ''}
         </div>
       </div>
     `;
@@ -3735,6 +3754,24 @@ function renderMatchList(){
   listEl.querySelectorAll('.mc-apply-btn').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       if(btn.dataset.url) window.open(btn.dataset.url, '_blank', 'noopener');
+    });
+  });
+  listEl.querySelectorAll('.mc-share-btn').forEach(btn=>{
+    btn.addEventListener('click', async (e)=>{
+      e.stopPropagation();
+      const url = btn.dataset.url;
+      const text = btn.dataset.shareText || '';
+      if(!url){ toast('공유할 경기 링크가 없습니다.'); return; }
+      // 기기의 공유창을 열어 카카오톡을 선택해 보낼 수 있게 합니다.
+      if(navigator.share){
+        try{ await navigator.share({ title: '풋살 경기 공유', text, url }); }
+        catch(err){ if(err && err.name !== 'AbortError') toast('공유하지 못했습니다.'); }
+        return;
+      }
+      // 공유창을 지원하지 않는 브라우저(PC 등)에서는 내용을 복사합니다.
+      const full = text + '\n' + url;
+      try{ await navigator.clipboard.writeText(full); toast('경기 정보를 복사했습니다. 카카오톡에 붙여넣어 보내세요.'); }
+      catch(_){ window.prompt('아래 내용을 복사해 카카오톡에 붙여넣어 보내세요.', full); }
     });
   });
   listEl.querySelectorAll('.mt-fav').forEach(btn=>{
