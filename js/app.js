@@ -4735,10 +4735,29 @@ function pageScrollTop(behavior){
   try{ if(w) w.scrollTo({top:0, behavior}); }catch(e){ if(w) w.scrollTop = 0; }
   try{ window.scrollTo({top:0, behavior}); }catch(e){}
 }
+/* 아이폰 홈 화면 앱: 화면 전체 높이를 직접 지정해서 상·하단 여백이 생기지 않게 합니다 */
+function fitAppShell(){
+  const root = document.documentElement;
+  try{
+    const phone = window.matchMedia('(max-width:768px)').matches;
+    const standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
+    const portrait = window.innerHeight >= window.innerWidth;
+    const sh = portrait ? Math.max(screen.height, screen.width) : Math.min(screen.height, screen.width);
+    if(phone && standalone && portrait && sh > window.innerHeight && sh - window.innerHeight < 160){
+      root.style.setProperty('--app-h', sh + 'px');
+    }else{
+      root.style.removeProperty('--app-h');
+    }
+  }catch(e){}
+}
+window.addEventListener('resize', fitAppShell);
+window.addEventListener('orientationchange', ()=>setTimeout(fitAppShell,200));
+fitAppShell();
 function fitHomeToScreen(){
   /* 모든 탭이 하단 탭바 바로 위까지 화면을 꽉 채우도록 현재 탭의 높이를 맞춥니다.
      - 홈: 한 화면에 딱 맞게(넘치지 않게) 높이 고정
      - 그 외: 최소 높이만 지정(내용이 더 길면 스크롤) */
+  fitAppShell();
   const sec = document.querySelector('.app-section.mobile-active');
   document.querySelectorAll('.app-section').forEach(x=>{ if(x!==sec){ x.style.height=''; x.style.minHeight=''; } });
   if(!sec) return;
