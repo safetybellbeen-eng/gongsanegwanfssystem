@@ -3691,6 +3691,11 @@ function renderMatchList(){
   if(!listEl) return;
   const favSet = favoriteVenueSet;
 
+  const favFilterBtn = $('#matchFavFilterBtn');
+  if(favFilterBtn){
+    favFilterBtn.hidden = !isAdminUser();
+    if(!isAdminUser() && matchFavOnly){ matchFavOnly = false; favFilterBtn.classList.remove('active'); }
+  }
   let rows = lastMatchRows.filter(r=>{
     if(matchTimeFilter !== 'all' && matchTimePeriod(r.match_time) !== matchTimeFilter) return false;
     if(matchFormatFilter !== 'all' && matchFormatNumber(r.player_count) !== matchFormatFilter) return false;
@@ -3787,24 +3792,22 @@ function renderMatchList(){
     const starSm = '<svg viewBox="0 0 24 24" width="17" height="17" fill="'+(isFav?'currentColor':'none')+'" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="m12 2.800 2.800 5.800 6.300.9-4.600 4.400 1.100 6.300L12 17.200l-5.600 3 1.100-6.300L2.900 9.500l6.300-.9z"/></svg>';
     const shareText = `${rawName}\n${dateText} ${timeStr}${fmtBadge?' · '+fmtBadge:''}`;
 
+    const adminNow = isAdminUser();
+    const subLine = [r.area_group, r.level, r.gender].filter(Boolean).map(String).join(' · ');
+    const shareIc = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="2.6"/><circle cx="6" cy="12" r="2.6"/><circle cx="18" cy="19" r="2.6"/><path d="m8.3 10.8 7.4-4.300M8.3 13.200l7.400 4.300"/></svg>';
     return `
-      <div class="match-card mt-card ${status==='full'?'is-full':''}">
-        <div class="mt-venue">
-          ${r.stadium_name ? `<button type="button" class="mc-loc-btn" data-venue="${escapeHtml(r.stadium_name)}" title="지도에서 위치 보기">${pinSm}</button>` : `<span class="mc-loc-btn">${pinSm}</span>`}
-          <b title="${escapeHtml(rawName)}">${escapeHtml(shortName)}</b>
-          ${hasPrefix ? '<span class="mt-tag">플랩 스타디움</span>' : ''}
+      <div class="mr ${status==='full'?'is-full':''}" data-rid="${escapeHtml(String(r.id))}">
+        <div class="mr-main" role="button" tabindex="0">
+          <div class="mr-t">${escapeHtml(timeStr)}</div>
+          <div class="mr-v"><b title="${escapeHtml(rawName)}">${escapeHtml(shortName)}</b>${subLine?`<small>${escapeHtml(subLine)}</small>`:''}</div>
+          <div class="mr-r">${fmtBadge ? `<span class="mt-fmt">${escapeHtml(fmtBadge)}</span>` : ''}${statusText ? `<span class="mt-st ${label.cls}">${escapeHtml(statusText)}</span>` : ''}</div>
         </div>
-        <div class="mt-row">
-          <span class="mt-dt">${calSm}${escapeHtml(dateText)}</span>
-          <span class="mt-dt">${clkSm}${escapeHtml(timeStr)}</span>
-          ${fmtBadge ? `<span class="mt-fmt">${escapeHtml(fmtBadge)}</span>` : ''}
-          ${statusText ? `<span class="mt-st ${label.cls}">${escapeHtml(statusText)}</span>` : ''}
-        </div>
-        <div class="mt-btns">
-          <button type="button" class="mt-ib mt-fav ${isFav?'on':''}" data-venue="${escapeHtml(r.stadium_name||'')}" title="즐겨찾기">${starSm}</button>
-          <button type="button" class="mt-kk mc-share-btn" data-share-text="${escapeHtml(shareText)}" data-url="${escapeHtml(r.match_url||'')}" title="카카오톡 등으로 공유">${shareSvg}공유</button>
-          <button type="button" class="mt-ap mc-apply-btn" data-url="${escapeHtml(r.match_url||'')}" title="플랩풋볼 신청 페이지 열기">신청하기 ${arrowSvg}</button>
-          ${adoptBtnHtml ? adoptBtnHtml.replace('class="mc-adopt-btn"','class="mc-adopt-btn mt-ib"').replace('🏆 확정 등록','🏆') : ''}
+        <div class="mr-act">
+          ${r.stadium_name ? `<button type="button" class="mr-ic mc-loc-btn" data-venue="${escapeHtml(r.stadium_name)}" title="지도에서 위치 보기">${pinSm}</button>` : ''}
+          ${adminNow ? `<button type="button" class="mr-ic mt-fav ${isFav?'on':''}" data-venue="${escapeHtml(r.stadium_name||'')}" title="${isFav?'즐겨찾기 해제':'즐겨찾기'}">${starSm}</button>` : ''}
+          <button type="button" class="mr-ic mc-share-btn" data-share-text="${escapeHtml(shareText)}" data-url="${escapeHtml(r.match_url||'')}" title="공유">${shareIc}</button>
+          <button type="button" class="mr-go mc-apply-btn" data-url="${escapeHtml(r.match_url||'')}" title="플랩풋볼 신청 페이지 열기">신청하기 ${arrowSvg}</button>
+          ${adoptBtnHtml ? adoptBtnHtml.replace('class="mc-adopt-btn"','class="mc-adopt-btn mr-ic"').replace('🏆 확정 등록','🏆') : ''}
         </div>
       </div>
     `;
@@ -3815,6 +3818,15 @@ function renderMatchList(){
     : '';
 
   listEl.innerHTML = cardsHtml + moreHtml;
+  listEl.querySelectorAll('.mr-main').forEach(m=>{
+    const toggle = ()=>{
+      const row = m.parentElement, was = row.classList.contains('open');
+      listEl.querySelectorAll('.mr.open').forEach(x=>x.classList.remove('open'));
+      if(!was) row.classList.add('open');
+    };
+    m.addEventListener('click', toggle);
+    m.addEventListener('keydown', e=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); toggle(); } });
+  });
 
   listEl.querySelectorAll('.mc-apply-btn').forEach(btn=>{
     btn.addEventListener('click', ()=>{
@@ -3893,6 +3905,16 @@ function initMatchesTabOnce(){
       renderMatchList();
     });
   });
+  const timeSel = $('#matchTimeSel');
+  if(timeSel) timeSel.addEventListener('change', ()=>{
+    matchTimeFilter = timeSel.value; matchVisibleCount = MATCHES_PER_PAGE;
+    timeSel.parentElement.classList.toggle('on', timeSel.value!=='all'); renderMatchList();
+  });
+  const fmtSel = $('#matchFmtSel');
+  if(fmtSel) fmtSel.addEventListener('change', ()=>{
+    matchFormatFilter = fmtSel.value; matchVisibleCount = MATCHES_PER_PAGE;
+    fmtSel.parentElement.classList.toggle('on', fmtSel.value!=='all'); renderMatchList();
+  });
   const favBtn = $('#matchFavFilterBtn');
   if(favBtn) favBtn.addEventListener('click', ()=>{
     matchFavOnly = !matchFavOnly;
@@ -3905,7 +3927,7 @@ function initMatchesTabOnce(){
     matchHideFull = !matchHideFull;
     matchVisibleCount = MATCHES_PER_PAGE;
     hideFullBtn.classList.toggle('active', matchHideFull);
-    hideFullBtn.textContent = matchHideFull ? '🙈 마감경기 가리기' : '👁️ 마감경기 보이기';
+    hideFullBtn.setAttribute('aria-pressed', String(matchHideFull));
     renderMatchList();
   });
   const formatRow = $('#matchFormatFilterRow');
