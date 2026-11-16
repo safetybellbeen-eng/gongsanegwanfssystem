@@ -3692,10 +3692,7 @@ function renderMatchList(){
   const favSet = favoriteVenueSet;
 
   const favFilterBtn = $('#matchFavFilterBtn');
-  if(favFilterBtn){
-    favFilterBtn.hidden = !isAdminUser();
-    if(!isAdminUser() && matchFavOnly){ matchFavOnly = false; favFilterBtn.classList.remove('active'); }
-  }
+  if(favFilterBtn){ favFilterBtn.hidden = false; favFilterBtn.classList.toggle('active', matchFavOnly); }
   let rows = lastMatchRows.filter(r=>{
     if(matchTimeFilter !== 'all' && matchTimePeriod(r.match_time) !== matchTimeFilter) return false;
     if(matchFormatFilter !== 'all' && matchFormatNumber(r.player_count) !== matchFormatFilter) return false;
@@ -3899,7 +3896,7 @@ function ensureMatchFilterBar(){
   bar.innerHTML = `
     <label class="mf2-sel ${matchTimeFilter!=='all'?'on':''}"><select id="matchTimeSel" aria-label="시간대"><option value="all">전체 시간</option><option value="morning">오전</option><option value="afternoon">오후</option><option value="evening">저녁</option></select></label>
     <label class="mf2-sel ${matchFormatFilter!=='all'?'on':''}"><select id="matchFmtSel" aria-label="경기 형식"><option value="all">전체</option><option value="5">5:5</option><option value="6">6:6</option></select></label>
-    <button type="button" class="mf2-fav" id="matchFavFilterBtn" title="즐겨찾기 경기장만 보기" hidden><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="m12 2.800 2.800 5.800 6.300.9-4.600 4.400 1.100 6.300L12 17.200l-5.600 3 1.100-6.300L2.900 9.500l6.300-.9z"/></svg></button>
+    <button type="button" class="mf2-fav" id="matchFavFilterBtn" title="관리자가 즐겨찾기한 경기장만 보기"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="m12 2.800 2.800 5.800 6.300.9-4.600 4.400 1.100 6.300L12 17.200l-5.600 3 1.100-6.300L2.900 9.500l6.300-.9z"/></svg></button>
     <span class="mf2-sp"></span>
     <button type="button" class="mf2-tg ${matchHideFull?'on':''}" id="matchHideFullBtn" aria-pressed="${matchHideFull}"><span>마감숨김</span><i></i></button>`;
   bar.querySelector('#matchTimeSel').value = matchTimeFilter;
