@@ -1512,27 +1512,66 @@ body.sheet-open{overflow:hidden;}
 .mf2-tg i::after{content:"";position:absolute;left:2px;top:2px;width:14px;height:14px;border-radius:50%;background:#0b1218;transition:transform .15s;}
 .mf2-tg.on i{background:#b6f23a;}
 .mf2-tg.on i::after{transform:translateX(14px);}
-.mr{border-radius:14px;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.09);margin-bottom:7px;overflow:hidden;}
-.mr.open{border-color:rgba(182,242,58,.45);background:rgba(182,242,58,.05);}
-.mr.is-full .mr-main{opacity:.6;}
-.mr-main{display:grid;grid-template-columns:50px 1fr auto;gap:10px;align-items:center;padding:12px 11px;cursor:pointer;}
-.mr-t{font-size:15px;font-weight:800;color:#f2f6f8;}
-.mr-v{min-width:0;}
-.mr-v b{display:block;font-size:14px;font-weight:700;color:#f2f6f8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.mr-v small{display:block;font-size:11.5px;color:#8fa0a8;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.mr-r{display:flex;flex-direction:column;align-items:flex-end;gap:4px;}
-.mr-r .mt-fmt{height:auto;min-width:0;padding:3px 8px;font-size:11.5px;border-radius:7px;line-height:1.3;}
-.mr-r .mt-st{font-size:11px;font-weight:800;white-space:nowrap;}
-.mr-act{display:none;gap:6px;padding:0 10px 10px;}
-.mr.open .mr-act{display:flex;}
-.mr-ic,.mr-b{height:40px;border-radius:11px;border:none;background:rgba(255,255,255,.08);color:#e8eef1;font-family:inherit;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:5px;}
-.mr-ic{width:44px;flex:0 0 44px;padding:0;}
-.mr-b{padding:0 12px;font-size:12.5px;font-weight:700;}
-.mr-b.on{color:#b6f23a;}
-.mr-go{flex:1;height:40px;border-radius:11px;border:none;background:#b6f23a;color:#0b1218;font-family:inherit;font-size:14px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;}
-.mr-act .mc-adopt-btn{margin:0;border:none;background:rgba(255,255,255,.08);font-size:16px;padding:0;}
-.mr-r .mt-fmt{border:none;background:rgba(182,242,58,.15);color:#b6f23a;font-weight:800;}
+.mx{border-radius:14px;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.09);margin-bottom:7px;overflow:hidden;}
+.mx.open{border-color:rgba(182,242,58,.45);background:rgba(182,242,58,.05);}
+.mx.is-full .mx-main{opacity:.6;}
+.mx-main{display:grid;grid-template-columns:50px 1fr auto;gap:10px;align-items:center;padding:12px 11px;cursor:pointer;}
+.mx-t{font-size:15px;font-weight:800;color:#f2f6f8;}
+.mx-v{min-width:0;}
+.mx-v b{display:block;font-size:14px;font-weight:700;color:#f2f6f8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mx-v small{display:block;font-size:11.5px;color:#8fa0a8;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mx-r{display:flex;flex-direction:column;align-items:flex-end;gap:4px;}
+.mx-r .mt-fmt{height:auto;min-width:0;padding:3px 8px;font-size:11.5px;border-radius:7px;line-height:1.3;}
+.mx-r .mt-st{font-size:11px;font-weight:800;white-space:nowrap;}
+.mx-act{display:none;gap:6px;padding:0 10px 10px;}
+.mx.open .mx-act{display:flex;}
+.mx-ic,.mx-b{height:40px;border-radius:11px;border:none;background:rgba(255,255,255,.08);color:#e8eef1;font-family:inherit;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:5px;}
+.mx-ic{width:44px;flex:0 0 44px;padding:0;}
+.mx-b{padding:0 12px;font-size:12.5px;font-weight:700;}
+.mx-b.on{color:#b6f23a;}
+.mx-go{flex:1;height:40px;border-radius:11px;border:none;background:#b6f23a;color:#0b1218;font-family:inherit;font-size:14px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;}
+.mx-act .mc-adopt-btn{margin:0;border:none;background:rgba(255,255,255,.08);font-size:16px;padding:0;}
+.mx-r .mt-fmt{border:none;background:rgba(182,242,58,.15);color:#b6f23a;font-weight:800;}
 
-.mr-ic.mt-fav.on{color:#b6f23a;background:rgba(182,242,58,.16);}
+.mx-ic.mt-fav.on{color:#b6f23a;background:rgba(182,242,58,.16);}
 .mt-meta .match-count{display:flex;align-items:baseline;gap:8px;}
 .mt-meta .mc-count-num{font-size:14px;}
+
+/* ===== 홈 히어로 배너: 시안과 동일하게 ===== */
+.home-hero-banner{background:linear-gradient(90deg,#0b1115 0%,rgba(11,17,21,.55) 34%,rgba(11,17,21,0) 62%),url("../assets/home-hero-v2.jpg") right center/cover no-repeat #0b1115;}
+.home-hero-banner::after{height:26px;}
+.hhb-text{padding:18px 18px 0 26px;font-size:17px;font-weight:600;font-style:italic;line-height:1.3;letter-spacing:-.01em;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.7);}
+.hhb-name{margin-top:6px;font-size:28px;font-weight:900;font-style:italic;color:#b6f23a;letter-spacing:-.02em;line-height:1.1;}
+.hhb-line{width:112px;height:4px;margin:4px 0 0 4px;border-radius:50%;background:linear-gradient(90deg,rgba(236,224,160,0),#e8dc9c 28%,#f6efc4 62%,rgba(236,224,160,0));transform:rotate(-3deg);}
+#sectionHome .home-hero-banner .hhb-text{font-size:clamp(15px,2.2vh,18px);}
+#sectionHome .home-hero-banner .hhb-name{font-size:clamp(23px,3.4vh,29px);}
+
+/* ===== 탭 화면 꽉 채우기(하단 빈 공간 제거) ===== */
+#sectionCalendar.mobile-active,#sectionMatches.mobile-active,#sectionMap.mobile-active{display:flex;flex-direction:column;}
+#sectionCalendar.mobile-active > *,#sectionMatches.mobile-active > *,#sectionMap.mobile-active > *{flex-shrink:0;}
+#sectionCalendar .attend-pane.active[data-pane="vote"]{display:flex;flex-direction:column;flex:1 1 auto;min-height:0;}
+#sectionCalendar .cal-layout{flex:1 1 auto;min-height:0;}
+#sectionCalendar .cal-card{flex:1 1 auto;display:flex;flex-direction:column;}
+#sectionCalendar .cal-weeks{flex:1 1 auto;display:flex;flex-direction:column;}
+#sectionCalendar .cal-weeks .cal-wk{flex:1 1 0;min-height:40px;}
+#sectionCalendar .cal-weeks .cal-wk-head{flex:0 0 auto;min-height:0;}
+#sectionCalendar .cal-weeks.week-mode .cal-wk{flex:0 0 auto;}
+#sectionCalendar .cal-card:has(.week-mode){flex:0 0 auto;}
+#sectionMatches .mt-panel{flex:1 1 auto;}
+#sectionMap .map-card{flex:1 1 auto;display:flex;flex-direction:column;}
+#sectionMap #mapWrap{position:relative;flex:1 1 auto;min-height:260px;margin-top:12px;}
+#sectionMap #mapWrap #map{position:absolute;inset:0;height:auto;margin:0;}
+#sectionMap #mapWrap .map-empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:16px;}
+#sectionMap #mapWrap.map-fullscreen-mode{position:fixed;inset:0;margin-top:0;}
+#sectionMap #mapWrap.map-fullscreen-mode #map{position:relative;inset:auto;height:100%;width:100%;}
+/* 더보기: 한 화면에 들어가도록 행 높이 정리 / 날씨: 화면 채우기 */
+.more-list{gap:7px;}
+.more-row{padding:11px 16px;}
+.more-row .mr-tx small{margin-top:1px;}
+#sectionWeather.mobile-active{display:flex;flex-direction:column;}
+#sectionWeather.mobile-active > *{flex-shrink:0;}
+#sectionWeather.mobile-active > .weather-card{flex:1 1 auto;}
+#sectionMore.mobile-active{display:flex;flex-direction:column;}
+#sectionMore.mobile-active > *{flex-shrink:0;}
+#sectionMore.mobile-active > .more-list{flex:1 1 auto;justify-content:space-between;gap:7px;}
+#sectionMore .more-list .more-row{flex:1 1 auto;max-height:92px;}
