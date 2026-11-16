@@ -1281,3 +1281,59 @@ nav.mobile-tabbar button.active::before{content:"";position:absolute;top:-8px;le
 html,body{overflow-x:hidden;}
 #sectionCalendar .cal-nav .month{margin-left:0;min-width:130px;}
 #sectionCalendar .cal-nav{gap:8px;padding-right:0;justify-content:flex-start;padding-left:30px;}
+
+/* ===== 경기탭 시안 적용 ===== */
+#sectionMatches .page-banner{min-height:150px;padding:14px 18px 18px;}
+#sectionMatches .page-banner .pb-sub{font-style:italic;font-size:15px;}
+.mt-panel{background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.03));border:1px solid rgba(255,255,255,.14);border-radius:20px;padding:12px 12px 14px;}
+.mt-head{display:flex;align-items:center;gap:8px;margin-bottom:12px;}
+.mt-bar{width:4px;height:26px;border-radius:2px;background:var(--lime);box-shadow:0 0 10px rgba(182,242,58,.6);flex-shrink:0;}
+.mt-head b{font-size:19px;font-weight:800;color:#f0f6f2;white-space:nowrap;letter-spacing:-.02em;}
+.mt-head .mf-refresh-btn{margin-left:auto;display:flex;align-items:center;gap:6px;padding:9px 12px;font-size:12.5px;}
+.mt-head .mf-refresh-btn svg{flex-shrink:0;}
+#sectionMatches .match-date-scroll{margin-bottom:10px;padding-bottom:4px;}
+.mt-time{display:grid;grid-template-columns:repeat(5,auto);gap:6px;overflow-x:auto;margin-bottom:10px;}
+.mt-time .mf-chip{display:flex;align-items:center;justify-content:center;gap:5px;padding:9px 6px;font-size:13.5px;}
+.mt-time .mf-chip svg{flex-shrink:0;width:16px;height:16px;}
+.mt-format{display:grid;grid-template-columns:auto 1fr 1fr 1fr;gap:6px;margin-bottom:10px;align-items:center;}
+.mt-format-label{display:flex;align-items:center;gap:6px;font-size:13.5px;font-weight:700;color:#e8eef1;background:rgba(255,255,255,.05);border-radius:999px;padding:8px 12px;white-space:nowrap;}
+.mt-format-label svg{width:20px;height:20px;}
+.mt-format .mf-chip{text-align:center;padding:10px 6px;font-size:14px;}
+.mt-meta{margin:2px 2px 10px;}
+.mt-meta .mc-count-num{font-size:16px;}
+.mt-meta .mf-hide-full{padding:6px 12px;font-size:12px;}
+.mt-card{display:flex;align-items:stretch;justify-content:space-between;gap:8px;position:relative;overflow:hidden;padding:12px 12px 12px 14px;border-radius:16px;margin-bottom:9px;border:1px solid rgba(255,255,255,.16);
+  background:linear-gradient(90deg,#0c1319 0%,rgba(12,19,25,.92) 42%,rgba(12,19,25,.35) 100%),url("../assets/home-stadium.jpg") right center/cover no-repeat #0c1319;}
+.mt-card.is-full{opacity:.6;}
+.mt-info{display:flex;flex-direction:column;gap:5px;min-width:0;position:relative;z-index:1;}
+.mt-venue{display:flex;align-items:center;gap:8px;}
+.mt-venue b{font-size:19px;font-weight:800;color:#f0f6f2;letter-spacing:-.02em;line-height:1.2;}
+.mt-venue .mc-loc-btn{background:none;border:none;padding:0;color:var(--lime);display:flex;cursor:pointer;flex-shrink:0;}
+.mt-line{display:flex;align-items:center;gap:9px;font-size:15px;color:#e8eef1;font-weight:500;}
+.mt-line svg{color:#e8eef1;flex-shrink:0;}
+.mt-sub{font-size:12px;color:#9fb0b8;padding-left:2px;}
+.mt-sub.status-closing{color:var(--amber);} .mt-sub.status-full{color:#ff7a7a;}
+.mt-card .mc-adopt-btn{align-self:flex-start;margin-top:4px;font-size:12px;padding:5px 10px;border-radius:999px;border:1px solid rgba(255,176,32,.6);background:rgba(255,176,32,.12);color:var(--amber);cursor:pointer;}
+.mt-actions{display:flex;align-items:flex-end;gap:7px;position:relative;z-index:1;flex-shrink:0;}
+.mt-fmt{display:inline-flex;align-items:center;height:42px;padding:0 14px;border-radius:999px;border:1.5px solid #e6e043;color:#e6e043;font-size:19px;font-weight:800;background:rgba(10,17,24,.55);box-sizing:border-box;}
+.mt-actions .mt-fmt{height:40px;margin-right:2px;}
+.mt-icon-btn{width:44px;height:44px;border-radius:12px;background:rgba(14,22,28,.8);border:1px solid rgba(255,255,255,.22);color:#f0f6f2;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;}
+.mt-icon-btn.mt-fav.on{color:#ffd21f;}
+.mt-card .mc-apply-btn{width:44px;padding:0;font-size:0;}
+#sectionMatches .match-sync-note{display:flex;align-items:center;justify-content:center;gap:8px;color:#dfe7ea;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.14);border-radius:999px;font-size:13px;padding:11px 12px;margin:12px 0 0;}
+@media (max-width:380px){.mt-venue b{font-size:17px}.mt-fmt{padding:0 10px;font-size:16px}.mt-icon-btn,.mt-card .mc-apply-btn{width:40px;height:40px}}
+@media (min-width:769px){#sectionMatches{max-width:760px;margin:0 auto;}}
+
+.mt-format{background:none;border:none;padding:0;}
+.mt-time{grid-template-columns:auto auto auto auto 1fr;gap:5px;}
+.mt-time .mf-chip{padding:9px 9px;font-size:13px;gap:4px;}
+.mt-time .mf-chip svg{width:15px;height:15px;}
+.mt-sub{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
+.mt-info{flex:1;}
+.mt-venue b{overflow:hidden;text-overflow:ellipsis;}
+.mt-venue{justify-content:flex-start;}
+.mt-venue b{font-size:18px;}
+.mt-time{gap:4px;}
+.mt-time .mf-chip{padding:9px 7px;font-size:12.5px;}
+.mt-time .mf-chip svg{width:14px;height:14px;}
+.mt-time .mf-fav{white-space:nowrap;}
