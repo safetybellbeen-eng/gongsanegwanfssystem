@@ -1153,7 +1153,7 @@ async function renderMatchPanel(){
         <div class="vv-t"><b>날짜별 투표자</b><small>${s0.getMonth()+1}.${s0.getDate()} ~ ${s6.getMonth()+1}.${s6.getDate()}</small></div>
         <div class="vv-chips">${chips}</div>
         <div class="vv-det" id="vvDet"></div></div>`; })()}
-    ${isSelectedConfirmed ? `<div class="vp-card">${banner}${confirmedSummaryHtml}</div>` : ''}
+    ${(isSelectedConfirmed && !admin) ? `<div class="vp-card">${banner}${confirmedSummaryHtml}</div>` : ''}
   `;
 
   /* 관리자 전용: 이번 주 전체 날짜의 확정 상태를 한눈에 보고 여러 날짜를 확정/해제할 수 있는 보조 패널 (항상 표시) */
@@ -4455,7 +4455,7 @@ function renderWeekStatus(){
   const dayLetters = (n)=> (avail[n]||[]).map(d=>weekdayKR[parseYMD(d).getDay()]).join('');
   const col = (cls, title, arr, withDays)=>`
     <div class="ws-col ${cls}"><h4>${title} ${arr.length}</h4>
-      ${arr.length ? arr.map(n=>`<div class="ws-nm ${n===myName?'me':''}"><span>${escapeHtml(n)}</span>${withDays?`<small>${escapeHtml(dayLetters(n))}</small>`:''}</div>`).join('') : '<div class="ws-empty">없음</div>'}
+      ${arr.length ? arr.map(n=>`<div class="ws-nm ${n===myName?'me':''} ${isCurrentlyInjured(n)?'inj':''}"><span>${escapeHtml(n)}${isCurrentlyInjured(n)?' <em class="inj-tag" title="부상">🤕</em>':''}</span>${withDays?`<small>${escapeHtml(dayLetters(n))}</small>`:''}</div>`).join('') : '<div class="ws-empty">없음</div>'}
     </div>`;
   body.innerHTML = `
     <div class="ws-head"><div><b>${offset?'다음 주':'이번 주'} 투표 현황</b><small>${base.getMonth()+1}월 ${base.getDate()}일 ~ ${end.getMonth()+1}월 ${end.getDate()}일</small></div>
