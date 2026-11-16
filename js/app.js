@@ -3303,6 +3303,8 @@ function setActiveMobileSection(tabKey){
   const idMap = { home:'sectionHome', weather:'sectionWeather', calendar:'sectionCalendar', matches:'sectionMatches', map:'sectionMap', records:'sectionRecords', admin:'sectionAdmin', tactics:'sectionTactics', more:'sectionMore' };
   const sec = document.getElementById(idMap[tabKey] || '');
   if(sec) sec.classList.add('mobile-active');
+  // 상단 헤더(공생관 FS·알림·사용자 버튼)는 홈 화면에서만 보여줍니다.
+  document.body.classList.toggle('hide-header', tabKey!=='home');
   window.scrollTo({top:0, behavior:'instant'});
   if(tabKey==='home') tryRenderHomeTab();
   if(tabKey==='more') tryRenderMoreTab();
