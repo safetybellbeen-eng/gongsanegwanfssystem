@@ -1337,3 +1337,24 @@ html,body{overflow-x:hidden;}
 .mt-time .mf-chip{padding:9px 7px;font-size:12.5px;}
 .mt-time .mf-chip svg{width:14px;height:14px;}
 .mt-time .mf-fav{white-space:nowrap;}
+
+/* ===== 경기 카드 v3 (확정 시안) ===== */
+.mt-card{display:block;padding:10px 11px;margin-bottom:8px;border-radius:14px;}
+.mt-card .mt-venue{display:flex;align-items:center;gap:7px;min-width:0;}
+.mt-card .mt-venue b{font-size:15.5px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1;letter-spacing:-.02em;color:#f0f6f2;}
+.mt-card .mt-venue .mc-loc-btn{background:none;border:none;padding:0;color:var(--lime);display:flex;cursor:pointer;flex-shrink:0;}
+.mt-tag{flex-shrink:0;font-size:10.5px;font-weight:700;color:var(--lime);border:1px solid rgba(182,242,58,.5);border-radius:999px;padding:2px 7px;}
+.mt-row{display:flex;align-items:center;gap:10px;margin:6px 0 8px;font-size:12.5px;color:#e8eef1;flex-wrap:nowrap;}
+.mt-dt{display:flex;align-items:center;gap:5px;white-space:nowrap;}
+.mt-dt svg{flex-shrink:0;}
+.mt-row .mt-fmt{margin-left:auto;height:auto;border:1.5px solid #e6e043;color:#e6e043;border-radius:999px;font-weight:800;font-size:12.5px;padding:2px 9px;background:none;margin-right:0;}
+.mt-st{font-size:11px;color:#9fb0b8;white-space:nowrap;}
+.mt-st.status-closing{color:var(--amber);} .mt-st.status-full{color:#ff7a7a;}
+.mt-btns{display:flex;gap:6px;align-items:center;}
+.mt-ib{width:34px;height:32px;border-radius:9px;background:rgba(14,22,28,.85);border:1px solid rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center;color:#f0f6f2;cursor:pointer;padding:0;flex-shrink:0;}
+.mt-ib.mt-fav.on{color:#ffd21f;}
+.mt-card .mc-adopt-btn.mt-ib{margin:0;font-size:14px;border-color:rgba(255,176,32,.6);color:var(--amber);}
+.mt-kk{width:72px;height:32px;border-radius:9px;background:#FEE500;border:none;color:#191919;font-weight:700;font-size:12.5px;display:flex;align-items:center;justify-content:center;gap:5px;cursor:pointer;flex-shrink:0;font-family:inherit;}
+.mt-ap{flex:1;height:32px;border-radius:9px;border:none;background:linear-gradient(90deg,#9fe02e,var(--lime));color:var(--ink);font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;gap:5px;cursor:pointer;font-family:inherit;width:auto;padding:0;}
+.mt-card .mc-apply-btn.mt-ap{font-size:13px;width:auto;}
+.mt-sub,.mt-info,.mt-actions{display:none;}
