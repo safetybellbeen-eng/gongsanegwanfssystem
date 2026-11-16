@@ -2024,6 +2024,7 @@ function renderMatchStats(){
   renderNoticeCard();
   tryRenderHomeTab();
   checkMatchConfirmedNotification();
+  ensurePushSubscription();
   checkVoteDeadlineReminder();
   if(allVenuePinsPlaced) applyConfirmedVenueMarker();
   const el = $('#matchStatsCard');
@@ -2142,19 +2143,20 @@ function renderHeroMatch(){
   const svgI = (d)=>`<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
   const timeText = venue && venue.time ? ` ${escapeHtml(String(venue.time).slice(0,5))}` : '';
   el.innerHTML = `
-    <div class="hero-top"><span class="hero-label">다음 경기</span></div>
-    <div class="nm-body" id="nmBody">
-      <div class="nm-left">
-        <div class="nm-venue">${venue ? escapeHtml(venue.name) : '경기장 미등록'}</div>
-        <div class="nm-line">${svgI('<rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10h18M8 3v4M16 3v4"/>')}<span>${dObj.getMonth()+1}월 ${dObj.getDate()}일 (${weekdayKR[dObj.getDay()]})</span></div>
-        <div class="nm-line">${svgI('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>')}<span>${venue && venue.time ? escapeHtml(String(venue.time).slice(0,5)) : '시간 미정'}</span></div>
-        <div class="nm-actions">
-          ${venue && (venue.format==='5'||venue.format==='6') ? `<span class="nm-format">${venue.format} vs ${venue.format}</span>` : ''}
-          ${venue && venue.link ? `<button class="hero-link-btn" id="heroLinkBtn" data-link="${escapeHtml(venue.link)}">경기 링크 ›</button>` : ''}
+    <div class="nm-body nm-c nm-photo3" id="nmBody">
+      <div class="nm3-top">
+        <span class="nm3-chip">다음 경기${venue && (venue.format==='5'||venue.format==='6') ? ' · ' + venue.format + ':' + venue.format : ''}</span>
+        <span class="nm3-dd">${ddayLabel}</span>
+      </div>
+      <div class="nm3-main">
+        <div class="nm3-date">${dObj.getMonth()+1}월 ${dObj.getDate()}일<em>${weekdayKR[dObj.getDay()]}요일${venue && venue.time ? ' ' + escapeHtml(String(venue.time).slice(0,5)) : ''}</em></div>
+        <div class="nm3-venue">${svgI('<path d="M12 22s7.5-6.6 7.5-12.3A7.5 7.5 0 0 0 4.5 9.7C4.5 15.4 12 22 12 22z"/><circle cx="12" cy="9.8" r="2.6"/>')}<span>${venue ? escapeHtml(String(venue.name).replace(/^플랩\s*스타디움\s+/,'')) : '경기장 미등록'}</span></div>
+        <div class="nm3-act">
+          ${venue && venue.link ? `<button type="button" class="hero-link-btn" id="heroLinkBtn" data-link="${escapeHtml(venue.link)}">경기 링크 ›</button>` : ''}
+          <button type="button" class="hero-alert-btn" id="heroAlertBtn">${svgI('<path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>')}경기 알림</button>
+          ${venue ? `<button type="button" class="hero-share-btn" id="heroShareBtn" aria-label="공유" title="공유">${svgI('<circle cx="18" cy="5" r="2.6"/><circle cx="6" cy="12" r="2.6"/><circle cx="18" cy="19" r="2.6"/><path d="m8.3 10.8 7.4-4.300M8.3 13.200l7.400 4.300"/>')}</button>` : ''}
         </div>
       </div>
-      <span class="nm-chev">›</span>
-      <div class="nm-photo"></div>
     </div>
     ${admin ? `
     <details class="nm-admin">
@@ -2166,7 +2168,7 @@ function renderHeroMatch(){
   /* 카드를 누르면 그 경기가 속한 주의 출석 화면으로 이동합니다 */
   const nmBody = document.getElementById('nmBody');
   if(nmBody) nmBody.addEventListener('click', (e)=>{
-    if(e.target.closest('#heroLinkBtn')) return;
+    if(e.target.closest('#heroLinkBtn, #heroShareBtn, #heroAlertBtn')) return;
     setActiveMobileSection('calendar');
     if(typeof setAttendPane==='function') setAttendPane('vote');
     if(typeof setSelectedDate==='function') setSelectedDate(date);
@@ -2175,6 +2177,37 @@ function renderHeroMatch(){
   if(linkBtn){
     linkBtn.addEventListener('click', ()=>{
       window.open(linkBtn.dataset.link, '_blank', 'noopener');
+    });
+  }
+  const alertBtn = $('#heroAlertBtn');
+  if(alertBtn){
+    alertBtn.addEventListener('click', async (e)=>{
+      e.stopPropagation();
+      const vn = venue ? String(venue.name).replace(/^플랩\s*스타디움\s+/,'') : '';
+      const when = `${dObj.getMonth()+1}월 ${dObj.getDate()}일(${weekdayKR[dObj.getDay()]})${venue && venue.time ? ' ' + String(venue.time).slice(0,5) : ''}`;
+      if(!confirm(`전체 회원에게 경기 알림을 보낼까요?\n\n${when}\n${vn}`)) return;
+      alertBtn.disabled = true;
+      try{
+        const r = await sendMatchAlert('⚽ 공생관 경기 알림', `${when} · ${vn}${myName ? ' (' + myName + ')' : ''}`);
+        toast(r);
+      }finally{ alertBtn.disabled = false; }
+    });
+  }
+  const shareBtn = $('#heroShareBtn');
+  if(shareBtn){
+    shareBtn.addEventListener('click', async (e)=>{
+      e.stopPropagation();
+      const vn = venue ? String(venue.name) : '';
+      const text = `${vn}\n${dObj.getMonth()+1}월 ${dObj.getDate()}일 (${weekdayKR[dObj.getDay()]})${venue && venue.time ? ' ' + String(venue.time).slice(0,5) : ''}${venue && (venue.format==='5'||venue.format==='6') ? ' · ' + venue.format + ':' + venue.format : ''}`;
+      const url = venue && venue.link ? venue.link : '';
+      if(navigator.share){
+        try{ await navigator.share(url ? { title:'풋살 경기 공유', text, url } : { title:'풋살 경기 공유', text }); }
+        catch(err){ if(err && err.name !== 'AbortError') toast('공유하지 못했습니다.'); }
+        return;
+      }
+      const full = url ? text + '\n' + url : text;
+      try{ await navigator.clipboard.writeText(full); toast('경기 정보를 복사했습니다. 카카오톡에 붙여넣어 보내세요.'); }
+      catch(_){ window.prompt('아래 내용을 복사해 카카오톡에 붙여넣어 보내세요.', full); }
     });
   }
   if(admin){
@@ -3402,6 +3435,46 @@ const NOTIFY_LAST_VOTE_REMINDER_KEY = 'futsal-notify-last-vote-reminder-date';
 
 function isNotificationSupported(){ return typeof Notification !== 'undefined'; }
 
+/* ---------- 서버 푸시 (회원 전체 알림) ---------- */
+const VAPID_PUBLIC_KEY = 'BNNxPH9FVDIBrLaOF4fp-EPbe3QHh-Lx4i595rz-iea-usvf2C1gH8Ty4s3x8vV66e_bH36M3UfUWzn_In7Yq6A';
+function urlB64ToUint8Array(b64){
+  const pad = '='.repeat((4 - b64.length % 4) % 4);
+  const raw = atob((b64 + pad).replace(/-/g,'+').replace(/_/g,'/'));
+  return Uint8Array.from([...raw].map(c=>c.charCodeAt(0)));
+}
+let pushEnsuredFor = '';
+async function ensurePushSubscription(){
+  try{
+    if(!supabaseClient || !('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    if(!isNotificationSupported() || Notification.permission !== 'granted') return;
+    const key = myName || '-';
+    if(pushEnsuredFor === key) return;
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if(!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly:true, applicationServerKey: urlB64ToUint8Array(VAPID_PUBLIC_KEY) });
+    // 이미 등록된 기기는 중복 오류(23505)가 나므로 정상으로 처리합니다.
+    const { error } = await supabaseClient.from('push_subscriptions').insert(
+      { endpoint: sub.endpoint, subscription: sub.toJSON(), member_name: myName || null }
+    );
+    if(error && error.code !== '23505') throw error;
+    pushEnsuredFor = key;
+  }catch(e){ console.error('push subscribe', e); }
+}
+async function sendMatchAlert(title, body){
+  try{
+    const res = await fetch(SUPABASE_URL + '/functions/v1/send-match-alert', {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json', 'apikey': SUPABASE_KEY },
+      body: JSON.stringify({ title, body, sender: myName || '' })
+    });
+    const j = await res.json().catch(()=>({}));
+    if(res.status === 429) return `방금 알림을 보냈습니다. ${Math.ceil((j.retryAfterSec||300)/60)}분 뒤에 다시 보낼 수 있어요.`;
+    if(!res.ok) return '알림을 보내지 못했습니다. 잠시 후 다시 시도해 주세요.';
+    if(!j.total) return '아직 알림을 켠 회원이 없습니다. (더보기 > 알림 설정에서 켜야 받을 수 있어요)';
+    return `알림을 보냈습니다. (${j.sent}/${j.total}명)`;
+  }catch(e){ console.error(e); return '네트워크 오류로 알림을 보내지 못했습니다.'; }
+}
+
 async function sendLocalNotification(title, options){
   if(!isNotificationSupported() || Notification.permission !== 'granted') return;
   try{
@@ -3430,6 +3503,7 @@ if(notifyEnableBtn) notifyEnableBtn.addEventListener('click', async ()=>{
   const perm = await Notification.requestPermission();
   if(perm === 'granted'){
     toast('알림이 켜졌습니다.');
+    ensurePushSubscription();
     sendLocalNotification('공생관 알림이 켜졌습니다', { body:'경기 확정, 투표 마감 소식을 알려드리겠습니다.', icon:'./assets/icon-192.png' });
   } else {
     toast('알림이 차단되었습니다. 브라우저 설정에서 변경할 수 있습니다.');
