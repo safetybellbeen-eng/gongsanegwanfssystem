@@ -16,6 +16,15 @@ const toastEl = $('#toast');
 /* 구단 엠블럼: 로그인 화면 및 헤더 브랜드 마크에서 공통으로 사용 (assets/club-emblem.png 파일 참조) */
 const CLUB_EMBLEM = './assets/club-emblem.png';
 document.querySelectorAll('.club-emblem-img').forEach(img=>{ img.src = CLUB_EMBLEM; });
+
+/* 로그인 화면: '입력 안내' 버튼으로 안내 문구 열기/닫기 */
+(function(){
+  const b = document.getElementById('loginHelpBtn'), n = document.getElementById('loginNote');
+  if(!b || !n) return;
+  const toggle = ()=>{ n.hidden = !n.hidden; };
+  b.addEventListener('click', toggle);
+  b.addEventListener('keydown', e=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); toggle(); } });
+})();
 function toast(msg){ toastEl.textContent = msg; toastEl.classList.add('show'); setTimeout(()=>toastEl.classList.remove('show'), 2200); }
 function fmtDate(d){ const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), day=String(d.getDate()).padStart(2,'0'); return `${y}-${m}-${day}`; }
 function pad(n){ return String(n).padStart(2,'0'); }
