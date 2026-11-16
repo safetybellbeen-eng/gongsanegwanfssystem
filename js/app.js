@@ -903,7 +903,7 @@ function renderCalendar(){
       el.innerHTML = `
         <div class="d">${day}</div>
         ${bdayNames.length?`<div class="bday-badge" title="${escapeHtml(bdayNames.join(', '))} 생일">🎂</div>`:''}
-        <div class="dots" title="${count}명 가능">${'<i></i>'.repeat(dots)}</div>
+        ${isWinner ? '<div class="cf-tag">확정</div>' : `<div class="dots" title="${count}명 가능">${'<i></i>'.repeat(dots)}</div>`}
         ${(myPick || (myVoteForDay && myVoteForDay.choice==='yes')) ? '<span class="my-mark" title="내가 선택한 날짜"></span>' : ''}
       `;
       el.addEventListener('click', ()=>{ setSelectedDate(dateStr); openVoteSheet(); });
@@ -913,6 +913,33 @@ function renderCalendar(){
     row.addEventListener('click', (e)=>{ if(e.target.closest('.cal-cell')) return; setSelectedDate(weekStartStr); openVoteSheet(); });
     grid.appendChild(row);
   }
+  renderGamedayBanner();
+}
+
+/* 달력 아래 '경기일 확정' 배너: 오늘 이후 가장 가까운 확정 경기일(이번 주·다음 주 기준)을 보여줍니다. */
+function renderGamedayBanner(){
+  const box = document.getElementById('gamedayBanner');
+  if(!box) return;
+  const todayS = todayStr();
+  const w0 = getWeekStart(todayS);
+  const w1o = parseYMD(w0); w1o.setDate(w1o.getDate()+7);
+  let found = null;
+  for(const wk of [w0, fmtDate(w1o)]){
+    const info = getWeekInfo(wk);
+    const upcoming = (info.confirmedDates||[]).filter(d=>d>=todayS).sort();
+    if(upcoming.length){ found = { wk, info, date: upcoming[0] }; break; }
+  }
+  if(!found){ box.hidden = true; box.innerHTML = ''; return; }
+  const co = parseYMD(found.date);
+  const cnt = found.info.counts[found.date] || 0;
+  const viaVotes = autoWinnerDate(found.info) === found.date;
+  box.hidden = false;
+  box.innerHTML = `
+    <div class="gameday-card">
+      <div class="gd-label"><span class="gd-trophy">🏆</span>${escapeHtml(getWeekLabel(found.wk))} 경기일</div>
+      <div class="gd-main"><b>${co.getMonth()+1}월 ${co.getDate()}일 (${weekdayKR[co.getDay()]}) <em>확정!</em></b>
+      <small>${viaVotes ? `가장 많은 ${cnt}명이 선택한 날짜로 경기를 진행합니다.` : '관리자가 지정한 경기일입니다.'}</small></div>
+    </div>`;
 }
 
 /* 참석(초록)/불참(빨강)/미투표(회색) 3색 원형 그래프. 미투표가 0명이면 자연스럽게 2색 그래프와 동일합니다. */
@@ -1098,32 +1125,25 @@ async function renderMatchPanel(){
   const absRowHtml = `<div class="vr vr-abs ${draft.abs?'pick':''} ${iAmInjured?'disabled':''}" id="vrAbs" role="button" tabindex="0"><span class="vr-d vr-abs-t">${weekLabel} 불참 <small>(전체)</small></span><span class="vr-k">${draft.abs?CK:''}</span></div>`;
   const respondedN = availableNames.length + absentNames.length;
   const pct = approvedNames.length ? Math.round(respondedN/approvedNames.length*100) : 0;
-  let gameDayHtml = '';
-  if(confirmedDates.length){
-    const cd = [...confirmedDates].sort()[0];
-    const co = parseYMD(cd);
-    const viaVotes = autoWinnerDate(info) === cd;
-    gameDayHtml = `
-      <div class="gameday-card">
-        <div class="gd-label"><span class="gd-trophy">🏆</span>${escapeHtml(weekLabel)} 경기일</div>
-        <div class="gd-main"><b>${co.getMonth()+1}월 ${co.getDate()}일 (${weekdayKR[co.getDay()]}) <em>확정!</em></b>
-        <small>${viaVotes ? `가장 많은 ${counts[cd]}명이 선택한 날짜로 경기를 진행합니다.` : '관리자가 지정한 경기일입니다.'}</small></div>
-      </div>`;
-  }
   const mainHtml = `
     <div class="sh-head">
       <div><b>${escapeHtml(weekLabel)} 투표</b><small>${dm(s0)} ~ ${dm(s6)}</small></div>
       <div class="sh-nav"><button type="button" id="vpPrevWeek" aria-label="이전 주">‹</button><button type="button" id="vpNextWeek" aria-label="다음 주">›</button><button type="button" id="vpClose" aria-label="닫기">✕</button></div>
     </div>
-    ${gameDayHtml}
     ${iAmInjured ? `<div class="confirm-banner" style="background:rgba(255,93,93,0.1);border-color:rgba(255,93,93,0.4);color:var(--danger);white-space:normal;">🤕 부상 중에는 투표할 수 없습니다. (복귀 예정일: ${escapeHtml(appData.members[myName].injuryEnd)})</div>` : ''}
     ${isTie && !isSelectedConfirmed ? banner : ''}
     <div class="sh-stat"><b>참여 현황</b><span class="bar"><i style="width:${pct}%"></i></span><span class="n">${respondedN} / ${approvedNames.length}명</span></div>
     <div class="vr-list ${draft.abs?'abs-on':''}" id="vrList">${rowsHtml}${absRowHtml}</div>
     <button type="button" class="vp-submit" id="vpSubmit"></button>
-    <details class="da-detail"><summary>날짜별 투표자 보기</summary>
-      ${dates.map((d,i)=>{ const o=parseYMD(d); const nm=Object.keys(avail).filter(n=>(avail[n]||[]).includes(d)); return `<div class="dd-row"><span class="dd-d">${o.getMonth()+1}.${o.getDate()}(${weekdayKR[i]}) · ${counts[d]}명</span><div class="dd-n">${nm.length? nm.map(n=>`<span class="nv-chip ${n===myName?'me':''}">${escapeHtml(n)}</span>`).join('') : '<span class="nv-empty">없음</span>'}</div></div>`; }).join('')}
-    </details>
+    ${(()=>{
+      const selD = (max>0 && topDates.length) ? topDates[0] : (dates.includes(selectedDate)?selectedDate:dates[0]);
+      const chips = dates.map((d,i)=>{ const o=parseYMD(d); const c=counts[d]||0;
+        return `<button type="button" class="vc ${c===0?'zero':''} ${(max>0&&c===max)?'hot':''} ${d===selD?'sel':''}" data-vd="${d}"><b>${weekdayKR[i]}</b><span>${o.getDate()}</span><em>${c}</em></button>`; }).join('');
+      const names = {}; dates.forEach(d=>{ names[d]=Object.keys(avail).filter(n=>(avail[n]||[]).includes(d)); });
+      return `<div class="vv" id="voterView" data-names='${escapeHtml(JSON.stringify(names))}' data-me="${escapeHtml(myName||'')}">
+        <div class="vv-t"><b>날짜별 투표자</b><small>${s0.getMonth()+1}.${s0.getDate()} ~ ${s6.getMonth()+1}.${s6.getDate()}</small></div>
+        <div class="vv-chips">${chips}</div>
+        <div class="vv-det" id="vvDet"></div></div>`; })()}
     ${isSelectedConfirmed ? `<div class="vp-card">${banner}${confirmedSummaryHtml}</div>` : ''}
   `;
 
@@ -1190,6 +1210,23 @@ async function renderMatchPanel(){
 
   panel.innerHTML = mainHtml + (adminHtml ? `<details class="da-detail" ${adminAttendanceEditDate?'open':''}><summary>관리자: 확정·실제 참석 관리</summary>${adminHtml}</details>` : '');
   try{ renderWeekStatus(); }catch(e){ console.error('[투표현황]', e); }
+
+  /* 날짜별 투표자: 요일 칩을 누르면 해당 날짜 명단만 아래에 표시 */
+  const vv = panel.querySelector('#voterView');
+  if(vv){
+    let vvNames = {};
+    try{ vvNames = JSON.parse(vv.dataset.names || '{}'); }catch(e){}
+    const vvMe = vv.dataset.me;
+    const showVoters = (d)=>{
+      vv.querySelectorAll('.vc').forEach(b=>b.classList.toggle('sel', b.dataset.vd===d));
+      const o = parseYMD(d); const list = vvNames[d] || [];
+      const det = vv.querySelector('#vvDet');
+      det.innerHTML = `<h4>${o.getMonth()+1}.${o.getDate()} (${weekdayKR[o.getDay()]})<i>${list.length}명 참여</i></h4>` +
+        (list.length ? `<div class="nm">${list.map(n=>`<u class="${n===vvMe?'':'o'}">${escapeHtml(n)}</u>`).join('')}</div>` : '<div class="vv-none">아직 투표한 사람이 없습니다</div>');
+    };
+    vv.querySelectorAll('.vc').forEach(b=>b.addEventListener('click', ()=>showVoters(b.dataset.vd)));
+    const init = vv.querySelector('.vc.sel'); if(init) showVoters(init.dataset.vd);
+  }
 
   const submitBtn = panel.querySelector('#vpSubmit');
   const vrList = panel.querySelector('#vrList');
