@@ -3793,18 +3793,18 @@ function renderMatchList(){
     const subLine = [r.level, r.gender].filter(Boolean).map(String).join(' · ');
     const shareIc = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="2.6"/><circle cx="6" cy="12" r="2.6"/><circle cx="18" cy="19" r="2.6"/><path d="m8.3 10.8 7.4-4.300M8.3 13.200l7.400 4.300"/></svg>';
     return `
-      <div class="mr ${status==='full'?'is-full':''}" data-rid="${escapeHtml(String(r.id))}">
-        <div class="mr-main" role="button" tabindex="0">
-          <div class="mr-t">${escapeHtml(timeStr)}</div>
-          <div class="mr-v"><b title="${escapeHtml(rawName)}">${escapeHtml(shortName)}</b>${subLine?`<small>${escapeHtml(subLine)}</small>`:''}</div>
-          <div class="mr-r">${fmtBadge ? `<span class="mt-fmt">${escapeHtml(fmtBadge)}</span>` : ''}${statusText ? `<span class="mt-st ${label.cls}">${escapeHtml(statusText)}</span>` : ''}</div>
+      <div class="mx ${status==='full'?'is-full':''}" data-rid="${escapeHtml(String(r.id))}">
+        <div class="mx-main" role="button" tabindex="0">
+          <div class="mx-t">${escapeHtml(timeStr)}</div>
+          <div class="mx-v"><b title="${escapeHtml(rawName)}">${escapeHtml(shortName)}</b>${subLine?`<small>${escapeHtml(subLine)}</small>`:''}</div>
+          <div class="mx-r">${fmtBadge ? `<span class="mt-fmt">${escapeHtml(fmtBadge)}</span>` : ''}${statusText ? `<span class="mt-st ${label.cls}">${escapeHtml(statusText)}</span>` : ''}</div>
         </div>
-        <div class="mr-act">
-          ${r.stadium_name ? `<button type="button" class="mr-ic mc-loc-btn" data-venue="${escapeHtml(r.stadium_name)}" title="지도에서 위치 보기">${pinSm}</button>` : ''}
-          ${adminNow ? `<button type="button" class="mr-ic mt-fav ${isFav?'on':''}" data-venue="${escapeHtml(r.stadium_name||'')}" title="${isFav?'즐겨찾기 해제':'즐겨찾기'}">${starSm}</button>` : ''}
-          <button type="button" class="mr-ic mc-share-btn" data-share-text="${escapeHtml(shareText)}" data-url="${escapeHtml(r.match_url||'')}" title="공유">${shareIc}</button>
-          <button type="button" class="mr-go mc-apply-btn" data-url="${escapeHtml(r.match_url||'')}" title="플랩풋볼 신청 페이지 열기">신청하기 ${arrowSvg}</button>
-          ${adoptBtnHtml ? adoptBtnHtml.replace('class="mc-adopt-btn"','class="mc-adopt-btn mr-ic"').replace('🏆 확정 등록','🏆') : ''}
+        <div class="mx-act">
+          ${r.stadium_name ? `<button type="button" class="mx-ic mc-loc-btn" data-venue="${escapeHtml(r.stadium_name)}" title="지도에서 위치 보기">${pinSm}</button>` : ''}
+          ${adminNow ? `<button type="button" class="mx-ic mt-fav ${isFav?'on':''}" data-venue="${escapeHtml(r.stadium_name||'')}" title="${isFav?'즐겨찾기 해제':'즐겨찾기'}">${starSm}</button>` : ''}
+          <button type="button" class="mx-ic mc-share-btn" data-share-text="${escapeHtml(shareText)}" data-url="${escapeHtml(r.match_url||'')}" title="공유">${shareIc}</button>
+          <button type="button" class="mx-go mc-apply-btn" data-url="${escapeHtml(r.match_url||'')}" title="플랩풋볼 신청 페이지 열기">신청하기 ${arrowSvg}</button>
+          ${adoptBtnHtml ? adoptBtnHtml.replace('class="mc-adopt-btn"','class="mc-adopt-btn mx-ic"').replace('🏆 확정 등록','🏆') : ''}
         </div>
       </div>
     `;
@@ -3815,10 +3815,10 @@ function renderMatchList(){
     : '';
 
   listEl.innerHTML = cardsHtml + moreHtml;
-  listEl.querySelectorAll('.mr-main').forEach(m=>{
+  listEl.querySelectorAll('.mx-main').forEach(m=>{
     const toggle = ()=>{
       const row = m.parentElement, was = row.classList.contains('open');
-      listEl.querySelectorAll('.mr.open').forEach(x=>x.classList.remove('open'));
+      listEl.querySelectorAll('.mx.open').forEach(x=>x.classList.remove('open'));
       if(!was) row.classList.add('open');
     };
     m.addEventListener('click', toggle);
@@ -4424,14 +4424,23 @@ async function renderTacticsMiniForDate(dateStr, containerEl){
 
 /* ---------- 홈: 한 화면에 맞추기 (스크롤 없이) ---------- */
 function fitHomeToScreen(){
-  const sec = document.getElementById('sectionHome');
-  if(!sec || !sec.classList.contains('mobile-active')) return;
-  sec.style.height = '';
-  const tab = document.querySelector('nav.mobile-tabbar');
+  /* 모든 탭이 하단 탭바 바로 위까지 화면을 꽉 채우도록 현재 탭의 높이를 맞춥니다.
+     - 홈: 한 화면에 딱 맞게(넘치지 않게) 높이 고정
+     - 그 외: 최소 높이만 지정(내용이 더 길면 스크롤) */
+  const sec = document.querySelector('.app-section.mobile-active');
+  document.querySelectorAll('.app-section').forEach(x=>{ if(x!==sec){ x.style.height=''; x.style.minHeight=''; } });
+  if(!sec) return;
+  const isHome = sec.id === 'sectionHome';
+  const wrap = document.querySelector('.wrap');
+  const padB = wrap ? parseFloat(getComputedStyle(wrap).paddingBottom) || 96 : 96;
+  const prevH = sec.style.height, prevMin = sec.style.minHeight;
+  sec.style.height = ''; sec.style.minHeight = '';
   const top = sec.getBoundingClientRect().top + window.scrollY;
-  const tabH = tab ? tab.offsetHeight + 12 : 80;
-  const h = Math.max(320, window.innerHeight - top - tabH);
-  sec.style.height = h + 'px';
+  const h = Math.max(320, Math.floor(window.innerHeight - top - padB));
+  if(isHome) sec.style.height = h + 'px'; else sec.style.minHeight = h + 'px';
+  if((isHome ? sec.style.height : sec.style.minHeight) !== (isHome ? prevH : prevMin) && sec.id === 'sectionMap'){
+    try{ if(map) map.relayout(); }catch(e){}
+  }
 }
 window.addEventListener('resize', fitHomeToScreen);
 window.addEventListener('orientationchange', ()=>setTimeout(fitHomeToScreen,200));
