@@ -1358,3 +1358,7 @@ html,body{overflow-x:hidden;}
 .mt-ap{flex:1;height:32px;border-radius:9px;border:none;background:linear-gradient(90deg,#9fe02e,var(--lime));color:var(--ink);font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;gap:5px;cursor:pointer;font-family:inherit;width:auto;padding:0;}
 .mt-card .mc-apply-btn.mt-ap{font-size:13px;width:auto;}
 .mt-sub,.mt-info,.mt-actions{display:none;}
+
+/* 홈 이외의 탭에서는 최상단 헤더(로고·알림·사용자 버튼)를 숨깁니다 */
+body.hide-header > header,body.hide-header header:first-of-type{display:none;}
+body.hide-header .app-section.mobile-active{padding-top:calc(env(safe-area-inset-top) + 10px);}
