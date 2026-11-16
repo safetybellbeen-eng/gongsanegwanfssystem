@@ -3493,25 +3493,25 @@ async function ensurePushSubscription(){
     const reg = await navigator.serviceWorker.ready;
     let sub = await reg.pushManager.getSubscription();
     if(!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly:true, applicationServerKey: urlB64ToUint8Array(VAPID_PUBLIC_KEY) });
-    // 이미 등록된 기기는 중복 오류(23505)가 나므로 정상으로 처리합니다.
-    const { error } = await supabaseClient.from('push_subscriptions').insert(
-      { endpoint: sub.endpoint, subscription: sub.toJSON(), member_name: myName || null }
-    );
-    if(error && error.code !== '23505') throw error;
+    const { error } = await supabaseClient.rpc('register_push', {
+      p_endpoint: sub.endpoint, p_subscription: sub.toJSON(), p_member_name: myName || null
+    });
+    if(error) throw error;
     pushEnsuredFor = key;
   }catch(e){ console.error('push subscribe', e); }
 }
-async function sendMatchAlert(title, body){
+async function sendMatchAlert(title, body, opts){
+  opts = opts || {};
   try{
     const res = await fetch(SUPABASE_URL + '/functions/v1/send-match-alert', {
       method:'POST',
       headers:{ 'Content-Type':'application/json', 'apikey': SUPABASE_KEY },
-      body: JSON.stringify({ title, body, sender: myName || '' })
+      body: JSON.stringify({ title, body, sender: myName || '', kind: opts.kind || 'match', targets: opts.targets })
     });
     const j = await res.json().catch(()=>({}));
     if(res.status === 429) return `방금 알림을 보냈습니다. ${Math.ceil((j.retryAfterSec||300)/60)}분 뒤에 다시 보낼 수 있어요.`;
     if(!res.ok) return '알림을 보내지 못했습니다. 잠시 후 다시 시도해 주세요.';
-    if(!j.total) return '아직 알림을 켠 회원이 없습니다. (더보기 > 알림 설정에서 켜야 받을 수 있어요)';
+    if(!j.total) return opts.targets ? '미투표 회원 중 알림을 켠 사람이 없습니다. (더보기 > 알림 설정에서 켜야 받을 수 있어요)' : '아직 알림을 켠 회원이 없습니다. (더보기 > 알림 설정에서 켜야 받을 수 있어요)';
     return `알림을 보냈습니다. (${j.sent}/${j.total}명)`;
   }catch(e){ console.error(e); return '네트워크 오류로 알림을 보내지 못했습니다.'; }
 }
@@ -4590,9 +4590,47 @@ document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closeVoteSheet(
     if(!body) return;
     body.hidden = !body.hidden;
     tg.classList.toggle('open', !body.hidden);
-    const t = tg.querySelector('span'); if(t) t.textContent = body.hidden ? '투표 현황 보기' : '투표 현황 닫기';
+    const t = tg.querySelector('span'); if(t) t.textContent = body.hidden ? '투표 현황' : '투표 현황 닫기';
     if(!body.hidden) renderWeekStatus();
   });
+})();
+
+/* ---------- 투표 알림: 이번 주(현황에서 선택한 주) 미투표 회원에게만 푸시 ---------- */
+function getWsWeekInfo(){
+  const offset = window.__wsWeek === 1 ? 1 : 0;
+  const base = parseYMD(getWeekStart(todayStr()));
+  base.setDate(base.getDate() + offset*7);
+  const end = new Date(base); end.setDate(end.getDate()+6);
+  return { key: fmtDate(base), start: base, end };
+}
+function getUnvotedNames(){
+  if(!appData) return [];
+  const { key } = getWsWeekInfo();
+  const avail = (appData.weekAvailability && appData.weekAvailability[key]) || {};
+  const absence = (appData.weekAbsence && appData.weekAbsence[key]) || {};
+  return getApprovedNonAdminNames().filter(n=> !(absence[n] || (avail[n]||[]).length));
+}
+function updateVoteAlertBtn(){
+  const cnt = document.getElementById('voteAlertCnt');
+  if(!cnt) return;
+  cnt.textContent = '미투표 ' + getUnvotedNames().length + '명';
+}
+(function(){
+  const btn = document.getElementById('voteAlertBtn');
+  if(!btn) return;
+  btn.addEventListener('click', async ()=>{
+    const names = getUnvotedNames();
+    if(!names.length){ toast('이번 주는 모든 회원이 투표했습니다.'); return; }
+    const w = getWsWeekInfo();
+    const label = `${w.start.getMonth()+1}/${w.start.getDate()}~${w.end.getMonth()+1}/${w.end.getDate()}`;
+    if(!confirm(`아직 투표하지 않은 ${names.length}명에게 투표 알림을 보낼까요?\n\n대상 주간: ${label}\n${names.join(', ')}`)) return;
+    btn.disabled = true;
+    try{
+      toast(await sendMatchAlert('🗳️ 공생관 투표 알림', `${label} 경기 투표를 아직 안 하셨어요. 지금 참석 투표해 주세요!`, { kind:'vote', targets: names }));
+    }finally{ btn.disabled = false; }
+  });
+  setInterval(updateVoteAlertBtn, 1500);
+  setTimeout(updateVoteAlertBtn, 600);
 })();
 
 /* 이번 주(또는 다음 주)의 참여·불참·미투표 명단을 세 칸으로 보여줍니다. 버튼을 눌러 펼친 경우에만 그립니다. */
