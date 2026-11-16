@@ -1710,3 +1710,25 @@ body.sheet-open{overflow:hidden;}
 .nav-app b{font-size:16px;}.nav-app small{font-size:12px;color:#9fb0b8;}
 .nav-app i{font-style:normal;color:#9fb0b8;font-size:20px;}
 .ms-cancel{width:100%;height:46px;border-radius:16px;border:0;background:#26323a;color:#e8eef1;font-weight:800;font-size:15px;font-family:inherit;margin-top:4px;cursor:pointer;}
+
+/* ===== 공통 상단 배너 (B안: 모든 탭 동일 · 높이 84px) ===== */
+#sectionCalendar .page-banner.pb-slim,#sectionMatches .page-banner.pb-slim,#sectionMap .page-banner.pb-slim,
+#sectionMore .page-banner.pb-slim,#sectionWeather .page-banner.pb-slim,#sectionTactics .page-banner.pb-slim,
+#sectionRecords .page-banner.pb-slim,#sectionAdmin .page-banner.pb-slim{
+  min-height:84px;height:84px;padding:11px 16px;margin:4px -14px 10px;box-sizing:border-box;}
+.pb-slim::after{display:none;}
+.pb-slim .pb-title{gap:9px;}
+.pb-slim .pb-title h2{font-size:24px;}
+.pb-slim .pb-title h2 small{font-size:13px;}
+.pb-slim .pb-sub{margin:5px 0 0;font-size:12px;font-style:normal;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+#sectionMatches .page-banner.pb-slim .pb-sub{font-size:12px;font-style:normal;}
+.pb-back{position:absolute;right:12px;top:12px;z-index:3;height:28px;border-radius:14px;background:rgba(14,22,27,.88);
+  border:1px solid #3a4852;color:#fff;font-size:12px;font-weight:700;padding:0 11px;cursor:pointer;}
+.pb-back:hover{border-color:var(--lime);color:var(--lime);}
+@media (min-width:769px){.pb-back{display:none !important;}}
+/* 배너가 제목을 대신하므로 중복되는 소제목 숨김 */
+#sectionTactics > .eyebrow,#sectionAdmin > #adminSectionEyebrow{display:none !important;}
+#sectionWeather > .eyebrow > .num,#sectionWeather > .eyebrow > h2{display:none;}
+#sectionRecords > .eyebrow:first-of-type > .num{display:none;}
+#sectionCalendar .pb-slim .pb-title h2{font-size:24px;}
+#sectionCalendar .pb-slim .pb-sub{margin:5px 0 0;font-size:12px;}
