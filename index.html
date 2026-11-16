@@ -6,7 +6,7 @@
 <title>공차는인생 공생관 — 팀 대시보드</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="./css/style.css?v=11">
+<link rel="stylesheet" href="./css/style.css?v=12">
 
 <!-- PWA: 홈 화면 추가(설치) 및 아이콘 -->
 <link rel="manifest" href="./manifest.json">
@@ -165,7 +165,7 @@ html.show-splash #splashScreen{display:block}
     <div class="hhb-text">함께 뛰고,<br>함께 성장하는<span class="hhb-name">공생관 FS</span><i class="hhb-line"></i></div>
   </div>
   <div class="home-quick mobile-only-block" id="homeQuick">
-    <button type="button" class="home-quick-btn primary" data-go="matches"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10h18M8 3v4M16 3v4"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 17.5h.01M12 17.5h.01"/></svg><span>경기 일정</span></button>
+    <button type="button" class="home-quick-btn primary" data-go="weather"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.500" cy="9" r="3.200"/><path d="M8.500 3v1.200M2.800 9H4M4.500 5l.9.9M12.500 5l-.9.9"/><path d="M8 19.500h9.500a3.500 3.500 0 0 0 .4-6.980A5 5 0 0 0 8.300 12.300 3.600 3.600 0 0 0 8 19.500z"/></svg><span>날씨</span></button>
     <button type="button" class="home-quick-btn" data-go="vote"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><circle cx="17" cy="9" r="2.5"/><path d="M16.5 14.6c2.8-.2 4.9 1.6 4.9 4.4"/></svg><span>참석 투표</span></button>
     <button type="button" class="home-quick-btn" data-go="tactics"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M12 5v14"/><circle cx="12" cy="12" r="2.6"/><path d="M3 9.5h2.8v5H3M21 9.5h-2.8v5H21"/></svg><span>전술/포메이션</span></button>
     <button type="button" class="home-quick-btn" data-go="records"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20V12M12 20V5M19 20v-9"/><path d="M3 20h18"/></svg><span>팀 기록</span></button>
@@ -545,7 +545,7 @@ html.show-splash #splashScreen{display:block}
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
-<script src="./js/app.js?v=11" defer></script>
+<script src="./js/app.js?v=12" defer></script>
 <div class="vote-sheet" id="voteSheet" hidden>
   <div class="vote-sheet-dim" id="voteSheetDim"></div>
   <div class="vote-sheet-panel" role="dialog" aria-modal="true" aria-label="출석 투표">
