@@ -1732,3 +1732,13 @@ body.sheet-open{overflow:hidden;}
 #sectionRecords > .eyebrow:first-of-type > .num{display:none;}
 #sectionCalendar .pb-slim .pb-title h2{font-size:24px;}
 #sectionCalendar .pb-slim .pb-sub{margin:5px 0 0;font-size:12px;}
+
+/* ===== 폰: 앱 셸 (하단 탭바가 모든 탭에서 화면 맨 아래에 고정되도록) ===== */
+@media (max-width:768px){
+  html,body{position:fixed;top:0;left:0;right:0;bottom:0;width:100%;height:100%;overflow:hidden;margin:0;}
+  body{display:flex;flex-direction:column;}
+  .wrap{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain;}
+  body.hide-header .wrap{padding-top:0;}
+  nav.mobile-tabbar{position:fixed;left:0;right:0;bottom:0;}
+}
+@media (max-width:768px){ .wrap{min-width:0;width:100%;max-width:100%;box-sizing:border-box;} }
