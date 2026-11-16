@@ -1647,3 +1647,66 @@ body.sheet-open{overflow:hidden;}
 .ws-alert{flex:1;min-width:0;height:46px;border-radius:14px;border:0;background:#b6f23a;color:#0b1218;font-weight:900;font-size:14.5px;display:flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap;cursor:pointer;font-family:inherit;}
 .ws-alert em{font-style:normal;font-size:11px;background:#0b1218;color:#b6f23a;border-radius:99px;padding:2px 7px;font-weight:800;}
 .ws-alert:disabled{opacity:.55;}
+
+/* ===== 지도 탭 최종 (전체화면 버튼 · 구장 카드 · 길안내 · 즐겨찾는 경기장 목록) ===== */
+#sectionMap .map-card{padding:8px;border-radius:20px;}
+#sectionMap #mapWrap{margin-top:0;border-radius:16px;overflow:hidden;border:1px solid rgba(255,255,255,.12);min-height:300px;}
+#sectionMap .venue-address-row{display:none !important;}
+#sectionMap .mapctl,#sectionMap .mapzoom button{width:40px;height:40px;border-radius:50%;background:rgba(20,29,35,.92);border:1px solid #3a4852;color:#fff;display:grid;place-items:center;padding:0;cursor:pointer;font-family:inherit;}
+#sectionMap #mapFullscreenBtn{position:absolute;top:10px;left:10px;right:auto;z-index:20;padding:0;font-size:0;}
+#sectionMap #mapFullscreenBtn:hover{border-color:#b6f23a;}
+#sectionMap .map-ctl-right{position:absolute;top:10px;right:10px;z-index:20;flex-direction:column;align-items:flex-end;gap:8px;}
+#sectionMap .mapzoom{display:flex;flex-direction:column;border-radius:20px;overflow:hidden;background:rgba(20,29,35,.92);border:1px solid #3a4852;}
+#sectionMap .mapzoom button{border:0;border-radius:0;background:transparent;font-size:20px;font-weight:700;}
+#sectionMap .mapzoom button+button{border-top:1px solid #3a4852;}
+#sectionMap .map-search-pop{position:absolute;top:10px;left:58px;right:58px;z-index:21;background:rgba(14,22,27,.97);border:1px solid #3a4852;border-radius:14px;padding:8px;}
+#sectionMap .map-search-pop[hidden]{display:none;}
+#sectionMap .map-search-pop .venue-row{margin:0;flex-wrap:wrap;}
+#sectionMap .map-search-pop select{max-width:none;flex:1 1 100%;}
+#sectionMap .venue-card{position:absolute;left:8px;right:8px;bottom:8px;z-index:20;display:flex;gap:11px;align-items:stretch;background:rgba(14,22,27,.96);border:1px solid #2b3a44;border-radius:18px;padding:10px;color:#e8eef1;}
+#sectionMap .venue-card[hidden]{display:none;}
+#sectionMap .vc-th{width:84px;min-height:66px;border-radius:12px;background:url(../assets/home-stadium.jpg) center/cover;flex-shrink:0;}
+#sectionMap .vc-in{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;}
+#sectionMap .vc-name{display:flex;align-items:center;gap:6px;}
+#sectionMap .vc-name b{font-size:16px;font-weight:800;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+#sectionMap .vc-star{width:26px;height:26px;border-radius:8px;border:1px solid #3a4852;background:transparent;color:#cdd8dc;font-size:15px;place-items:center;cursor:pointer;flex-shrink:0;}
+#sectionMap .vc-star.on{color:#b6f23a;border-color:#b6f23a;}
+#sectionMap .vc-addr{font-size:11.5px;color:#a9b8bf;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+#sectionMap .vc-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:auto;}
+#sectionMap .vc-copy{background:transparent;border:1px solid #3a4852;color:#cdd8dc;border-radius:10px;height:34px;padding:0 11px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;}
+#sectionMap .vc-go{background:linear-gradient(135deg,#b6f23a,#8fd61f);color:#0b1218;font-weight:900;font-size:13px;border:0;border-radius:12px;height:36px;padding:0 14px;display:flex;align-items:center;gap:5px;cursor:pointer;font-family:inherit;margin-left:auto;}
+#sectionMap .map-fav-row{display:flex;align-items:center;justify-content:space-between;width:100%;height:46px;margin-top:8px;padding:0 14px;border-radius:15px;background:var(--surface);border:1px solid var(--line);color:#e8eef1;font-family:inherit;font-weight:800;font-size:14.5px;cursor:pointer;flex:0 0 auto;}
+#sectionMap .map-fav-row .mfr-t{display:flex;align-items:center;gap:8px;}
+#sectionMap .map-fav-row i{width:10px;height:10px;border-radius:50%;background:#b6f23a;display:inline-block;}
+#sectionMap .map-fav-row small{font-size:12.5px;font-weight:600;color:#cdd8dc;}
+/* 전체화면: 화면 전체를 지도로 */
+#sectionMap #mapWrap.map-fullscreen-mode{padding:0;border-radius:0;border:0;display:block;}
+#sectionMap #mapWrap.map-fullscreen-mode #map{position:absolute;inset:0;height:auto;width:auto;}
+#sectionMap #mapWrap.map-fullscreen-mode #mapFullscreenBtn{top:calc(10px + env(safe-area-inset-top));left:12px;}
+#sectionMap #mapWrap.map-fullscreen-mode .map-ctl-right{top:calc(10px + env(safe-area-inset-top));right:12px;}
+#sectionMap #mapWrap.map-fullscreen-mode .map-search-pop{top:calc(10px + env(safe-area-inset-top));left:60px;right:60px;}
+#sectionMap #mapWrap.map-fullscreen-mode .venue-card{left:12px;right:12px;bottom:calc(14px + env(safe-area-inset-bottom));}
+/* 바텀시트 (즐겨찾는 경기장 / 길안내 앱 선택) */
+.map-sheet-dim{position:fixed;inset:0;z-index:10040;background:rgba(0,0,0,.62);}
+.map-sheet-dim[hidden],.map-sheet[hidden]{display:none;}
+.map-sheet{position:fixed;left:8px;right:8px;bottom:calc(8px + env(safe-area-inset-bottom));z-index:10050;max-height:78vh;overflow:auto;background:#10181d;border:1px solid #2b3a44;border-radius:28px;padding:10px 16px 16px;color:#e8eef1;max-width:520px;margin:0 auto;}
+.ms-grip{width:40px;height:4px;border-radius:3px;background:#4a5962;margin:0 auto 12px;}
+.ms-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;font-size:17px;}
+.ms-head em{font-style:normal;color:#b6f23a;margin-left:6px;}
+.ms-x{background:transparent;border:0;color:#b8c6cc;font-size:14px;font-family:inherit;cursor:pointer;}
+.ms-list{display:flex;flex-direction:column;gap:8px;}
+.ms-item{display:flex;align-items:center;gap:11px;background:#1b262d;border:1px solid #2d3b44;border-radius:16px;padding:8px 12px 8px 8px;color:#e8eef1;font-family:inherit;text-align:left;cursor:pointer;}
+.ms-ph{width:56px;height:44px;border-radius:10px;background:url(../assets/home-stadium.jpg) center/cover;flex-shrink:0;}
+.ms-tx{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}
+.ms-tx b{font-size:14.5px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ms-tx small{font-size:11px;color:#9fb0b8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ms-item em{font-style:normal;color:#b6f23a;font-size:17px;}
+.ms-empty{padding:26px 0;text-align:center;color:#9fb0b8;font-size:13.5px;}
+.ms-title{text-align:center;font-size:18px;font-weight:800;}
+.ms-sub{text-align:center;font-size:12.5px;color:#9fb0b8;margin:4px 0 14px;}
+.nav-app{display:flex;align-items:center;gap:13px;width:100%;background:#1b262d;border:1px solid #2d3b44;border-radius:18px;padding:11px 14px;margin-bottom:9px;color:#e8eef1;font-family:inherit;text-align:left;cursor:pointer;}
+.nav-app img{width:46px;height:46px;border-radius:11px;flex-shrink:0;}
+.nav-app span{flex:1;display:flex;flex-direction:column;}
+.nav-app b{font-size:16px;}.nav-app small{font-size:12px;color:#9fb0b8;}
+.nav-app i{font-style:normal;color:#9fb0b8;font-size:20px;}
+.ms-cancel{width:100%;height:46px;border-radius:16px;border:0;background:#26323a;color:#e8eef1;font-weight:800;font-size:15px;font-family:inherit;margin-top:4px;cursor:pointer;}
