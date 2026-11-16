@@ -1460,3 +1460,32 @@ body.sheet-open{overflow:hidden;}
 .vv-det .nm u{text-decoration:none;background:#b6f23a;color:#0b1218;font-weight:800;font-size:12.5px;padding:5px 11px;border-radius:99px;}
 .vv-det .nm u.o{background:rgba(255,255,255,.1);color:#e8eef1;}
 .vv-none{font-size:12.5px;color:#8fa0a8;}
+
+/* ===== 로그인 화면 v2 (시안 기준) ===== */
+#loginOverlay{display:block;overflow-y:auto;-webkit-overflow-scrolling:touch;background:#050a0e url('../assets/login-bg-mobile.jpg') center bottom/cover no-repeat;}
+#loginOverlay::after{display:none;}
+@media (min-width:760px){#loginOverlay{background:linear-gradient(180deg,rgba(5,10,14,.55),rgba(5,10,14,.8)),url('../assets/login-background.jpg') center/cover no-repeat;}}
+#loginOverlay .login-card.lg2{background:none;border:none;border-radius:0;box-shadow:none;width:100%;max-width:420px;margin:0 auto;padding:clamp(44px,9vh,92px) 26px 40px;min-height:100%;display:flex;flex-direction:column;justify-content:flex-start;}
+.lg2-brand{text-align:center;margin-bottom:clamp(22px,4.5vh,38px);}
+.lg2-logo{width:clamp(92px,26vw,112px);height:auto;display:block;margin:0 auto;filter:drop-shadow(0 6px 18px rgba(0,0,0,.6));}
+#loginOverlay .login-card.lg2 h2{font-family:inherit;font-size:clamp(32px,10.5vw,42px);font-weight:900;font-style:italic;letter-spacing:-.5px;color:#fff;margin:14px 0 6px;white-space:nowrap;text-shadow:0 3px 14px rgba(0,0,0,.6);}
+.lg2-en{font-size:10.5px;letter-spacing:.34em;color:#dfe8ec;font-weight:500;padding-left:.34em;}
+.lg2-swoosh{display:block;width:120px;height:3px;margin:16px auto 0;border-radius:3px;background:linear-gradient(90deg,transparent,#b6f23a 40%,transparent);transform:rotate(-2deg);opacity:.9;}
+.lg2-field{display:flex;align-items:center;height:56px;border-radius:16px;margin-bottom:12px;background:rgba(10,18,24,.72);border:1.5px solid rgba(255,255,255,.22);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);}
+.lg2-field:focus-within{border-color:#b6f23a;box-shadow:0 0 0 3px rgba(182,242,58,.18);}
+.lg2-ic{width:58px;display:flex;align-items:center;justify-content:center;color:#f2f6f8;flex-shrink:0;position:relative;}
+.lg2-ic::after{content:"";position:absolute;right:0;top:15px;bottom:15px;width:1px;background:rgba(255,255,255,.28);}
+#loginOverlay .lg2-field input{flex:1;min-width:0;height:100%;padding:0 14px;font-size:16px;color:#fff;background:transparent;border:none;}
+#loginOverlay .lg2-field input::placeholder{color:rgba(225,233,238,.62);}
+.lg2-opts{display:flex;align-items:center;justify-content:space-between;margin:8px 2px 16px;}
+#loginOverlay .lg2 .remember-row{display:flex;align-items:center;gap:9px;margin:0;font-size:14px;color:#f2f6f8;cursor:pointer;}
+#loginOverlay .lg2 .remember-row input{appearance:none;-webkit-appearance:none;width:22px;height:22px;border-radius:6px;border:1.5px solid rgba(255,255,255,.45);background:transparent;margin:0;display:grid;place-content:center;cursor:pointer;}
+#loginOverlay .lg2 .remember-row input:checked{background:#b6f23a;border-color:#b6f23a;}
+#loginOverlay .lg2 .remember-row input:checked::after{content:"";width:6px;height:11px;border:solid #0b1218;border-width:0 3px 3px 0;transform:rotate(45deg) translate(-1px,-1px);}
+.lg2-help{display:inline-flex;align-items:center;gap:5px;font-size:14px;color:#f2f6f8;cursor:pointer;user-select:none;}
+#loginOverlay .lg2 .login-note{margin:-6px 0 14px;padding:11px 13px;border-radius:12px;background:rgba(10,18,24,.8);border:1px solid rgba(255,255,255,.14);color:#cfd9de;font-size:12px;line-height:1.6;text-align:left;}
+#loginOverlay .lg2 .login-note[hidden]{display:none;}
+#loginOverlay .lg2 .lg2-btn{display:block;width:100%;height:58px;padding:0;border:none;border-radius:18px;font-family:inherit;font-size:19px;font-weight:800;letter-spacing:.02em;color:#0b1218;background:linear-gradient(180deg,#c6ff4a,#9fe21c);box-shadow:0 8px 22px rgba(150,230,30,.28),inset 0 1px 0 rgba(255,255,255,.45);cursor:pointer;}
+#loginOverlay .lg2 .lg2-btn:active{transform:translateY(1px);}
+#loginOverlay .lg2 .login-error{margin:0 0 8px;min-height:0;}
+#loginOverlay .lg2 .login-error:empty{display:none;}
