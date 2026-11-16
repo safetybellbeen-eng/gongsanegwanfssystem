@@ -1489,3 +1489,7 @@ body.sheet-open{overflow:hidden;}
 #loginOverlay .lg2 .lg2-btn:active{transform:translateY(1px);}
 #loginOverlay .lg2 .login-error{margin:0 0 8px;min-height:0;}
 #loginOverlay .lg2 .login-error:empty{display:none;}
+
+.ws-nm .inj-tag{font-style:normal;font-size:10px;font-weight:800;color:#ff8a8a;background:rgba(255,93,93,.14);border:1px solid rgba(255,93,93,.4);border-radius:99px;padding:1px 6px;margin-left:4px;white-space:nowrap;}
+.ws-nm.inj span{color:#c9d3d8;}
+.ws-nm .inj-tag{padding:0 4px;font-size:11px;}
