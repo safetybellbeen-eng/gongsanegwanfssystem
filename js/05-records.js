@@ -23,46 +23,51 @@ function renderMatchStats(){
   const el = $('#matchStatsCard');
   if(!el) return;
   const stats = computeMatchStats();
+  const now = new Date();
   const thisMonthKey = todayStr().slice(0,7);
   const thisMonthCount = stats.byMonth[thisMonthKey] || 0;
+  const bars = [];
+  for(let i=5;i>=0;i--){
+    const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
+    const key = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+    bars.push({ key, label:(d.getMonth()+1)+'월', n: stats.byMonth[key]||0 });
+  }
+  const maxN = Math.max(1, ...bars.map(x=>x.n));
   el.innerHTML = `
-    <div class="stats-top">
-      <div class="stats-box">
-        <div class="stats-big">${stats.totalPlayed}</div>
-        <div class="stats-label">총 누적 경기 진행 횟수</div>
+    <div class="rec-card">
+      <div class="rec-chart-top"><span>월별 진행 횟수</span><span>최근 6개월</span></div>
+      <div class="rec-bars" id="recBars">
+        ${bars.map(x=>`<div class="rb ${x.key===thisMonthKey?'on':''} ${x.n?'has':''}" data-month="${x.key}"><b>${x.n}</b><i style="height:${x.n? Math.max(10, Math.round(x.n/maxN*100)) : 4}%"></i></div>`).join('')}
       </div>
-      <div class="stats-box">
-        <div class="stats-big small">${thisMonthCount}</div>
-        <div class="stats-label">이번 달(${thisMonthKey.replace('-','.')}) 경기 횟수</div>
+      <div class="rec-bar-labels">${bars.map(x=>`<span class="${x.key===thisMonthKey?'on':''}">${x.label}</span>`).join('')}</div>
+      <div class="rec-stat3">
+        <div><b>${stats.totalPlayed}</b><small>총 누적 경기</small></div>
+        <div><b>${thisMonthCount}</b><small>이번 달</small></div>
+        <div><b class="up">${stats.upcomingCount}</b><small>예정 경기</small></div>
       </div>
-      ${stats.upcomingCount? `
-      <div class="stats-box">
-        <div class="stats-big small">${stats.upcomingCount}</div>
-        <div class="stats-label">예정된 확정 경기</div>
-      </div>` : ''}
-    </div>
-    <div class="stats-history">
-      <div class="stats-history-label">월별 진행 기록 (눌러서 경기별 전술 보기)</div>
-      <div class="stats-history-list" id="matchStatsMonthList">
-        ${stats.months.length? stats.months.map(m=>`<div class="smh-row" data-month="${m}"><span>${m.replace('-','.')}</span><span>${stats.byMonth[m]}회</span></div>`).join('') : '<div class="rank-empty">아직 진행된 경기가 없습니다.</div>'}
+      <div class="stats-history" style="margin-top:12px;">
+        <div class="stats-history-label">막대를 눌러 경기별 전술 보기</div>
+        <div class="stats-history-dates" id="matchStatsDateList" style="display:none;"></div>
+        <div id="matchStatsTacticsPreview"></div>
       </div>
-      <div class="stats-history-dates" id="matchStatsDateList" style="display:none;"></div>
-      <div id="matchStatsTacticsPreview"></div>
     </div>
   `;
-  window.__matchStatsData = stats; // 클릭 핸들러에서 재사용
-  el.querySelectorAll('#matchStatsMonthList .smh-row').forEach(row=>{
+  window.__matchStatsData = stats;
+  el.querySelectorAll('#recBars .rb').forEach(row=>{
     row.addEventListener('click', ()=>{
       const month = row.dataset.month;
       const dateListEl = $('#matchStatsDateList');
       const previewEl = $('#matchStatsTacticsPreview');
       const dates = stats.byMonthDates[month] || [];
+      if(!dates.length){ toast('이 달에는 진행된 경기가 없습니다.'); return; }
       const alreadyOpenForThisMonth = dateListEl.dataset.month === month && dateListEl.style.display !== 'none';
+      el.querySelectorAll('#recBars .rb').forEach(r=>r.classList.remove('sel'));
       if(alreadyOpenForThisMonth){
         dateListEl.style.display = 'none';
         previewEl.innerHTML = '';
         return;
       }
+      row.classList.add('sel');
       dateListEl.dataset.month = month;
       dateListEl.style.display = 'flex';
       dateListEl.innerHTML = dates.map(d=>`<button type="button" class="smh-date-chip" data-date="${d}">${d}</button>`).join('');
@@ -75,6 +80,64 @@ function renderMatchStats(){
       });
     });
   });
+}
+
+/* ---------- 팀 기록: 내 기록 + 지표별 순위 카드(옆으로 넘김) ---------- */
+function recRows(list, valFn, barFn, color){
+  if(!list.length) return '<div class="rank-empty" style="display:block">아직 기록이 없습니다.</div>';
+  return list.map((r,i)=>{
+    const rk = i+1;
+    const cls = rk===1?'g':rk===2?'s':rk===3?'b':'';
+    return `<div class="rec-row ${r.name===myName?'me':''}"><span class="rk ${cls}">${rk}</span><span class="av" style="background:${memAvatarColor(r.name)}">${escapeHtml(r.name.charAt(0))}</span><span class="nm">${escapeHtml(r.name)}</span><span class="bar"><i style="width:${barFn(r)}%;${color?`background:${color}`:''}"></i></span><span class="val" ${color?`style="color:${color}"`:''}>${valFn(r)}</span></div>`;
+  }).join('');
+}
+function renderTeamRecords(attendList, missList, noShowList, stats, missCounts){
+  const mineEl = $('#recMine'), swipe = $('#recSwipe'), dots = $('#recDots');
+  if(!mineEl || !swipe) return;
+  const mine = stats[myName];
+  const pct = mine && mine.total ? Math.round(mine.yes/mine.total*100) : 0;
+  let ty=0, tt=0; Object.keys(stats).forEach(n=>{ ty+=stats[n].yes; tt+=stats[n].total; });
+  const teamPct = tt? Math.round(ty/tt*100) : null;
+  const myRank = attendList.findIndex(r=>r.name===myName);
+  const diff = (mine && teamPct!==null) ? pct-teamPct : null;
+  const diffTxt = diff===null ? '' : `팀 평균보다 ${diff>=0?'+':''}${diff}%p`;
+  mineEl.innerHTML = `
+    <div class="rec-me">
+      <div class="rec-ring" style="background:conic-gradient(#b6f23a 0 ${pct}%,#1d2a31 0)"><i>${mine?pct+'%':'-'}</i></div>
+      <div class="rec-me-tx">
+        <b>${escapeHtml(myName||'')}</b>
+        <div>참석 <em class="g">${mine?mine.yes:0}회</em>${myRank>=0?` · 팀 ${myRank+1}위`:''}</div>
+        <div>미투표 <em class="y">${(missCounts&&missCounts[myName])||0}회</em> · 불참 <em class="r">${mine?mine.no:0}회</em></div>
+        ${diffTxt?`<small>${diffTxt}</small>`:'<small>참석 기록이 아직 없어요</small>'}
+      </div>
+    </div>`;
+  const maxMiss = (missList[0]&&missList[0].missed)||1, maxNo = (noShowList[0]&&noShowList[0].no)||1;
+  swipe.innerHTML = `
+    <div class="rec-card rec-pane"><div class="rec-pt g">🏅 참석 순위 <small>· 횟수 · 참석률</small></div>${recRows(attendList, r=>`${r.yes}회<small>${r.total?Math.round(r.yes/r.total*100):0}%</small>`, r=>r.total?Math.round(r.yes/r.total*100):0)}</div>
+    <div class="rec-card rec-pane"><div class="rec-pt y">미투표 순위 <small>· 적을수록 좋아요</small></div>${recRows(missList, r=>r.missed+'회', r=>Math.round(r.missed/maxMiss*100), '#ffb020')}</div>
+    <div class="rec-card rec-pane"><div class="rec-pt r">불참 순위</div>${recRows(noShowList, r=>r.no+'회', r=>Math.round(r.no/maxNo*100), '#ff8f8f')}</div>`;
+  dots.innerHTML = '<i class="on"></i><i></i><i></i>';
+  const fitSwipe = ()=>{
+    const panes = swipe.querySelectorAll('.rec-pane');
+    const i = Math.min(panes.length-1, Math.round(swipe.scrollLeft / Math.max(1, swipe.clientWidth)));
+    const h = panes[i] ? panes[i].offsetHeight : 0;
+    swipe.style.height = h > 0 ? h + 'px' : '';
+  };
+  swipe.__fit = fitSwipe; fitSwipe(); setTimeout(fitSwipe, 120);
+  if(window.ResizeObserver){ if(swipe.__ro) swipe.__ro.disconnect(); swipe.__ro = new ResizeObserver(()=>fitSwipe()); swipe.querySelectorAll('.rec-pane').forEach(p=>swipe.__ro.observe(p)); }
+  if(!swipe.__bound){
+    swipe.__bound = true;
+    swipe.addEventListener('scroll', ()=>{
+      const i = Math.round(swipe.scrollLeft / Math.max(1, swipe.clientWidth));
+      dots.querySelectorAll('i').forEach((d,k)=>d.classList.toggle('on', k===i));
+      if(swipe.__fit) swipe.__fit();
+    }, {passive:true});
+    dots.addEventListener('click', e=>{
+      const d = e.target.closest('i'); if(!d) return;
+      const k = [...dots.children].indexOf(d);
+      swipe.scrollTo({ left: k*swipe.clientWidth, behavior:'smooth' });
+    });
+  }
 }
 
 /* 최상단 히어로 카드: 오늘 이후로 가장 가까운 확정 경기를 D-day와 함께 보여줍니다. */
@@ -353,3 +416,5 @@ $('#rankRefresh').addEventListener('click', async ()=>{
   toast('참석 횟수 순위를 새로고침했습니다.');
 });
 
+
+(function(){ const b=document.getElementById('recBackBtn'); if(b) b.addEventListener('click', ()=>setActiveMobileSection('home')); })();

@@ -145,7 +145,7 @@ document.querySelectorAll('#sectionMore .more-row').forEach(row=>{
 
 /* ---------- 모바일 하단 탭 전환 (768px 이하에서만 시각적으로 의미가 있지만, 클래스 토글 자체는 항상 동작) ---------- */
 function setActiveMobileSection(tabKey){
-  const tabHi = ['tactics','weather','records','admin','members'].includes(tabKey) ? 'more' : tabKey;
+  const tabHi = ['tactics','admin','members'].includes(tabKey) ? 'more' : (['weather','records'].includes(tabKey) ? 'home' : tabKey);
   document.querySelectorAll('.mobile-tabbar .tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab===tabHi));
   document.querySelectorAll('.app-section').forEach(s=>s.classList.remove('mobile-active'));
   const idMap = { home:'sectionHome', weather:'sectionWeather', calendar:'sectionCalendar', matches:'sectionMatches', map:'sectionMap', records:'sectionRecords', admin:'sectionAdmin', tactics:'sectionTactics', more:'sectionMore', members:'sectionMembers' };
@@ -172,7 +172,7 @@ const recordsEntryBtn = $('#recordsEntryBtn');
 if(recordsEntryBtn) recordsEntryBtn.addEventListener('click', ()=>setActiveMobileSection('records'));
 const adminEntryBtn = $('#adminEntryBtn');
 if(adminEntryBtn) adminEntryBtn.addEventListener('click', ()=>setActiveMobileSection('admin'));
-document.querySelectorAll('.section-back-btn[data-back-to]').forEach(btn=>{
+document.querySelectorAll('.section-back-btn[data-back-to], .pb-back[data-back-to]').forEach(btn=>{
   btn.addEventListener('click', ()=>setActiveMobileSection(btn.dataset.backTo));
 });
 document.addEventListener('DOMContentLoaded', ()=>setActiveMobileSection('home')); // 모바일 폭에서 기본으로 보일 탭 (모든 js가 불러와진 뒤 실행)

@@ -95,26 +95,21 @@ function computeAttendanceStats(){
   const attendList = Object.keys(stats).map(name=>({
     name, yes: stats[name].yes, total: stats[name].total, rate: stats[name].yes/stats[name].total
   })).sort((a,b)=> b.yes-a.yes || b.rate-a.rate || b.total-a.total || a.name.localeCompare(b.name,'ko'));
-  renderGenericPodium('#podiumAttend', attendList, 'yes', '참석', '회');
-  renderGenericRankList('#rankListAttend', '#rankEmptyAttend', attendList, 'yes', '회');
 
   // 4-2. 미투표자 순위
   const missList = approvedNames.map(name=>({ name, missed: missCounts[name] }))
     .filter(r=>weekKeys.length>0 && r.missed>0)
     .sort((a,b)=> b.missed-a.missed || a.name.localeCompare(b.name,'ko'));
-  renderGenericPodium('#podiumMiss', missList, 'missed', '미투표', '회');
-  renderGenericRankList('#rankListMiss', '#rankEmptyMiss', missList, 'missed', '회');
 
   // 4-3. 불참 순위
   const noShowList = Object.keys(stats).map(name=>({ name, no: stats[name].no, total: stats[name].total }))
     .filter(r=>r.no>0)
     .sort((a,b)=> b.no-a.no || a.name.localeCompare(b.name,'ko'));
-  renderGenericPodium('#podiumNoShow', noShowList, 'no', '불참', '회');
-  renderGenericRankList('#rankListNoShow', '#rankEmptyNoShow', noShowList, 'no', '회');
 
   const mine = stats[myName];
   window.__myAttend = { yes: mine?mine.yes:0, no: mine?mine.no:0, total: mine?mine.total:0, miss: (missCounts[myName]||0) };
   const myRank = attendList.findIndex(r=>r.name===myName);
+  try{ renderTeamRecords(attendList, missList, noShowList, stats, missCounts); }catch(e){ console.error('팀 기록 렌더 오류', e); }
   setTimeout(()=>{ try{ tryRenderAttendPanes(); }catch(e){} }, 0);
   const medal = myRank===0?'🥇':myRank===1?'🥈':myRank===2?'🥉':'';
   const rateTag = $('#myRateTag');
