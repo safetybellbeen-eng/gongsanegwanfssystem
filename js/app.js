@@ -217,13 +217,15 @@ function renderMyInjuryPanel(){ try{ renderInjurySheet(); }catch(e){} } // 하�
     const start = startInput.value, end = endInput.value;
     if(!start || !end){ toast('시작일과 종료일을 모두 선택해 주시기 바랍니다.'); return; }
     if(end < start){ toast('종료일이 시작일보다 빠를 수 없습니다.'); return; }
-    await setInjuryPeriod(myName, start, end);
+    const ok = await setInjuryPeriod(myName, start, end);
+    if(!ok){ toast('저장에 실패했습니다. 네트워크를 확인한 뒤 다시 시도해 주세요.'); return; }
     closeInjurySheet();
-    toast('부상 기간을 등록했습니다. 해당 기간 동안 투표와 순위 집계에서 제외됩니다.');
+    toast(isCurrentlyInjured(myName) ? '부상 기간을 등록했습니다. 투표와 순위 집계에서 제외됩니다.' : '부상 기간을 등록했습니다. 시작일부터 투표·순위 집계에서 제외됩니다.');
   });
   $('#myInjuryClearBtn').addEventListener('click', async ()=>{
     if(!confirm('부상 상태를 해제할까요?')) return;
-    await setInjuryPeriod(myName, '', '');
+    const ok = await setInjuryPeriod(myName, '', '');
+    if(!ok){ toast('저장에 실패했습니다. 네트워크를 확인한 뒤 다시 시도해 주세요.'); return; }
     closeInjurySheet();
     toast('부상 상태를 해제했습니다.');
   });
@@ -1813,15 +1815,37 @@ function isInjuredDuringWeek(name, weekKey){
   return getWeekDates(weekKey).some(d=>d>=m.injuryStart && d<=m.injuryEnd);
 }
 async function setInjuryPeriod(name, startDate, endDate){
-  await mutateAppData(data=>{
+  const fresh = await mutateAppData(data=>{
     if(data.members && data.members[name]){
       data.members[name].injuryStart = startDate || '';
       data.members[name].injuryEnd = endDate || '';
     }
   });
-  renderMemberList();
-  renderAdminMemberTable();
-  computeAttendanceStats();
+  const ok = (fresh === appData);   // 저장 성공 시에만 appData가 새 데이터로 교체됨
+  refreshInjuryViews();
+  return ok;
+}
+/* 부상 설정이 바뀌면 투표·순위·명단 화면을 모두 다시 그립니다. */
+function refreshInjuryViews(){
+  const run = (fn)=>{ try{ const r = fn(); if(r && r.catch) r.catch(()=>{}); }catch(e){ console.error(e); } };
+  run(()=>renderMemberList());
+  run(()=>renderAdminMemberTable());
+  run(()=>computeAttendanceStats());
+  run(()=>renderMatchStats());
+  run(()=>renderMembersPage());
+  run(()=>renderHomeTab());
+  run(()=>renderHeroMatch());
+  run(()=>renderWeekStatus());
+  run(()=>renderAttendStatus());
+  run(()=>renderCalendar());
+  run(()=>{ if(selectedDate) return renderMatchPanel(); });
+  run(()=>updateInjuryRow());
+}
+function updateInjuryRow(){
+  const sub = document.querySelector('.more-row[data-act="injury"] small');
+  if(!sub || !appData || !myName) return;
+  const m = (appData.members && appData.members[myName]) || {};
+  sub.textContent = isCurrentlyInjured(myName) ? `🤕 부상 중 · ${m.injuryEnd} 복귀 예정` : '부상 기간에는 투표·집계에서 제외';
 }
 
 const ROLE_LABEL = { owner:'최고 관리자', admin:'관리자', member:'회원' };
@@ -1893,7 +1917,8 @@ async function shareInviteLink(){
   catch(_){ window.prompt('아래 내용을 복사해 카카오톡에 붙여넣어 보내세요.', INVITE_MESSAGE); }
 }
 let lastAdminState = null;
-function renderMemberList(){
+function renderMemberList(){ try{ updateInjuryRow(); }catch(e){}
+
   try{ renderMembersPage(); renderAdminRoleList(); }catch(e){ console.error(e); }
   const nowAdmin = isAdminUser();
   if(lastAdminState !== null && lastAdminState !== nowAdmin){ try{ updateAdminVisibility(); tryRenderMoreTab(); }catch(e){ console.error(e); } }
@@ -3442,7 +3467,12 @@ function renderHomeTab(){
       <button class="home-goto-btn" id="homeGotoCalBtn"><span class="gt-chk"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.500 4.500 4.500L19 7.500"/></svg></span>지금 참석 투표하기<span class="gt-arrow">›</span></button>
     `;
     const gotoBtn = document.getElementById('homeGotoCalBtn');
-    if(gotoBtn) gotoBtn.addEventListener('click', ()=>{
+    if(gotoBtn && isCurrentlyInjured(myName)){
+      const end = (appData.members[myName]||{}).injuryEnd || '';
+      gotoBtn.disabled = true; gotoBtn.classList.add('is-injured');
+      gotoBtn.innerHTML = '🤕 부상 중 · ' + escapeHtml(end ? fmtKDate(end) : '') + ' 복귀 예정';
+    }
+    if(gotoBtn && !gotoBtn.disabled) gotoBtn.addEventListener('click', ()=>{
       const calBtn = document.querySelector('.mobile-tabbar .tab-btn[data-tab="calendar"]');
       if(calBtn) calBtn.click();
       if(typeof setAttendPane==='function') setAttendPane('vote');
