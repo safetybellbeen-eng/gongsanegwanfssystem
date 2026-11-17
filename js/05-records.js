@@ -129,12 +129,13 @@ function renderTeamRecords(attendList, missList, noShowList, stats, missCounts){
   if(window.ResizeObserver){ if(swipe.__ro) swipe.__ro.disconnect(); swipe.__ro = new ResizeObserver(()=>fitSwipe()); swipe.querySelectorAll('.rec-pane').forEach(p=>swipe.__ro.observe(p)); }
   if(!swipe.__bound){
     swipe.__bound = true;
+    /* iOS 홈화면 앱에서 스와이프가 어긋나던 원인: 스크롤 도중 높이를 바꾸고(리플로우), JS가 smooth scroll로 스냅을 다시 덮어써서
+       네이티브 스냅과 싸웠습니다. 이제 스냅은 CSS(네이티브)에만 맡기고, 점 표시는 즉시, 높이 맞춤은 멈춘 뒤에만 합니다. */
     swipe.addEventListener('scroll', ()=>{
       const i = Math.round(swipe.scrollLeft / Math.max(1, swipe.clientWidth));
       dots.querySelectorAll('i').forEach((d,k)=>d.classList.toggle('on', k===i));
-      if(swipe.__fit) swipe.__fit();
-      clearTimeout(swipe.__snapT);
-      swipe.__snapT = setTimeout(()=>{ const k = Math.round(swipe.scrollLeft / Math.max(1, swipe.clientWidth)); const target = k*swipe.clientWidth; if(Math.abs(swipe.scrollLeft-target) > 2) swipe.scrollTo({ left: target, behavior:'smooth' }); }, 140);
+      clearTimeout(swipe.__fitT);
+      swipe.__fitT = setTimeout(()=>{ if(swipe.__fit) swipe.__fit(); }, 160);
     }, {passive:true});
     dots.addEventListener('click', e=>{
       const d = e.target.closest('i'); if(!d) return;
