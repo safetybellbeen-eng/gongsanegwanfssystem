@@ -96,8 +96,8 @@ function recRows(list, valFn, barFn, color, limit, sheetIdx){
   let html = list.slice(0,n).map((r,i)=>recRowHtml(r,i+1,valFn,barFn,color)).join('');
   if(limit && list.length > limit){
     const mi = list.findIndex(r=>r.name===myName);
-    if(mi >= limit) html += '<div class="rec-gap">⋯</div>' + recRowHtml(list[mi], mi+1, valFn, barFn, color);
-    html += `<button type="button" class="rec-more" data-rec="${sheetIdx}">전체보기 (${list.length}명) <span>›</span></button>`;
+    if(mi >= limit) html += '<div class="rec-gap" style="text-align:center;color:#5b6a74;line-height:10px;padding:2px 0 4px;letter-spacing:3px">⋯</div>' + recRowHtml(list[mi], mi+1, valFn, barFn, color);
+    html += `<button type="button" class="rec-more" data-rec="${sheetIdx}" style="width:100%;margin-top:8px;height:42px;border-radius:12px;background:rgba(182,242,58,.1);border:1px solid rgba(182,242,58,.55);color:#b6f23a;font-weight:800;font-size:13.5px;font-family:inherit;cursor:pointer">전체보기 (${list.length}명) <span>›</span></button>`;
   }
   return html;
 }
