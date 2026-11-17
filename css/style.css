@@ -2051,3 +2051,20 @@ button,.more-row,.tab-btn,.home-quick-btn{touch-action:manipulation;}
 #sectionMap .venue-card .vc-ic{width:38px;height:38px;border-radius:50%;background:rgba(14,22,27,.92);border:1px solid #3a4852;color:#cdd8dc;display:grid;place-items:center;cursor:pointer;padding:0;flex:0 0 auto;}
 #sectionMap .venue-card .vc-pin{border-color:#b6f23a;background:rgba(182,242,58,.14);color:#b6f23a;}
 #sectionMap .venue-card .vc-go{margin-left:0;flex:0 0 auto;white-space:nowrap;}
+
+/* v46 선택/임시 핀 강조 */
+.vpin-sel .vpn-reg,.vpin-adhoc .vpn-reg{border-color:#b6f23a;color:#fff;}
+.vpin-sel .vpn-rtail,.vpin-adhoc .vpn-rtail{border-top-color:#b6f23a;}
+.vpin-sel .vpn-dot,.vpin-adhoc .vpn-dot{background:#b6f23a;border-color:#fff;}
+.vpin-sel .vpn-fav{box-shadow:0 0 0 2px rgba(245,197,66,.45),0 5px 14px rgba(0,0,0,.55);}
+
+/* v47 팀 전체 순위: 1~5위 + 전체보기 시트 */
+.rec-gap{text-align:center;color:#5b6a74;font-size:14px;line-height:10px;padding:2px 0 4px;letter-spacing:3px;}
+.rec-more{width:100%;margin-top:8px;height:42px;border-radius:12px;background:rgba(182,242,58,.1);border:1px solid rgba(182,242,58,.55);color:#b6f23a;font-weight:800;font-size:13.5px;font-family:inherit;cursor:pointer;}
+.rec-more span{font-size:16px;margin-left:2px;}
+.rec-sheet{display:flex;flex-direction:column;max-height:82vh;}
+.rec-sheet[hidden]{display:none;}
+.rec-sheet .rs-hd{display:flex;justify-content:space-between;align-items:center;margin:4px 0 6px;font-size:15px;color:#b6f23a;flex:0 0 auto;}
+.rec-sheet .rs-hd small{color:#9fb0b8;font-weight:600;}
+.rec-sheet .rs-hd button{background:none;border:0;color:#9fb0b8;font-size:20px;cursor:pointer;padding:4px 8px;}
+.rec-sheet .rs-body{overflow-y:auto;-webkit-overflow-scrolling:touch;min-height:0;}
