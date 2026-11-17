@@ -1817,3 +1817,20 @@ body.sheet-open{overflow:hidden;}
 html{-webkit-tap-highlight-color:transparent;}
 button,.more-row,.tab-btn,.home-quick-btn{touch-action:manipulation;}
 .map-sheet.inj-sheet{left:0;right:0;bottom:0;border-radius:26px 26px 0 0;border:0;border-top:1px solid rgba(182,242,58,.35);}
+
+/* 홈 다음경기 카드: 참석자 아바타 */
+#heroMatchCard .nm3-roster{display:flex;align-items:center;gap:9px;margin:0 0 10px;min-height:30px;}
+#heroMatchCard .nm3-av{display:flex;}
+#heroMatchCard .nm3-av span{width:28px;height:28px;border-radius:50%;color:#0b1218;font-weight:900;font-size:12px;display:grid;place-items:center;border:2px solid #0e161b;margin-left:-8px;flex-shrink:0;}
+#heroMatchCard .nm3-av span:first-child{margin-left:0;}
+#heroMatchCard .nm3-av span.g{opacity:.75;}
+#heroMatchCard .nm3-av span.more{background:#26323a;color:#fff;font-size:10.5px;font-weight:800;}
+#heroMatchCard .nm3-roster b{font-size:13px;font-weight:800;color:#d7ff6a;}
+#heroMatchCard .nm3-roster b.none{color:#8fa0a8;font-weight:600;}
+
+#heroMatchCard .nm3-act .hero-alert-btn,#heroMatchCard .nm3-act .hero-link-btn{white-space:nowrap;}
+@media (max-width:370px){
+  #heroMatchCard .nm3-act{gap:6px;}
+  #heroMatchCard .nm3-act .hero-link-btn,#heroMatchCard .nm3-act .hero-alert-btn{padding-left:10px;padding-right:10px;font-size:13px;}
+  #heroMatchCard .nm3-act .hero-share-btn,#heroMatchCard .nm3-act .hero-pin-btn{width:38px;flex-basis:38px;}
+}
