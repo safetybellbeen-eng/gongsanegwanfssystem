@@ -2041,3 +2041,13 @@ button,.more-row,.tab-btn,.home-quick-btn{touch-action:manipulation;}
 .vl-star.on{color:#f5c542;}
 .vl-empty{font-size:12.5px;color:#9fb0b8;text-align:center;padding:18px 0;}
 .vl-direct{margin-top:6px;border:0;border-top:1px solid #2b3a44;background:none;color:#b6f23a;font-weight:800;font-size:12.5px;padding:12px 2px 4px;text-align:left;cursor:pointer;font-family:inherit;flex:0 0 auto;}
+
+/* v45 경기장 카드: 한 줄 컴팩트 바 */
+#sectionMap .venue-card{align-items:center;gap:8px;padding:10px 10px 10px 14px;}
+#sectionMap .venue-card .vc-th{display:none;}
+#sectionMap .venue-card .vc-in{flex:1;min-width:0;gap:3px;}
+#sectionMap .venue-card .vc-name b{font-size:15px;}
+#sectionMap .venue-card .vc-addr{-webkit-line-clamp:1;white-space:nowrap;text-overflow:ellipsis;display:block;overflow:hidden;}
+#sectionMap .venue-card .vc-ic{width:38px;height:38px;border-radius:50%;background:rgba(14,22,27,.92);border:1px solid #3a4852;color:#cdd8dc;display:grid;place-items:center;cursor:pointer;padding:0;flex:0 0 auto;}
+#sectionMap .venue-card .vc-pin{border-color:#b6f23a;background:rgba(182,242,58,.14);color:#b6f23a;}
+#sectionMap .venue-card .vc-go{margin-left:0;flex:0 0 auto;white-space:nowrap;}
