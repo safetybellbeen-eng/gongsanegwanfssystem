@@ -3,12 +3,25 @@
    - 우리 도메인의 정적 파일만 캐시하고, 외부 API(JSONBin·카카오맵·날씨·폰트 등)는 그대로 네트워크로 보냄
    - 알림을 눌렀을 때 앱 창을 포커스하거나 새로 여는 역할
 */
-const CACHE_NAME = 'gongsaengwan-v35';
+const CACHE_NAME = 'gongsaengwan-v36';
 const CORE_ASSETS = [
   './',
   './index.html',
   './css/style.css',
-  './js/app.js',
+  './js/01-core.js',
+  './js/02-weather.js',
+  './js/03-calendar.js',
+  './js/04-ranking.js',
+  './js/05-records.js',
+  './js/06-venues.js',
+  './js/07-admin.js',
+  './js/08-map.js',
+  './js/09-home.js',
+  './js/10-attend-more.js',
+  './js/11-notify.js',
+  './js/12-matches.js',
+  './js/13-tactics.js',
+  './js/14-fit-diag-vote.js',
   './manifest.json',
   './assets/club-emblem.png',
   './assets/splash.jpg',
