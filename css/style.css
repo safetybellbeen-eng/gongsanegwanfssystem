@@ -1934,3 +1934,51 @@ button,.more-row,.tab-btn,.home-quick-btn{touch-action:manipulation;}
 .rec-stat3 b{display:block;font-size:22px;color:#b6f23a;font-weight:900;}.rec-stat3 b.up{color:#ffb020;}
 .rec-stat3 small{font-size:10.5px;color:#8fa0a8;}
 .rec-swipe{transition:height .2s ease;}
+
+/* ===== v41: 날씨탭 (경기 가능 여부 → 오늘 → 기상청 → 7일 → 시간별) ===== */
+.wx-top{display:flex;align-items:center;gap:8px;margin:14px 2px 12px;}
+.wx-top .wx-sub{font-size:15px;font-weight:800;color:#fff;margin-right:auto;}
+.wx-ver{display:flex;gap:14px;align-items:center;border-radius:20px;padding:16px;margin-bottom:12px;background:rgba(255,176,32,.11);border:1px solid rgba(255,176,32,.5);}
+.wx-ver .wv-ic{font-size:38px;white-space:nowrap;flex:0 0 auto;line-height:1;}
+.wx-ver .wv-d{font-size:12px;color:#cfd8dc;}
+.wx-ver .wv-l{font-size:21px;font-weight:900;margin:3px 0;color:#ffb020;}
+.wx-ver .wv-s{font-size:12.5px;color:#cfd8dc;line-height:1.5;}
+.wx-ver .wv-n{font-size:10.5px;color:#8fa0a8;margin-top:3px;}
+.wx-ver.level-good{background:rgba(61,220,132,.10);border-color:rgba(61,220,132,.5);}.wx-ver.level-good .wv-l{color:#3ddc84;}
+.wx-ver.level-cloudy{background:rgba(109,184,255,.10);border-color:rgba(109,184,255,.5);}.wx-ver.level-cloudy .wv-l{color:#6db8ff;}
+.wx-ver.level-wet{background:rgba(255,176,32,.11);border-color:rgba(255,176,32,.5);}.wx-ver.level-wet .wv-l{color:#ffb020;}
+.wx-ver.level-no{background:rgba(255,93,93,.11);border-color:rgba(255,93,93,.5);}.wx-ver.level-no .wv-l{color:#ff6b6b;}
+.wx-hero{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-radius:22px;background:linear-gradient(135deg,#15303f,#0f1a1f);border:1px solid #234252;margin-bottom:12px;}
+.wx-hero .wh-t{font-size:54px;font-weight:900;line-height:1;color:#fff;}.wx-hero .wh-t small{font-size:22px;color:#8fa0a8;font-weight:700;}
+.wx-hero .wh-d{font-size:12px;color:#9fb0b8;margin-top:8px;}.wx-hero .wh-s{font-size:12.5px;color:#b6f23a;font-weight:800;margin-top:4px;}
+.wx-hero .wh-i{font-size:62px;line-height:1;}
+.wx-kma{display:flex;align-items:center;justify-content:center;gap:8px;height:52px;border-radius:16px;background:linear-gradient(135deg,#1c3a52,#14283a);border:1px solid #2f6d9c;color:#bfe3ff;font-weight:900;font-size:15px;margin-bottom:12px;text-decoration:none;}
+.wx-seg{display:flex;gap:6px;background:#0d151b;border-radius:14px;padding:4px;margin-bottom:12px;}
+.wx-seg .week-tab{flex:1;text-align:center;font-size:14px;font-weight:800;padding:10px 0;border-radius:11px;color:#8fa0a8;background:none;border:0;}
+.wx-seg .week-tab.active{background:#b6f23a;color:#111;}
+.wx-list{background:#111b22;border:1px solid #1f2d36;border-radius:20px;padding:6px 10px;margin-bottom:12px;display:block;}
+.wx-row{display:flex;align-items:center;gap:8px;padding:11px 4px;border-bottom:1px solid #1a262d;cursor:pointer;}
+.wx-row:last-child{border-bottom:0;}
+.wx-row.today{background:rgba(182,242,58,.07);border-radius:12px;padding-left:8px;padding-right:8px;border-bottom-color:transparent;}
+.wx-row.match{background:rgba(255,176,32,.08);border-radius:12px;padding-left:8px;padding-right:8px;border-bottom-color:transparent;}
+.wx-row.sel{outline:2px solid #fff;outline-offset:-2px;border-radius:12px;}
+.wr-d{width:64px;white-space:nowrap;}.wr-d b{font-size:15px;display:block;color:#fff;}.wr-d small{font-size:11px;color:#8fa0a8;}
+.wr-tag{font-size:10px;font-weight:900;border-radius:7px;padding:2px 6px;background:rgba(255,176,32,.18);color:#ffb020;margin-left:2px;}
+.wr-a{flex:1;display:flex;align-items:center;gap:5px;font-size:13px;font-weight:800;min-width:0;}
+.wr-a i{font-style:normal;font-size:22px;}.wr-a .l{font-size:10px;color:#8fa0a8;font-weight:600;}.wr-a .p{color:#6db8ff;min-width:34px;}
+.wr-t{width:64px;text-align:right;font-size:15px;font-weight:900;color:#fff;white-space:nowrap;}.wr-t small{color:#8fa0a8;font-weight:700;font-size:13px;}
+.wx-h2{display:flex;align-items:center;gap:8px;font-size:13px;color:#b6f23a;font-weight:900;margin:16px 2px 8px;}
+.wx-h2 em{font-style:normal;color:#6f8089;font-weight:600;font-size:11px;}.wx-h2:after{content:"";flex:1;height:1px;background:#22313a;order:3;}
+.wx-card{background:#111b22;border:1px solid #1f2d36;border-radius:20px;padding:14px;margin-bottom:12px;}
+.wx-hb{display:block;}
+.wx-bars{display:flex;align-items:flex-end;gap:4px;height:116px;margin-top:6px;}
+.wx-bars div{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;}
+.wx-bars b{font-size:10.5px;color:#6db8ff;margin-bottom:3px;font-weight:800;}.wx-bars i{display:block;width:100%;background:#2a6fa8;border-radius:5px 5px 0 0;}
+.wx-bars .hi i{background:#ffb020;}.wx-bars .hi b{color:#ffb020;}
+.wx-bl,.wx-bm{display:flex;gap:4px;font-size:10px;margin-top:4px;color:#8fa0a8;}.wx-bm{color:#9fb0b8;margin-top:2px;}.wx-bl span,.wx-bm span{flex:1;text-align:center;min-width:0;}
+.wx-bn{font-size:10.5px;color:#8fa0a8;text-align:center;margin-top:8px;}
+.wx-empty{color:#8fa0a8;font-size:13px;text-align:center;padding:20px;}
+.wr-a .l,.wr-a .p{white-space:nowrap;}
+.wr-a{gap:4px;}
+.wr-d{width:58px;}.wr-t{width:58px;}
+.wx-row.today .wr-d,.wx-row.match .wr-d{width:54px;}
