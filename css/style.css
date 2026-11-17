@@ -599,7 +599,7 @@
   @media screen{
     nav.mobile-tabbar{
       position:fixed;bottom:0;left:0;right:0;z-index:40;display:flex;
-      background:rgba(17,22,27,0.97);backdrop-filter:blur(10px);
+      background:rgba(17,22,27,0.97);
       border-top:1px solid var(--line);
       padding:6px 4px calc(6px + env(safe-area-inset-bottom));
     }
@@ -1783,3 +1783,37 @@ body.sheet-open{overflow:hidden;}
 .role-seg button{border:0;background:transparent;font-size:12px;font-weight:800;padding:6px 12px;border-radius:9px;color:#8fa0a8;cursor:pointer;}
 .role-seg button.on{background:#b6f23a;color:#0b1218;}
 .role-seg.disabled{opacity:.55;}
+
+/* 내 부상 설정 시트 */
+.inj-sheet{padding:10px 18px calc(22px + env(safe-area-inset-bottom));background:#101a22;max-height:88dvh;overflow-y:auto;z-index:10060;}
+#injSheetDim{z-index:10055;}
+.inj-head{display:flex;align-items:center;justify-content:space-between;margin:4px 0 12px;}
+.inj-head b{font-size:19px;}
+.inj-x{width:32px;height:32px;border-radius:50%;border:0;background:#1a252c;color:#b9c6cd;font-size:14px;cursor:pointer;}
+.inj-status{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:14px;background:#14200f;border:1px solid #3d6f1c;margin-bottom:14px;}
+.inj-status .dot{width:10px;height:10px;border-radius:50%;background:#b6f23a;flex-shrink:0;}
+.inj-status b{display:block;font-size:14px;color:#d7ff6a;}
+.inj-status small{display:block;font-size:11.5px;color:#9fb0a0;margin-top:2px;}
+.inj-status.inj{background:#2a1517;border-color:#7a2f35;}
+.inj-status.inj .dot{background:#ff6b6b;}
+.inj-status.inj b{color:#ff9a9a;}
+.inj-status.inj small{color:#c9a0a3;}
+.inj-lab{font-size:11.5px;color:#7d8e98;margin:0 2px 7px;}
+.inj-dates{display:flex;gap:10px;margin-bottom:10px;}
+.inj-dc{position:relative;flex:1;min-width:0;background:#0e161b;border:1px solid #2a3841;border-radius:14px;padding:11px 14px;cursor:pointer;overflow:hidden;}
+.inj-dc small{display:block;font-size:11px;color:#8fa0a8;}
+.inj-dc b{display:block;margin-top:3px;font-size:16px;color:#5d6e78;font-weight:600;white-space:nowrap;}
+.inj-dc.on{border-color:#b6f23a;}
+.inj-dc.on b{color:#fff;font-weight:800;}
+.inj-dc input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;font-size:16px;}
+.inj-chips{display:flex;gap:8px;margin-bottom:14px;}
+.inj-chips button{font-size:12px;font-weight:700;padding:7px 14px;border-radius:18px;background:#1a252c;border:1px solid #2f3d46;color:#c3ced4;cursor:pointer;}
+.inj-info{background:#0e161b;border-radius:12px;padding:11px 13px;font-size:12px;color:#9fb0b8;line-height:1.65;margin-bottom:14px;}
+.inj-btns{display:flex;gap:10px;}
+.inj-save{flex:1;border:0;border-radius:14px;padding:14px;font-size:15px;font-weight:800;background:#b6f23a;color:#0b1218;cursor:pointer;}
+.inj-clear{width:112px;border-radius:14px;padding:14px;font-size:14px;font-weight:800;background:transparent;color:#ff8d8d;border:1px solid #7a2f35;cursor:pointer;}
+.inj-clear:disabled{color:#5d6e78;border-color:#2a3841;cursor:default;}
+/* 터치 반응 개선 */
+html{-webkit-tap-highlight-color:transparent;}
+button,.more-row,.tab-btn,.home-quick-btn{touch-action:manipulation;}
+.map-sheet.inj-sheet{left:0;right:0;bottom:0;border-radius:26px 26px 0 0;border:0;border-top:1px solid rgba(182,242,58,.35);}
