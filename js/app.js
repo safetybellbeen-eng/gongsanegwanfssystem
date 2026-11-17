@@ -2240,6 +2240,13 @@ function renderHeroMatch(){
     return avatarPalette[h];
   };
   const maxShow = 5;
+  const rosterAll = [...yesList.map(v=>({name:v.name,g:false})), ...guestNames.map(n=>({name:n,g:true}))];
+  const rosterShow = rosterAll.slice(0,6), rosterMore = rosterAll.length - rosterShow.length;
+  const rosterHtml = `<div class="nm3-roster" title="${escapeHtml(rosterAll.map(p=>p.name).join(', '))}">`
+    + (rosterAll.length
+      ? `<div class="nm3-av">${rosterShow.map(p=>`<span class="${p.g?'g':''}" style="background:${avatarColor(p.name)}">${escapeHtml(p.name.charAt(0))}</span>`).join('')}${rosterMore>0?`<span class="more">+${rosterMore}</span>`:''}</div><b>참석 ${rosterAll.length}명</b>`
+      : `<b class="none">아직 참석자가 없어요</b>`)
+    + `</div>`;
   const attendeeChips = [
     ...yesList.map(v=>({ name:v.name, isGuest:false })),
     ...guestNames.map(n=>({ name:n, isGuest:true }))
@@ -2275,6 +2282,7 @@ function renderHeroMatch(){
       <div class="nm3-main">
         <div class="nm3-date">${dObj.getMonth()+1}월 ${dObj.getDate()}일<em>${weekdayKR[dObj.getDay()]}요일${venue && venue.time ? ' ' + escapeHtml(String(venue.time).slice(0,5)) : ''}</em></div>
         <div class="nm3-venue">${svgI('<path d="M12 22s7.5-6.6 7.5-12.3A7.5 7.5 0 0 0 4.5 9.7C4.5 15.4 12 22 12 22z"/><circle cx="12" cy="9.8" r="2.6"/>')}<span>${venue ? escapeHtml(String(venue.name).replace(/^플랩\s*스타디움\s+/,'')) : '경기장 미등록'}</span></div>
+        ${rosterHtml}
         <div class="nm3-act">
           ${venue && venue.link ? `<button type="button" class="hero-link-btn" id="heroLinkBtn" data-link="${escapeHtml(venue.link)}">경기 링크 ›</button>` : ''}
           <button type="button" class="hero-alert-btn" id="heroAlertBtn">${svgI('<path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>')}경기 알림</button>
@@ -4991,8 +4999,8 @@ function fitHomeToScreen(){
     avail = window.innerHeight;
   }
   const h = Math.max(320, Math.floor(avail - top - padB));
-  if(isHome) sec.style.height = h + 'px'; else sec.style.minHeight = h + 'px';
-  if((isHome ? sec.style.height : sec.style.minHeight) !== (isHome ? prevH : prevMin) && sec.id === 'sectionMap'){
+  sec.style.minHeight = h + 'px'; sec.style.height = '';   // 내용이 더 길면(작은 화면) 잘리지 않고 스크롤되도록 최소 높이만 지정
+  if(sec.style.minHeight !== prevMin && sec.id === 'sectionMap'){
     try{ if(map) map.relayout(); }catch(e){}
   }
 }
