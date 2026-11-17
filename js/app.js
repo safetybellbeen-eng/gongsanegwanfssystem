@@ -135,6 +135,7 @@ async function initAppUI(){
   }catch(e){
     console.error('[즐겨찾기] 초기 로드 중 오류(무시하고 계속 진행):', e);
   }
+  loadAutoVenues();   // 신규 구장 자동 등록(캐시 먼저 적용, 6시간마다 갱신)
   populateVenuePresetSelect();
   renderCalendar();
   renderMatchPanel();
@@ -2540,6 +2541,53 @@ const FUTSAL_VENUES = [
 ];
 /* 플랩풋볼 실제 stadium_name과 프리셋 이름의 표기가 완전히 같지 않을 수 있어(공백 차이 등),
    비교 전에 공백을 모두 제거해서 맞춰봅니다. */
+/* ---------- 신규 구장 자동 등록 ----------
+   플랩 경기 데이터(plab_matches)에 새 구장 이름이 나타나면 FUTSAL_VENUES에 자동으로 추가합니다.
+   (서울 지역만. 주소는 지도에서 이름으로 검색해 채웁니다.) 직접 적어 둔 구장 목록이 항상 우선합니다. */
+const AUTO_VENUE_KEY = 'gsg-auto-venues-v1';
+function baseVenueName(n){
+  let s = String(n||'').replace(/<[^>]*>/g,'').trim();
+  s = s.replace(/\s+(실내\s*단일구장|단일구장|실내구장[A-Z]?|야외구장[A-Z]?|[A-Z0-9]+구장(\([^)]*\))?|\d+구장(\([^)]*\))?|(레드|블루|블랙|화이트)구장|8vs8\s*축구장)$/,'').trim();
+  return s;
+}
+function mergeAutoVenues(rawNames){
+  const added = [];
+  (rawNames||[]).forEach(raw=>{
+    const base = baseVenueName(raw);
+    if(!base || base.length < 4) return;
+    if(findVenuePreset(base) || findVenuePreset(raw)) return;
+    FUTSAL_VENUES.push({ name: base, address: '', auto: true });
+    added.push(base);
+  });
+  return added;
+}
+async function loadAutoVenues(){
+  let names = [];
+  try{
+    const c = JSON.parse(localStorage.getItem(AUTO_VENUE_KEY) || 'null');
+    if(c && Array.isArray(c.names)) names = c.names;
+    if(names.length) mergeAutoVenues(names);
+    if(c && Date.now() - c.t < 6*3600*1000) return;   // 6시간 이내면 다시 조회하지 않음
+  }catch(_){}
+  if(!supabaseClient) return;
+  try{
+    const { data, error } = await supabaseClient.from('plab_matches').select('stadium_name').eq('area_group','서울').limit(5000);
+    if(error) throw error;
+    const fresh = [...new Set((data||[]).map(r=>r.stadium_name).filter(Boolean))];
+    const added = mergeAutoVenues(fresh);
+    try{ localStorage.setItem(AUTO_VENUE_KEY, JSON.stringify({ t: Date.now(), names: fresh })); }catch(_){}
+    if(added.length){
+      try{ const sel = $('#venuePresetSelect'); if(sel){ sel.innerHTML = ''; populateVenuePresetSelect(); } }catch(_){}
+      try{ const ms = $('#matchVenuePresetSelect'); if(ms){ while(ms.options.length>1) ms.remove(1); populateMatchVenuePresetSelect(); } }catch(_){}
+      if(typeof venuePinsStarted !== 'undefined' && venuePinsStarted && map){
+        for(const v of FUTSAL_VENUES.filter(x=>x.auto && added.includes(x.name))){
+          venuePinReady[v.name] = Promise.resolve();
+          try{ await placeVenuePin(v); }catch(e){ console.error(e); }
+        }
+      }
+    }
+  }catch(e){ console.warn('[구장 자동등록] 조회 실패(무시)', e); }
+}
 function normalizeVenueName(s){ return String(s||'').replace(/\s+/g, ''); }
 function findVenuePreset(name){
   const exact = FUTSAL_VENUES.find(v=>v.name===name);
@@ -2795,11 +2843,14 @@ let venuePinsStarted = false;
 const venuePinReady = {};   // { 이름: Promise } 해당 경기장 핀이 지도에 올라간 뒤 완료
 const venuePinResolve = {};
 async function placeVenuePin(v){
-  let coords = venueGeocodeCache[v.name] || geoStoreGet(v.address);
+  const gkey = v.address || ('name:' + v.name);
+  let coords = venueGeocodeCache[v.name] || geoStoreGet(gkey);
   if(!coords){
-    coords = await kakaoGeocode(v.address, true);
-    if(coords){ geoStoreSet(v.address, coords); }
+    if(v.address){ coords = await kakaoGeocode(v.address, true); }
+    else { coords = await kakaoGeocode(v.name.replace(/^플랩\s*스타디움\s*/,'플랩스타디움 '), false) || await kakaoGeocode(v.name, false); }   // 주소 없는 자동 등록 구장: 이름으로 검색
+    if(coords){ geoStoreSet(gkey, coords); }
   }
+  if(coords && !v.address && coords.addr) v.address = coords.addr;
   if(coords) venueGeocodeCache[v.name] = coords;
   if(!coords || venuePinObjects[v.name]) return;
   const pos = new kakao.maps.LatLng(coords.lat, coords.lng);
@@ -3285,7 +3336,7 @@ function kakaoGeocode(query, isAddress){
       const places = new kakao.maps.services.Places();
       places.keywordSearch(query, (result, status)=>{
         if(status === kakao.maps.services.Status.OK && result[0]){
-          resolve({ lat: parseFloat(result[0].y), lng: parseFloat(result[0].x) });
+          resolve({ lat: parseFloat(result[0].y), lng: parseFloat(result[0].x), addr: result[0].road_address_name || result[0].address_name || '' });
         } else { resolve(null); }
       });
     }
