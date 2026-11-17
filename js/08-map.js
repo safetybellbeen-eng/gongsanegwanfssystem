@@ -207,13 +207,8 @@ async function placeVenueMarker(info){
   map.setLevel(3);
   collapseAllVenuePins();
   const el = document.createElement('div');
-  el.className = 'venue-pin regular expanded';
-  el.innerHTML = `
-    <div class="vp-head">📍 <b>${escapeHtml(info.name)}</b></div>
-    ${info.address ? `<div class="vp-addr">${escapeHtml(info.address)}</div><button type="button" class="vp-copy">주소 복사</button>` : '<div class="vp-addr">등록된 주소가 없습니다</div>'}
-  `;
-  const copyBtn = el.querySelector('.vp-copy');
-  if(copyBtn) copyBtn.addEventListener('click', (e)=>{ e.stopPropagation(); window.copyVenueAddress(info.address); });
+  el.className = 'vpin vpin-adhoc';
+  el.innerHTML = `<div class="vpn-reg">${escapeHtml(info.name)}</div><i class="vpn-rtail"></i><div class="vpn-dot"></div>`;
   el.addEventListener('click', (e)=>e.stopPropagation());
   adhocVenueOverlay = new kakao.maps.CustomOverlay({ position: pos, content: el, yAnchor: 1, xAnchor: 0.5, zIndex: 5 });
   adhocVenueOverlay.setMap(map);

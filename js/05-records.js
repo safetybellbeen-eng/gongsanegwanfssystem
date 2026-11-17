@@ -85,14 +85,36 @@ function renderMatchStats(){
 }
 
 /* ---------- 팀 기록: 내 기록 + 지표별 순위 카드(옆으로 넘김) ---------- */
-function recRows(list, valFn, barFn, color){
-  if(!list.length) return '<div class="rank-empty" style="display:block">아직 기록이 없습니다.</div>';
-  return list.map((r,i)=>{
-    const rk = i+1;
-    const cls = rk===1?'g':rk===2?'s':rk===3?'b':'';
-    return `<div class="rec-row ${r.name===myName?'me':''}"><span class="rk ${cls}">${rk}</span><span class="av" style="background:${memAvatarColor(r.name)}">${escapeHtml(r.name.charAt(0))}</span><span class="nm">${escapeHtml(r.name)}</span><span class="bar"><i style="width:${barFn(r)}%;${color?`background:${color}`:''}"></i></span><span class="val" ${color?`style="color:${color}"`:''}>${valFn(r)}</span></div>`;
-  }).join('');
+function recRowHtml(r, rk, valFn, barFn, color){
+  const cls = rk===1?'g':rk===2?'s':rk===3?'b':'';
+  return `<div class="rec-row ${r.name===myName?'me':''}"><span class="rk ${cls}">${rk}</span><span class="av" style="background:${memAvatarColor(r.name)}">${escapeHtml(r.name.charAt(0))}</span><span class="nm">${escapeHtml(r.name)}</span><span class="bar"><i style="width:${barFn(r)}%;${color?`background:${color}`:''}"></i></span><span class="val" ${color?`style="color:${color}"`:''}>${valFn(r)}</span></div>`;
 }
+/* limit이 있으면 1~limit위만 보여주고, 내가 그 밖이면 "⋯" 아래에 내 순위 한 줄을 붙입니다. 나머지는 [전체보기] 시트에서 봅니다. */
+function recRows(list, valFn, barFn, color, limit, sheetIdx){
+  if(!list.length) return '<div class="rank-empty" style="display:block">아직 기록이 없습니다.</div>';
+  const n = limit || list.length;
+  let html = list.slice(0,n).map((r,i)=>recRowHtml(r,i+1,valFn,barFn,color)).join('');
+  if(limit && list.length > limit){
+    const mi = list.findIndex(r=>r.name===myName);
+    if(mi >= limit) html += '<div class="rec-gap">⋯</div>' + recRowHtml(list[mi], mi+1, valFn, barFn, color);
+    html += `<button type="button" class="rec-more" data-rec="${sheetIdx}">전체보기 (${list.length}명) <span>›</span></button>`;
+  }
+  return html;
+}
+function openRecSheet(idx){
+  const d = (window.__recData||[])[idx]; if(!d) return;
+  document.getElementById('recSheetTitle').innerHTML = `${d.title} <small>· ${d.list.length}명</small>`;
+  document.getElementById('recSheetBody').innerHTML = recRows(d.list, d.valFn, d.barFn, d.color);
+  document.getElementById('recSheetDim').hidden = false; document.getElementById('recSheet').hidden = false;
+  document.getElementById('recSheetBody').scrollTop = 0;
+}
+function closeRecSheet(){ document.getElementById('recSheetDim').hidden = true; document.getElementById('recSheet').hidden = true; }
+document.addEventListener('DOMContentLoaded', ()=>{
+  const dim = document.getElementById('recSheetDim'); if(!dim) return;
+  dim.addEventListener('click', closeRecSheet);
+  document.getElementById('recSheetClose').addEventListener('click', closeRecSheet);
+  document.getElementById('recSwipe').addEventListener('click', (e)=>{ const b = e.target.closest('.rec-more'); if(b) openRecSheet(+b.dataset.rec); });
+});
 function renderTeamRecords(attendList, missList, noShowList, stats, missCounts){
   const mineEl = $('#recMine'), swipe = $('#recSwipe'), dots = $('#recDots');
   if(!mineEl || !swipe) return;
@@ -114,10 +136,19 @@ function renderTeamRecords(attendList, missList, noShowList, stats, missCounts){
       </div>
     </div>`;
   const maxMiss = (missList[0]&&missList[0].missed)||1, maxNo = (noShowList[0]&&noShowList[0].no)||1;
+  const attVal = r=>`${r.yes}회<small>${r.total?Math.round(r.yes/r.total*100):0}%</small>`, attBar = r=>r.total?Math.round(r.yes/r.total*100):0;
+  const missVal = r=>r.missed+'회', missBar = r=>Math.round(r.missed/maxMiss*100);
+  const noVal = r=>r.no+'회', noBar = r=>Math.round(r.no/maxNo*100);
+  window.__recData = [
+    { title:'🏅 참석 순위', list:attendList, valFn:attVal, barFn:attBar },
+    { title:'미투표 순위', list:missList, valFn:missVal, barFn:missBar, color:'#ffb020' },
+    { title:'불참 순위', list:noShowList, valFn:noVal, barFn:noBar, color:'#ff8f8f' }
+  ];
+  const REC_TOP = 5;
   swipe.innerHTML = `<div class="rec-slide">
-    <div class="rec-card rec-pane"><div class="rec-pt g">🏅 참석 순위 <small>· 횟수 · 참석률</small></div>${recRows(attendList, r=>`${r.yes}회<small>${r.total?Math.round(r.yes/r.total*100):0}%</small>`, r=>r.total?Math.round(r.yes/r.total*100):0)}</div></div>
-    <div class="rec-slide"><div class="rec-card rec-pane"><div class="rec-pt y">미투표 순위 <small>· 적을수록 좋아요</small></div>${recRows(missList, r=>r.missed+'회', r=>Math.round(r.missed/maxMiss*100), '#ffb020')}</div></div>
-    <div class="rec-slide"><div class="rec-card rec-pane"><div class="rec-pt r">불참 순위</div>${recRows(noShowList, r=>r.no+'회', r=>Math.round(r.no/maxNo*100), '#ff8f8f')}</div></div>`;
+    <div class="rec-card rec-pane"><div class="rec-pt g">🏅 참석 순위 <small>· 횟수 · 참석률</small></div>${recRows(attendList, attVal, attBar, undefined, REC_TOP, 0)}</div></div>
+    <div class="rec-slide"><div class="rec-card rec-pane"><div class="rec-pt y">미투표 순위 <small>· 적을수록 좋아요</small></div>${recRows(missList, missVal, missBar, '#ffb020', REC_TOP, 1)}</div></div>
+    <div class="rec-slide"><div class="rec-card rec-pane"><div class="rec-pt r">불참 순위</div>${recRows(noShowList, noVal, noBar, '#ff8f8f', REC_TOP, 2)}</div></div>`;
   dots.innerHTML = '<i class="on"></i><i></i><i></i>';
   const fitSwipe = ()=>{
     const panes = swipe.querySelectorAll('.rec-pane');

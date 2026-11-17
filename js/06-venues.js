@@ -362,7 +362,7 @@ function renderVenuePinContent(name){
     const copyBtn = obj.el.querySelector('.vp-copy');
     if(copyBtn) copyBtn.addEventListener('click', (e)=>{ e.stopPropagation(); window.copyVenueAddress(obj.address); });
   } else {
-    obj.el.className = `vpin vpin-${obj.type}`;
+    obj.el.className = `vpin vpin-${obj.type}${(name===currentVenueName && obj.type!=='confirmed')?' vpin-sel':''}`;
     const [co, nm] = splitVenueName(obj.type==='confirmed' ? (obj.label || name) : name);
     if(obj.type==='confirmed'){
       const dd = ddayText(obj.dday);
@@ -385,13 +385,13 @@ function collapseAllVenuePins(){
   }
 }
 function expandVenuePin(name){
+  /* 예전처럼 핀 위에 주소 카드를 펼치지 않습니다. 경기장 정보는 하단 카드에 표시하고, 선택한 핀만 테두리로 강조합니다. */
   if(!venuePinObjects[name]) return;
-  collapseAllVenuePins();
-  currentExpandedVenue = name;
-  venuePinObjects[name].expanded = true;
+  const prev = currentVenueName;
+  currentVenueName = name;
+  if(prev && prev !== name && venuePinObjects[prev]) renderVenuePinContent(prev);
   renderVenuePinContent(name);
   map.setCenter(venuePinObjects[name].pos);
-  currentVenueName = name;
   updateVenueCard(name, venuePinObjects[name].address || '');
   updateFavVenueBtn();
 }
@@ -427,7 +427,7 @@ async function placeVenuePin(v){
   el.addEventListener('click', (e)=>{
     e.stopPropagation();
     const obj = venuePinObjects[v.name];
-    if(obj.expanded){ collapseAllVenuePins(); } else { expandVenuePin(v.name); }
+    expandVenuePin(v.name);
   });
   const overlay = new kakao.maps.CustomOverlay({ position: pos, content: el, yAnchor: 1, xAnchor: 0.5, zIndex: isFav ? 3 : 2 });
   overlay.setMap(map);
