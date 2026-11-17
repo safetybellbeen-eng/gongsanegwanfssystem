@@ -2130,3 +2130,7 @@ button,.more-row,.tab-btn,.home-quick-btn{touch-action:manipulation;}
 .cal-legend .lg-cf{width:10px;height:10px;border-radius:50%;background:var(--lime);}
 .cal-legend .lg-done{width:10px;height:10px;border-radius:50%;background:#2c3a30;}
 .cal-legend .lg-dot{width:5px;height:5px;border-radius:50%;background:#ffd21f;}
+/* v51 밴드 행이 눌려 겹치는 문제 수정 */
+#sectionCalendar .cal-weeks .cal-wk.is-this,#sectionCalendar .cal-weeks .cal-wk.is-next{flex:0 0 auto;min-height:0;height:auto;align-items:start;align-content:start;overflow:visible;}
+#sectionCalendar .cal-weeks .cal-wk.is-this .cal-cell,#sectionCalendar .cal-weeks .cal-wk.is-next .cal-cell{margin-top:2px;}
+#sectionCalendar .cal-weeks .cal-wk:not(.is-this):not(.is-next):not(.cal-wk-head){flex:1 1 40px;min-height:36px;}
