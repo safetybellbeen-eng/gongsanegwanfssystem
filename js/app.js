@@ -5044,18 +5044,18 @@ function pageScrollTop(behavior){
 }
 /* 아이폰 홈 화면 앱: 화면 전체 높이를 직접 지정해서 상·하단 여백이 생기지 않게 합니다 */
 function fitAppShell(){
+  /* iOS 홈 화면 앱은 화면(예: 844) 중 일부(예: 797)까지만 그려줍니다.
+     예전에는 높이를 화면 전체로 강제로 늘려 탭바 아래쪽이 잘렸으므로, 이제는 강제 지정을 하지 않고
+     "실제로 그려지는 높이(innerHeight)"에 맞춥니다. 대신 html에 ios-short 클래스를 달아 아래 빈 공간을 탭바 색으로 채웁니다. */
   const root = document.documentElement;
   try{
+    root.style.removeProperty('--app-h');
     const phone = window.matchMedia('(max-width:768px)').matches;
     const standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
     const portrait = window.innerHeight >= window.innerWidth;
     const sh = portrait ? Math.max(screen.height, screen.width) : Math.min(screen.height, screen.width);
-    const ios = /iPhone|iPad|iPod/i.test(navigator.userAgent||'');   // 안드로이드 등에서는 화면 높이를 억지로 지정하지 않음(탭바가 잘리는 원인)
-    if(ios && phone && standalone && portrait && sh > window.innerHeight && sh - window.innerHeight <= 60){
-      root.style.setProperty('--app-h', sh + 'px');
-    }else{
-      root.style.removeProperty('--app-h');
-    }
+    const ios = /iPhone|iPad|iPod/i.test(navigator.userAgent||'');
+    root.classList.toggle('ios-short', !!(ios && phone && standalone && portrait && sh - window.innerHeight >= 1 && sh - window.innerHeight <= 90));
   }catch(e){}
 }
 window.addEventListener('resize', fitAppShell);
