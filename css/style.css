@@ -1876,3 +1876,11 @@ button,.more-row,.tab-btn,.home-quick-btn{touch-action:manipulation;}
 #heroMatchCard .nm3-venue{margin-top:8px;}
 #heroMatchCard .nm3-roster{margin:14px 0 16px;}
 #heroMatchCard .nm3-act{margin-top:0;gap:10px;}
+
+/* ===== v38: 생일 종 배지 + 생일 시트 ===== */
+.bell-btn .bell-bday{position:absolute;top:-4px;left:-5px;font-size:15px;line-height:1;filter:drop-shadow(0 1px 3px rgba(0,0,0,.6));animation:bdayPop 2.4s ease-in-out infinite;transform-origin:50% 100%;}
+.bell-btn .bell-bday[hidden]{display:none;}
+@keyframes bdayPop{0%,80%,100%{transform:scale(1) rotate(0)}88%{transform:scale(1.25) rotate(-12deg)}94%{transform:scale(1.25) rotate(12deg)}}
+.bday-notify{flex:0 0 auto;margin-top:8px;height:44px;border-radius:12px;border:1px solid #2b3a44;background:#0d151b;color:#b6f23a;font-weight:800;font-size:14px;}
+.bday-notify[hidden]{display:none;}
+#bdaySheetDim{z-index:10059;}
