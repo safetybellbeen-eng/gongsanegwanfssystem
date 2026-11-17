@@ -187,6 +187,62 @@ function renderInjurySheet(){
   $('#myInjurySaveBtn').textContent = has ? '기간 수정 저장' : '부상 등록';
   $('#myInjuryClearBtn').disabled = !has;
 }
+
+/* ---------- 홈 경기카드 "멤버 보기" 시트 (참석 / 불참 / 미투표) ---------- */
+let memSheetDate = null, memSheetTab = 'yes';
+function memAvatarColor(name){
+  const pal = ['#3ddc84','#6db8ff','#ffd76b','#ff8fa3','#c9a0ff','#ff9d5c'];
+  let h = 0; for(let i=0;i<name.length;i++) h = (h*31 + name.charCodeAt(i)) % pal.length;
+  return pal[h];
+}
+function getMembersSheetData(date){
+  const eff = getEffectiveVotesForDate(date).filter(v=>v.choice==='yes').map(v=>v.name);
+  const guests = (appData.matchGuests && appData.matchGuests[date]) || [];
+  const attendSet = new Set(eff);
+  const bd = getVoteBreakdownForDate(date);
+  const injured = [];
+  const pick = (arr)=>arr.filter(n=>{ if(attendSet.has(n)) return false; if(isCurrentlyInjured(n)){ injured.push(n); return false; } return true; });
+  return { yes: eff, guests, no: pick(bd.noList), notVoted: pick(bd.notVotedList), injured: [...new Set(injured)] };
+}
+function renderMembersSheet(){
+  if(!memSheetDate || !appData) return;
+  const d = getMembersSheetData(memSheetDate);
+  const dObj = parseYMD(memSheetDate);
+  $('#memSheetTitle').innerHTML = `${dObj.getMonth()+1}월 ${dObj.getDate()}일 (${weekdayKR[dObj.getDay()]}) 멤버 <em>참석 ${d.yes.length + d.guests.length}명</em>`;
+  const tabs = [['yes','참석', d.yes.length + d.guests.length], ['no','불참', d.no.length], ['none','미투표', d.notVoted.length + d.injured.length]];
+  $('#memSeg').innerHTML = tabs.map(t=>`<button type="button" data-t="${t[0]}" class="${memSheetTab===t[0]?'on':''}">${t[1]} ${t[2]}</button>`).join('');
+  const row = (name, tagCls, tagTxt, sub, guest)=>`<div class="mem-li"><span class="mem-av" style="background:${guest?'#6fd0ff':memAvatarColor(name)}">${escapeHtml(guest?'G':name.charAt(0))}</span><div><b>${escapeHtml(name)}${name===myName?' <i>나</i>':''}</b>${sub?`<small>${sub}</small>`:''}</div><span class="mem-tag ${tagCls}">${tagTxt}</span></div>`;
+  let html = '';
+  if(memSheetTab==='yes'){
+    html += d.yes.length ? `<div class="mem-sec">참석 확정</div>` + d.yes.map(n=>row(n,'tg','참석','')).join('') : '';
+    html += d.guests.length ? `<div class="mem-sec">게스트</div>` + d.guests.map(n=>row(n+' (게스트)','tw','게스트','',true)).join('') : '';
+    if(!d.yes.length && !d.guests.length) html = '<div class="mem-empty">아직 참석자가 없어요</div>';
+  }else if(memSheetTab==='no'){
+    html = d.no.length ? d.no.map(n=>row(n,'tb','불참','')).join('') : '<div class="mem-empty">불참한 멤버가 없어요</div>';
+  }else{
+    html = d.notVoted.length ? d.notVoted.map(n=>row(n,'tw','미투표','아직 투표 안 함')).join('') : '';
+    if(d.injured.length){
+      html += `<div class="mem-sec">부상 중 · 투표·알림 대상 제외</div>` + d.injured.map(n=>{ const m=(appData.members&&appData.members[n])||{}; return row(n,'tr','🤕 부상', m.injuryEnd ? `${fmtKDate(m.injuryEnd)} 복귀 예정` : ''); }).join('');
+    }
+    if(!html) html = '<div class="mem-empty">모든 멤버가 투표했어요 👏</div>';
+  }
+  $('#memList').innerHTML = html;
+}
+function openMembersSheet(date){
+  memSheetDate = date; memSheetTab = 'yes';
+  renderMembersSheet();
+  $('#memSheetDim').hidden = false; $('#membersSheet').hidden = false;
+  $('#memList').scrollTop = 0;
+}
+function closeMembersSheet(){ $('#memSheetDim').hidden = true; $('#membersSheet').hidden = true; memSheetDate = null; }
+(function initMembersSheet(){
+  const dim = $('#memSheetDim'), x = $('#memCloseBtn'), seg = $('#memSeg');
+  if(!dim) return;
+  dim.addEventListener('click', closeMembersSheet);
+  x.addEventListener('click', closeMembersSheet);
+  seg.addEventListener('click', (e)=>{ const b = e.target.closest('button[data-t]'); if(!b) return; memSheetTab = b.dataset.t; renderMembersSheet(); $('#memList').scrollTop = 0; });
+})();
+
 function openInjurySheet(){
   if(!myName){ toast('로그인 후 이용해 주세요.'); return; }
   const m = (appData.members && appData.members[myName]) || {};
@@ -2236,6 +2292,7 @@ function renderMatchStats(){
 
 /* 최상단 히어로 카드: 오늘 이후로 가장 가까운 확정 경기를 D-day와 함께 보여줍니다. */
 function renderHeroMatch(){
+  try{ if(memSheetDate) setTimeout(renderMembersSheet,0); }catch(e){}
   const el = $('#heroMatchCard');
   if(!el) return;
   const todayS = todayStr();
@@ -2272,7 +2329,7 @@ function renderHeroMatch(){
     + (rosterAll.length
       ? `<div class="nm3-av">${rosterShow.map(p=>`<span class="${p.g?'g':''}" style="background:${avatarColor(p.name)}">${escapeHtml(p.name.charAt(0))}</span>`).join('')}${rosterMore>0?`<span class="more">+${rosterMore}</span>`:''}</div><b>참석 ${rosterAll.length}명</b>`
       : `<b class="none">아직 참석자가 없어요</b>`)
-    + `</div>`;
+    + `<button type="button" class="nm3-mb" id="heroMembersBtn">멤버 보기 ›</button></div>`;
   const attendeeChips = [
     ...yesList.map(v=>({ name:v.name, isGuest:false })),
     ...guestNames.map(n=>({ name:n, isGuest:true }))
@@ -2327,7 +2384,7 @@ function renderHeroMatch(){
   /* 카드를 누르면 그 경기가 속한 주의 출석 화면으로 이동합니다 */
   const nmBody = document.getElementById('nmBody');
   if(nmBody) nmBody.addEventListener('click', (e)=>{
-    if(e.target.closest('#heroLinkBtn, #heroShareBtn, #heroAlertBtn')) return;
+    if(e.target.closest('#heroLinkBtn, #heroShareBtn, #heroAlertBtn, #heroMembersBtn, .nm3-av')) return;
     setActiveMobileSection('calendar');
     if(typeof setAttendPane==='function') setAttendPane('vote');
     if(typeof setSelectedDate==='function') setSelectedDate(date);
@@ -2384,6 +2441,10 @@ function renderHeroMatch(){
       catch(_){ window.prompt('아래 내용을 복사해 카카오톡에 붙여넣어 보내세요.', full); }
     });
   }
+  const memBtn = $('#heroMembersBtn');
+  if(memBtn) memBtn.addEventListener('click', ()=>openMembersSheet(date));
+  const memAv = el.querySelector('.nm3-av');
+  if(memAv){ memAv.style.cursor='pointer'; memAv.addEventListener('click', ()=>openMembersSheet(date)); }
   if(admin){
     el.querySelectorAll('.chip-remove-btn').forEach(btn=>{
       btn.addEventListener('click', ()=>{
