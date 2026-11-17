@@ -16,6 +16,7 @@ function renderMatchStats(){
   renderHeroMatch();
   renderNoticeCard();
   tryRenderHomeTab();
+  try{ const sm = document.getElementById('sectionMap'); if(sm && sm.classList.contains('mobile-active') && typeof loadDefaultMapVenue==='function') loadDefaultMapVenue(); }catch(e){}   // 데이터가 늦게 도착한 경우 지도 탭 기본 경기장 표시를 다시 시도
   try{ if(typeof refreshWeatherVerdict==='function') refreshWeatherVerdict(); }catch(e){}
   checkMatchConfirmedNotification();
   ensurePushSubscription();

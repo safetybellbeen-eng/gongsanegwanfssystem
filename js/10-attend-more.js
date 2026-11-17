@@ -160,7 +160,7 @@ function setActiveMobileSection(tabKey){
   try{ scheduleFit(); }catch(e){}
   if(tabKey==='members'){ try{ renderMembersPage(); }catch(e){ console.error(e); } }
   if(tabKey==='calendar') tryRenderAttendPanes();
-  if(tabKey==='map') loadDefaultMapVenue();
+  if(tabKey==='map'){ loadDefaultMapVenue(); onMapTabShown(); }
   if(tabKey==='matches') initMatchesTabOnce();
   if(tabKey==='tactics') initTacticsTabOnce();
 }

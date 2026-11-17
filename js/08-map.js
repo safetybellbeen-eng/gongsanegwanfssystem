@@ -2,7 +2,7 @@
 function updateVenueCard(name, address){
   const card = $('#venueCard');
   if(!card || !name) return;
-  card.hidden = false;
+  card.hidden = false; card.classList.remove('mini');
   $('#vcName').textContent = name;
   $('#vcAddr').textContent = address || '등록된 주소가 없습니다';
   const cp = $('#vcCopyBtn'); if(cp) cp.style.display = address ? '' : 'none';
@@ -103,6 +103,27 @@ function openNavApp(app){
   document.querySelectorAll('#navSheet .nav-app').forEach(b=>b.addEventListener('click', ()=>{ const a=b.dataset.app; closeMapSheets(); openNavApp(a); }));
   const cp = q('vcCopyBtn');
   if(cp) cp.addEventListener('click', ()=>{ const t=q('vcAddr').textContent; if(t && window.copyVenueAddress) window.copyVenueAddress(t); });
+  const card = q('venueCard');
+  const pinBtn = q('vcPinBtn');
+  if(pinBtn) pinBtn.addEventListener('click', ()=>{
+    if(!map){ toast('지도를 불러오는 중입니다. 잠시 후 다시 눌러주세요.'); return; }
+    const o = currentVenueName && venuePinObjects[currentVenueName];
+    const pos = (o && o.pos) || currentVenuePos;
+    if(!pos){ toast('경기장 위치를 찾지 못했습니다.'); return; }
+    mapUserMoved = true;
+    try{ map.relayout(); map.setLevel(3); map.setCenter(pos); }catch(e){}
+    if(card) card.classList.add('mini');
+    try{
+      if(window.__venuePulse) window.__venuePulse.setMap(null);
+      const d = document.createElement('div'); d.className='venue-pulse'; d.innerHTML='<i></i><i></i>';
+      window.__venuePulse = new kakao.maps.CustomOverlay({ position:pos, content:d, zIndex:9 });
+      window.__venuePulse.setMap(map);
+      setTimeout(()=>{ try{ window.__venuePulse && window.__venuePulse.setMap(null); }catch(e){} }, 5000);
+    }catch(e){}
+    toast('📍 경기장 위치로 이동했어요');
+  });
+  const exBtn = q('vcExBtn');
+  if(exBtn) exBtn.addEventListener('click', ()=>{ if(card) card.classList.remove('mini'); });
   const star = q('vcFavBtn');
   if(star) star.addEventListener('click', ()=>{ const b=q('favVenueBtn'); if(b) b.click(); });
   const sb = q('mapSearchBtn');
@@ -172,18 +193,14 @@ async function placeVenueMarker(info){
   if(info.address){
     coords = await kakaoGeocode(info.address, true);
   }
-  // 2) 주소 검색이 실패했거나 주소가 없으면, 장소 이름으로 다시 검색합니다.
-  //    (등록된 주소 표기가 카카오 주소 데이터와 정확히 일치하지 않아도 이름으로는 찾히는 경우가 많습니다)
+  // 2) 주소가 없거나 실패하면 장소 이름으로 검색합니다.
+  //    "…1구장(블랙)"처럼 세부 구장이 붙은 이름은 검색이 안 되는 경우가 많아, 세부 구장을 뗀 이름을 먼저 시도합니다.
   if(!coords){
-    coords = await kakaoGeocode(info.name + ' 서울', false);
-  }
-  // 3) 여전히 실패하면 "서울" 없이 이름 그대로, 그리고 "풋살"을 붙여 한 번씩 더 시도합니다.
-  //    (플랩풋볼의 실제 상호명이 프리셋과 다르거나, "서울"이 붙으면 오히려 검색이 안 되는 경우가 있음)
-  if(!coords){
-    coords = await kakaoGeocode(info.name, false);
-  }
-  if(!coords){
-    coords = await kakaoGeocode(info.name + ' 풋살', false);
+    const base = baseVenueName(info.name);
+    const noParen = info.name.replace(/\([^)]*\)/g,'').trim();
+    const spaced = s=>s.replace(/^플랩\s*스타디움\s*/,'플랩스타디움 ');
+    const cands = [...new Set([base, spaced(base), base+' 서울', noParen, spaced(noParen), info.name+' 서울', info.name, base+' 풋살'].filter(Boolean))];
+    for(const q of cands){ coords = await kakaoGeocode(q, false); if(coords) break; }
   }
   if(!coords){ toast(`'${info.name}' 위치를 찾지 못했습니다. 지도에서 직접 검색해 보시기 바랍니다.`); return; }
   const pos = new kakao.maps.LatLng(coords.lat, coords.lng);

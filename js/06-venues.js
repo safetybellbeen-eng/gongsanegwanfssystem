@@ -247,6 +247,22 @@ function showVenueOnMap(info){
   return showVenueChain;
 }
 let currentVenuePos = null;
+let mapUserMoved = false; // 사용자가 지도를 직접 움직이거나 확대/축소했으면, 탭을 다시 열 때 위치를 되돌리지 않습니다.
+/* 지도는 로그인 직후 숨겨진 상태에서 미리 만들어지므로(크기 0), 지도 탭을 실제로 열 때마다
+   크기를 다시 계산(relayout)하고 확정 경기장을 가운데로 맞춰야 합니다. */
+function onMapTabShown(){
+  const go = ()=>{
+    try{
+      if(!map) return;
+      const sm = document.getElementById('sectionMap');
+      if(!sm || !sm.classList.contains('mobile-active')) return;
+      map.relayout();
+      if(!mapUserMoved) recenterOnCurrentVenue();
+    }catch(e){}
+  };
+  requestAnimationFrame(go);
+  [80, 250, 600, 1300].forEach(ms=>setTimeout(go, ms));
+}
 function recenterOnCurrentVenue(){
   try{
     if(!map) return;
@@ -256,7 +272,16 @@ function recenterOnCurrentVenue(){
     if(pos) map.setCenter(pos);
   }catch(e){}
 }
+/* 확정 경기의 경기장 이름은 "…1구장(블랙)"처럼 세부 구장까지 붙어 있어, 지도 핀 목록(기본 구장명)과 이름이 달라
+   핀을 못 찾고 임시 검색으로 빠지던 문제가 있었습니다. 목록에 있는 구장이면 그 이름으로 맞춰서 기존 핀을 그대로 씁니다. */
+function canonicalVenueInfo(info){
+  const preset = findVenuePreset(info.name) || findVenuePreset(baseVenueName(info.name));
+  if(preset) return { name: preset.name, address: info.address || preset.address || '', display: info.name };
+  return info;
+}
 async function showVenueOnMapImpl(info){
+  info = canonicalVenueInfo(info);
+  mapUserMoved = false;
   if(location.protocol === 'file:'){
     toast('파일을 직접 열어서는(file://) 경기장 검색이 동작하지 않습니다. 로컬 서버나 실제 배포 주소에서 열어주시기 바랍니다.');
     return;
@@ -270,13 +295,14 @@ async function showVenueOnMapImpl(info){
   $('#mapCtlRight').style.display='flex';
   if(!map){
     map = new kakao.maps.Map($('#map'), { center: new kakao.maps.LatLng(37.5665,126.9780), level: 8 });
+    try{ kakao.maps.event.addListener(map, 'dragstart', ()=>{ mapUserMoved = true; }); }catch(e){}
   }
   await renderAllVenuePins(info.name); // 요청한 경기장 핀을 먼저 올리고, 나머지는 뒤에서 채웁니다.
   await placeVenueMarker(info);
   currentVenueName = info.name;
   // 탭이 막 열려 지도 크기가 늦게 확정되는 경우를 대비해, 크기 확정 후 핀을 화면 가운데로 다시 맞춥니다.
   requestAnimationFrame(recenterOnCurrentVenue);
-  [150, 450, 1100].forEach(ms=>setTimeout(recenterOnCurrentVenue, ms));
+  [150, 450, 1100, 2500].forEach(ms=>setTimeout(recenterOnCurrentVenue, ms));
 
   const addrRow = $('#venueAddressRow');
   if(info.address){
@@ -286,7 +312,7 @@ async function showVenueOnMapImpl(info){
     addrRow.style.display = 'none';
   }
   updateFavVenueBtn();
-  updateVenueCard(info.name, info.address || (findVenuePreset(info.name)||{}).address || '');
+  updateVenueCard(info.display || info.name, info.address || (findVenuePreset(info.name)||{}).address || '');
 }
 
 /* 목록에 있는 모든 경기장을 이름표와 함께 지도에 항상 표시합니다.
@@ -419,7 +445,8 @@ function applyConfirmedVenueMarker(){
     .sort();
   const nearest = confirmedDates[0];
   const venue = nearest ? getVenueInfo(nearest) : null;
-  const newConfirmedName = (venue && venuePinObjects[venue.name]) ? venue.name : null;
+  const pinName = venue ? canonicalVenueInfo({ name: venue.name, address: venue.address||'' }).name : null;   // "…1구장(블랙)" 같은 이름도 기본 구장 핀과 맞춰줍니다.
+  const newConfirmedName = (pinName && venuePinObjects[pinName]) ? pinName : null;
   if(confirmedVenueName && confirmedVenueName !== newConfirmedName && venuePinObjects[confirmedVenueName]){
     const prevObj = venuePinObjects[confirmedVenueName];
     prevObj.type = favoriteVenueSet.has(confirmedVenueName) ? 'favorite' : 'regular';
@@ -456,6 +483,10 @@ async function loadDefaultMapVenue(force){
   const venue = getVenueInfo(nearest);
   if(!venue || !venue.name) return;
   mapDefaultLoaded = true;
+  // 처음 한 번은 신규 구장 자동 등록이 끝나기 전일 수 있어, 목록에 없는 구장이면 잠깐(최대 2.5초) 기다립니다.
+  if(!findVenuePreset(venue.name) && !findVenuePreset(baseVenueName(venue.name)) && window.__autoVenuesP){
+    await Promise.race([window.__autoVenuesP.catch(()=>{}), new Promise(r=>setTimeout(r,2500))]);
+  }
   const sel = $('#venuePresetSelect');
   const input = $('#venueInput');
   if(sel) sel.value = findVenuePreset(venue.name) ? venue.name : '';

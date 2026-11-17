@@ -136,7 +136,7 @@ async function initAppUI(){
   }catch(e){
     console.error('[즐겨찾기] 초기 로드 중 오류(무시하고 계속 진행):', e);
   }
-  loadAutoVenues();   // 신규 구장 자동 등록(캐시 먼저 적용, 6시간마다 갱신)
+  window.__autoVenuesP = loadAutoVenues();   // 신규 구장 자동 등록(캐시 먼저 적용, 6시간마다 갱신)
   populateVenuePresetSelect();
   renderCalendar();
   renderMatchPanel();
