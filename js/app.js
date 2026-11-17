@@ -3922,6 +3922,7 @@ document.querySelectorAll('#sectionMore .more-row').forEach(row=>{
     else if(act==='bell') enableAppNotifications();
     else if(act==='logout') click('logoutBtn');
     else if(act==='injury'){ openInjurySheet(); }
+    else if(act==='diag'){ openDiag(); }
   });
 });
 
@@ -5094,6 +5095,53 @@ function scheduleFit(){ [150,600,1500].forEach(ms=>setTimeout(fitHomeToScreen, m
 window.addEventListener('load', scheduleFit);
 setInterval(()=>{ if(!document.hidden) fitHomeToScreen(); }, 6000);
 
+
+
+/* ---------- 화면 진단 (기종별 화면 잘림 원인 파악용) ---------- */
+function openDiag(){
+  let ov = document.getElementById('diagOverlay');
+  if(ov) ov.remove();
+  ov = document.createElement('div');
+  ov.id = 'diagOverlay';
+  ov.style.cssText = 'position:fixed;left:0;right:0;top:0;height:100%;z-index:99999;background:rgba(8,12,16,.94);color:#fff;font:12px/1.5 -apple-system,monospace;overflow:auto;padding:calc(env(safe-area-inset-top) + 12px) 14px 14px;box-sizing:border-box;';
+  const probe = document.createElement('div');
+  probe.style.cssText = 'position:fixed;left:0;top:0;width:1px;visibility:hidden;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom);';
+  document.body.appendChild(probe);
+  const cs = getComputedStyle(probe);
+  const inset = { top: cs.paddingTop, bottom: cs.paddingBottom };
+  probe.remove();
+  const R = (el)=>{ if(!el) return '없음'; const r = el.getBoundingClientRect(); return `top ${Math.round(r.top)} / bottom ${Math.round(r.bottom)} / h ${Math.round(r.height)}`; };
+  const vv = window.visualViewport;
+  const lines = [
+    ['기기/브라우저', (navigator.userAgent||'').replace(/Mozilla\/5.0 /,'').slice(0,110)],
+    ['홈화면 앱(standalone)', String((window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true)],
+    ['screen (가로×세로)', screen.width + ' × ' + screen.height],
+    ['innerWidth × innerHeight', window.innerWidth + ' × ' + window.innerHeight],
+    ['visualViewport 높이', vv ? Math.round(vv.height) + ' (offsetTop ' + Math.round(vv.offsetTop) + ')' : '없음'],
+    ['documentElement.clientHeight', document.documentElement.clientHeight],
+    ['safe-area 위/아래', inset.top + ' / ' + inset.bottom],
+    ['--app-h', document.documentElement.style.getPropertyValue('--app-h') || '(미설정)'],
+    ['html', R(document.documentElement)],
+    ['body', R(document.body)],
+    ['하단 탭바', R(document.querySelector('nav.mobile-tabbar'))],
+    ['스크롤 영역(.wrap)', R(document.querySelector('.wrap'))],
+    ['devicePixelRatio', window.devicePixelRatio],
+    ['앱 버전', (document.querySelector('script[src*="app.js"]')||{}).src ? (document.querySelector('script[src*="app.js"]').src.split('?')[1]||'') : '']
+  ];
+  ov.innerHTML = '<div style="font-size:15px;font-weight:800;color:#b6f23a;margin-bottom:8px">화면 진단 — 이 화면을 캡처해서 보내주세요</div>' +
+    lines.map(l=>`<div style="display:flex;gap:8px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.08)"><span style="flex:0 0 150px;color:#8fa0a8">${l[0]}</span><b style="font-weight:600;word-break:break-all">${String(l[1]).replace(/</g,'&lt;')}</b></div>`).join('') +
+    '<div style="margin-top:10px;color:#8fa0a8">화면 아래쪽 색 선: <b style="color:#ff5252">빨강=innerHeight</b> · <b style="color:#4aa3ff">파랑=screen 높이</b> · <b style="color:#35d07f">초록=100vh</b> · <b style="color:#ffb020">주황=100dvh</b></div>' +
+    '<button id="diagClose" style="margin-top:12px;height:42px;padding:0 22px;border-radius:12px;border:0;background:#b6f23a;color:#111;font-weight:800;font-size:14px">닫기</button>';
+  document.body.appendChild(ov);
+  const mk = (color, topCss, label)=>{ const d = document.createElement('div'); d.className='diag-line'; d.style.cssText = `position:fixed;left:0;right:0;top:${topCss};height:3px;background:${color};z-index:100000;pointer-events:none;`; const t = document.createElement('span'); t.textContent = label; t.style.cssText = `position:absolute;right:6px;bottom:3px;font:10px/1 monospace;color:${color};`; d.appendChild(t); document.body.appendChild(d); return d; };
+  const lns = [
+    mk('#ff5252', (window.innerHeight - 3) + 'px', 'innerHeight ' + window.innerHeight),
+    mk('#4aa3ff', (screen.height - 3) + 'px', 'screen ' + screen.height),
+    mk('#35d07f', 'calc(100vh - 3px)', '100vh'),
+    mk('#ffb020', 'calc(100dvh - 3px)', '100dvh')
+  ];
+  document.getElementById('diagClose').addEventListener('click', ()=>{ ov.remove(); lns.forEach(d=>d.remove()); });
+}
 
 /* ================= 투표 팝업(바텀시트) & 이번 주 투표 현황 ================= */
 function openVoteSheet(){
