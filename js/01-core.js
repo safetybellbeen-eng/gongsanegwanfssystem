@@ -108,7 +108,7 @@ async function loginOrValidate(name, birth){
     }
   } else {
     // 신규 가입 신청: 관리자 계정이 아니면 바로 접속시키지 않고 승인 대기 상태로만 등록
-    fresh.members[name] = { birth, status:'offline', approved: isAdminAccount, lastSeen: Date.now() };
+    fresh.members[name] = { birth, status:'offline', approved: isAdminAccount, lastSeen: Date.now(), joinedAt: todayStr() };
     const savedNew = await remoteSave(fresh);
     if(!savedNew) return { ok:false, message:'서버 저장에 실패했습니다.\n네트워크 상태를 확인해 주시기 바랍니다.' };
     if(!isAdminAccount){

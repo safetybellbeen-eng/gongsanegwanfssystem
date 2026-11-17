@@ -303,6 +303,7 @@ function updateBellState(){
   if(!b) return;
   b.classList.toggle('on', notifyIsOn());
   try{ updateNotifyTile(); }catch(e){}
+  try{ updateBellBirthday(); }catch(e){}
 }
 function updateUserMenuLabel(){
   const b = document.getElementById('userMenuBtn');
@@ -310,17 +311,7 @@ function updateUserMenuLabel(){
 }
 (function initHomeHeaderControls(){
   const bell = document.getElementById('bellBtn');
-  if(bell) bell.addEventListener('click', ()=>{
-    if(typeof Notification==='undefined'){ toast('이 기기에서는 알림을 지원하지 않습니다.'); return; }
-    if(Notification.permission==='granted'){ toast('알림이 켜져 있습니다. 경기 확정·투표 마감 소식을 알려드려요.'); }
-    else if(Notification.permission==='denied'){ toast('알림이 차단되어 있습니다. 브라우저(앱) 설정에서 허용해 주세요.'); }
-    else {
-      const en = document.getElementById('notifyEnableBtn');
-      if(en) en.click();
-      setTimeout(updateBellState, 1500);
-      setTimeout(updateBellState, 5000);
-    }
-  });
+  if(bell) bell.addEventListener('click', openBdaySheet);
   const menuBtn = document.getElementById('userMenuBtn');
   const box = document.getElementById('userBox');
   if(menuBtn && box){
@@ -386,3 +377,96 @@ async function installToHomeScreen(){
   showInstallGuide();
 }
 
+
+/* ---------- 생일 (종 아이콘) ---------- */
+let bdayTab = 0; // 0=이번 달, 1=다음 달
+function bellNotifyAction(){
+  if(typeof Notification==='undefined'){ toast('이 기기에서는 알림을 지원하지 않습니다.'); return; }
+  if(Notification.permission==='granted'){ toast('알림이 켜져 있습니다. 경기 확정·투표 마감 소식을 알려드려요.'); }
+  else if(Notification.permission==='denied'){ toast('알림이 차단되어 있습니다. 브라우저(앱) 설정에서 허용해 주세요.'); }
+  else {
+    const en = document.getElementById('notifyEnableBtn');
+    if(en) en.click();
+    setTimeout(updateBellState, 1500);
+    setTimeout(updateBellState, 5000);
+  }
+}
+/* birth는 YYMMDD 6자리. monthOffset 0=이번 달, 1=다음 달 */
+function getBirthdayList(monthOffset){
+  const now = new Date();
+  const target = new Date(now.getFullYear(), now.getMonth()+monthOffset, 1);
+  const mon = target.getMonth()+1;
+  const out = [];
+  Object.keys((appData && appData.members) || {}).forEach(n=>{
+    const m = appData.members[n];
+    if(!m || !m.approved || n===ADMIN_NAME) return;
+    const b = String(m.birth||'');
+    if(!/^\d{6}$/.test(b)) return;
+    const mm = +b.slice(2,4), dd = +b.slice(4,6);
+    if(mm!==mon || dd<1 || dd>31) return;
+    out.push({ name:n, month:mm, day:dd });
+  });
+  out.sort((a,b)=>a.day-b.day || a.name.localeCompare(b.name,'ko'));
+  return { month: mon, list: out };
+}
+function updateBellBirthday(){
+  const el = document.getElementById('bellBday');
+  if(!el) return;
+  const has = getBirthdayList(0).list.length > 0;
+  el.hidden = !has;
+  const bell = document.getElementById('bellBtn');
+  if(bell) bell.setAttribute('aria-label', has ? '알림 · 이번 달 생일이 있어요' : '알림');
+}
+function renderBdaySheet(){
+  const cur = getBirthdayList(0), nxt = getBirthdayList(1);
+  const d = bdayTab===0 ? cur : nxt;
+  document.getElementById('bdayTitle').innerHTML = `🎂 ${d.month}월 생일`;
+  document.getElementById('bdaySeg').innerHTML =
+    `<button type="button" data-t="0" class="${bdayTab===0?'on':''}">이번 달 ${cur.month}월 · ${cur.list.length}명</button>`+
+    `<button type="button" data-t="1" class="${bdayTab===1?'on':''}">다음 달 ${nxt.month}월 · ${nxt.list.length}명</button>`;
+  const today = new Date(); const tm = today.getMonth()+1, td = today.getDate();
+  const box = document.getElementById('bdayList');
+  if(!d.list.length){ box.innerHTML = `<div class="mem-empty">${d.month}월에 생일인 팀원이 없어요</div>`; }
+  else box.innerHTML = d.list.map(x=>{
+    let tag = '', cls = 'tb';
+    if(bdayTab===0){
+      if(x.day===td && x.month===tm){ tag='🎉 오늘!'; cls='tg'; }
+      else if(x.day>td){ tag=`D-${x.day-td}`; cls='tw'; }
+      else { tag='지남'; cls='tr'; }
+    }
+    return `<div class="mem-li"><span class="mem-av" style="background:${memAvatarColor(x.name)}">${escapeHtml(x.name.charAt(0))}</span><div><b>${escapeHtml(x.name)}</b><small>${x.month}월 ${x.day}일</small></div>${tag?`<span class="mem-tag ${cls}">${tag}</span>`:''}</div>`;
+  }).join('');
+  const nb = document.getElementById('bdayNotifyBtn');
+  nb.hidden = notifyIsOn();
+}
+function openBdaySheet(){
+  bdayTab = 0; renderBdaySheet();
+  document.getElementById('bdaySheetDim').hidden = false; document.getElementById('bdaySheet').hidden = false;
+  document.getElementById('bdayList').scrollTop = 0;
+}
+function closeBdaySheet(){ document.getElementById('bdaySheetDim').hidden = true; document.getElementById('bdaySheet').hidden = true; }
+(function initBdaySheet(){
+  const dim = document.getElementById('bdaySheetDim'); if(!dim) return;
+  dim.addEventListener('click', closeBdaySheet);
+  document.getElementById('bdayCloseBtn').addEventListener('click', closeBdaySheet);
+  document.getElementById('bdaySeg').addEventListener('click', e=>{ const b=e.target.closest('button[data-t]'); if(!b) return; bdayTab=+b.dataset.t; renderBdaySheet(); });
+  document.getElementById('bdayNotifyBtn').addEventListener('click', ()=>{ bellNotifyAction(); });
+})();
+
+/* ---------- 앱 업데이트 (캐시 비우고 최신 파일로 다시 시작) ---------- */
+async function refreshApp(){
+  toast('최신 버전으로 업데이트 중입니다…', 4000);
+  try{
+    if('serviceWorker' in navigator){
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r=>r.update().catch(()=>{})));
+    }
+    if(window.caches){
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k=>caches.delete(k)));
+    }
+    await Promise.all(['./index.html','./manifest.json','./sw.js'].map(u=>fetch(u,{cache:'reload'}).catch(()=>{})));
+  }catch(e){ console.error('앱 업데이트 오류', e); }
+  try{ sessionStorage.removeItem('gsgSplashSeen'); }catch(e){}
+  location.replace(location.pathname + '?u=' + Date.now());
+}

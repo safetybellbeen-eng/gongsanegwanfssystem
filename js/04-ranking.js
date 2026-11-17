@@ -2,6 +2,18 @@
 let lastNaturalStats = {};
 let lastNaturalMissCounts = {};
 let lastStatPeriodInfo = {};
+/* 가입일(joinedAt, YYYY-MM-DD) 이전 날짜/주는 개인 기록에서 제외. joinedAt이 없는 기존 회원은 전체 기간 집계 */
+function isBeforeJoin(name, dateStr){
+  const m = appData.members && appData.members[name];
+  return !!(m && m.joinedAt && dateStr < m.joinedAt);
+}
+function isWeekBeforeJoin(name, weekStart){
+  const m = appData.members && appData.members[name];
+  if(!m || !m.joinedAt) return false;
+  const d = new Date(weekStart+'T00:00:00'); d.setDate(d.getDate()+6);
+  const end = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  return end < m.joinedAt;
+}
 function computeAttendanceStats(){
   const excludedWeeks = new Set(appData.excludedWeeks || []);
   const validDateKeys = Object.keys(appData.votes)
@@ -10,6 +22,7 @@ function computeAttendanceStats(){
   validDateKeys.forEach(date=>{
     getEffectiveVotesForDate(date).forEach(v=>{
       if(v.name === ADMIN_NAME) return; // 관리자는 선수가 아니라 운영 계정이므로 모든 순위 통계에서 제외합니다.
+      if(isBeforeJoin(v.name, date)) return; // 가입 전 날짜는 집계하지 않습니다.
       if(isInjuredOnDate(v.name, date)) return; // 부상 기간 중인 날짜는 참석/불참 통계에서 제외합니다.
       if(!stats[v.name]) stats[v.name] = {yes:0, no:0, total:0};
       stats[v.name].total++;
@@ -31,6 +44,7 @@ function computeAttendanceStats(){
     const avail = appData.weekAvailability[wk] || {};
     const absence = (appData.weekAbsence && appData.weekAbsence[wk]) || {};
     approvedNames.forEach(n=>{
+      if(isWeekBeforeJoin(n, wk)) return; // 가입 전 주는 미투표로 집계하지 않습니다.
       if(isInjuredDuringWeek(n, wk)) return; // 부상 기간과 겹치는 주는 미투표로 집계하지 않습니다.
       const arr = avail[n];
       if(absence[n]) return; // 명시적으로 불참을 선언한 건 "미투표"가 아니에요
@@ -393,7 +407,10 @@ https://safetybellbeen-eng.github.io/gongsanegwanfssystem/
 
 1. 최초 로그인이 가입
    - 이름 / 생년월일 6자리 / 참석코드 jb0309
-2. 투표의 경우, 2-3주차까지 미리 진행 권장.`;
+
+2. [필수] 홈 화면 추가 및 알림설정
+
+3. 투표의 경우, 2-3주차까지 미리 진행 권장.`;
 async function shareInviteLink(){
   if(navigator.share){
     try{ await navigator.share({ title:'공생관 FS 초대', text: INVITE_MESSAGE }); }
