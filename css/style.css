@@ -1753,12 +1753,12 @@ body.sheet-open{overflow:hidden;}
 #heroMatchCard .nm3-act .hero-pin-btn svg,#heroMatchCard .nm3-act .hero-share-btn svg{width:18px;height:18px;}
 #sectionHome #heroMatchCard .nm3-act > button{height:40px !important;min-height:40px !important;max-height:40px !important;box-sizing:border-box;margin:0;}
 
-.home-quick-btn.notify-on{border-color:#4f7d1d;color:#b6f23a;}
-.home-quick-btn.notify-on span{color:#b6f23a;}
+.home-quick-btn.notify-on svg,.home-quick-btn.notify-on span{color:#b6f23a;}
+.home-quick-btn.notify-off svg,.home-quick-btn.notify-off span{color:#8fa0a8;}
 
 /* ===== 여백 제거: 화면 전체 사용 (상단 배너는 상태표시줄 뒤까지, 탭바는 맨 아래까지) ===== */
 @media (max-width:768px){
-  html,body{height:var(--app-h,100%);}
+  html,body{height:var(--app-h,auto);}
   nav.mobile-tabbar{position:absolute;left:0;right:0;bottom:0;padding-bottom:max(8px,calc(env(safe-area-inset-bottom) - 12px));}
   body.hide-header .app-section.mobile-active{padding-top:0;}
   .page-banner.pb-slim{margin-top:0 !important;}
