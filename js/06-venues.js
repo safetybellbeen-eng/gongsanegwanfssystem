@@ -199,24 +199,26 @@ async function setFavoriteVenueRobust(name, shouldBeFavorite){
     return { ok:false, reason };
   }
 }
-$('#favVenueBtn').addEventListener('click', async ()=>{
+async function toggleFavoriteVenue(name){
   if(!requireAdmin()) return;
-  const name = currentVenueName;
   if(!name) return;
   const willBeFavorite = !favoriteVenueSet.has(name);
   const result = await setFavoriteVenueRobust(name, willBeFavorite);
   populateVenuePresetSelect();
   updateFavVenueBtn();
   if(venuePinObjects[name]){
-    venuePinObjects[name].type = favoriteVenueSet.has(name) ? 'favorite' : 'regular';
+    if(venuePinObjects[name].type !== 'confirmed') venuePinObjects[name].type = favoriteVenueSet.has(name) ? 'favorite' : 'regular';
+    try{ venuePinObjects[name].overlay.setZIndex(venuePinObjects[name].type==='favorite'?3:2); }catch(e){}
     renderVenuePinContent(name);
   }
+  try{ renderVenueList(); }catch(e){}
   if(!result.ok){
     toast(`즐겨찾기 저장에 실패했습니다: ${result.reason}`);
   } else {
     toast(willBeFavorite ? '즐겨찾기에 추가했습니다.' : '즐겨찾기에서 제거했습니다.');
   }
-});
+}
+$('#favVenueBtn').addEventListener('click', ()=>toggleFavoriteVenue(currentVenueName));
 $('#copyVenueAddressBtn').addEventListener('click', ()=>{
   const text = $('#venueAddressText').textContent;
   if(!text) return;
@@ -336,12 +338,23 @@ function venueIconFor(type){
   if(type==='favorite') return '⭐';
   return '📍';
 }
+/* "플랩 스타디움 가산 삼성리더스타워" → ["플랩 스타디움 가산", "삼성리더스타워"] (회사/지점 줄 + 구장명 줄) */
+function splitVenueName(name){
+  const m = String(name||'').match(/^(플랩\s*스타디움\s*\S+)\s+(.+)$/);
+  return m ? [m[1], m[2]] : ['', String(name||'')];
+}
+const VPIN_BALL = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#0b1218" stroke-width="1.6" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.2l4.3 3.1-1.6 5h-5.4l-1.6-5z" fill="#0b1218"/><path d="M12 7.2V3.2M16.3 10.3l3.9-1.2M14.7 15.3l2.4 3.3M9.3 15.3l-2.4 3.3M7.7 10.3L3.8 9.1"/></svg>';
+function ddayText(dstr){
+  if(!dstr) return '';
+  const n = Math.round((new Date(dstr+'T00:00:00') - new Date(todayStr()+'T00:00:00')) / 86400000);
+  return n<=0 ? '오늘' : 'D-'+n;
+}
 function renderVenuePinContent(name){
   const obj = venuePinObjects[name];
   if(!obj) return;
   const icon = venueIconFor(obj.type);
-  obj.el.className = `venue-pin ${obj.type}${obj.expanded?' expanded':''}`;
   if(obj.expanded){
+    obj.el.className = `venue-pin ${obj.type} expanded`;
     obj.el.innerHTML = `
       <div class="vp-head">${icon} <b>${escapeHtml(name)}</b></div>
       ${obj.address ? `<div class="vp-addr">${escapeHtml(obj.address)}</div><button type="button" class="vp-copy">주소 복사</button>` : '<div class="vp-addr">등록된 주소가 없습니다</div>'}
@@ -349,7 +362,16 @@ function renderVenuePinContent(name){
     const copyBtn = obj.el.querySelector('.vp-copy');
     if(copyBtn) copyBtn.addEventListener('click', (e)=>{ e.stopPropagation(); window.copyVenueAddress(obj.address); });
   } else {
-    obj.el.innerHTML = `${icon} <span class="vp-name">${escapeHtml(name)}</span>`;
+    obj.el.className = `vpin vpin-${obj.type}`;
+    const [co, nm] = splitVenueName(obj.type==='confirmed' ? (obj.label || name) : name);
+    if(obj.type==='confirmed'){
+      const dd = ddayText(obj.dday);
+      obj.el.innerHTML = `<div class="vpn-bubble"><div class="vpn-badges"><span class="vpn-t">다음 경기</span>${dd?`<span class="vpn-d">${dd}</span>`:''}</div>${co?`<div class="vpn-co">${escapeHtml(co)}</div>`:''}<div class="vpn-nm">${escapeHtml(nm)}</div></div><i class="vpn-tail"></i><div class="vpn-ball">${VPIN_BALL}</div>`;
+    } else if(obj.type==='favorite'){
+      obj.el.innerHTML = `<div class="vpn-fav"><span>★</span> ${escapeHtml(nm)}</div><i class="vpn-ftail"></i><div class="vpn-star">★</div>`;
+    } else {
+      obj.el.innerHTML = `<div class="vpn-reg">${escapeHtml(nm)}</div><i class="vpn-rtail"></i><div class="vpn-dot"></div>`;
+    }
   }
   // 카카오맵이 새 크기를 다시 계산하도록 강제합니다.
   if(obj.overlay) obj.overlay.setContent(obj.el);
@@ -450,12 +472,15 @@ function applyConfirmedVenueMarker(){
   if(confirmedVenueName && confirmedVenueName !== newConfirmedName && venuePinObjects[confirmedVenueName]){
     const prevObj = venuePinObjects[confirmedVenueName];
     prevObj.type = favoriteVenueSet.has(confirmedVenueName) ? 'favorite' : 'regular';
+    try{ prevObj.overlay.setZIndex(prevObj.type==='favorite'?3:2); }catch(e){}
     renderVenuePinContent(confirmedVenueName);
   }
   confirmedVenueName = newConfirmedName;
   if(confirmedVenueName){
     const obj = venuePinObjects[confirmedVenueName];
     obj.type = 'confirmed';
+    obj.dday = nearest; obj.label = venue ? venue.name : confirmedVenueName;
+    try{ obj.overlay.setZIndex(6); }catch(e){}
     renderVenuePinContent(confirmedVenueName);
   }
 }

@@ -221,3 +221,69 @@ async function placeVenueMarker(info){
   adhocVenueOverlay.setMap(map);
 }
 
+
+/* ---------- 돋보기: 경기장 검색 + 목록 (이름 전체 표시, 이번 경기/즐겨찾기 표시, 입력하면 바로 필터) ---------- */
+let venueListChip = 'all';
+function vlHighlight(text, q){
+  const t = escapeHtml(text);
+  if(!q) return t;
+  const i = String(text).toLowerCase().indexOf(q.toLowerCase());
+  if(i < 0) return t;
+  return escapeHtml(text.slice(0,i)) + '<mark>' + escapeHtml(text.slice(i,i+q.length)) + '</mark>' + escapeHtml(text.slice(i+q.length));
+}
+function renderVenueList(){
+  const list = document.getElementById('vlList'), chipsEl = document.getElementById('vlChips'), hint = document.getElementById('vlHint');
+  if(!list || !chipsEl) return;
+  const q = (document.getElementById('venueInput').value || '').trim();
+  const all = (typeof FUTSAL_VENUES !== 'undefined' ? FUTSAL_VENUES : []).slice();
+  const isFav = v=>favoriteVenueSet.has(v.name);
+  const isFlap = v=>/^플랩\s*스타디움\s*가산/.test(v.name);
+  const chips = [['all','전체'],['fav','★ 즐겨찾기'],['flap','플랩 가산'],['etc','기타']];
+  chipsEl.innerHTML = chips.map(([k,t])=>`<button type="button" class="vl-chip${k===venueListChip?' on':''}" data-k="${k}">${t}</button>`).join('');
+  let items = all.filter(v=>{
+    if(venueListChip==='fav' && !isFav(v)) return false;
+    if(venueListChip==='flap' && !isFlap(v)) return false;
+    if(venueListChip==='etc' && isFlap(v)) return false;
+    if(q){ const s = (v.name+' '+(v.address||'')).toLowerCase().replace(/\s+/g,''); if(!s.includes(q.toLowerCase().replace(/\s+/g,''))) return false; }
+    return true;
+  });
+  const rank = v=> v.name===confirmedVenueName ? 0 : (isFav(v) ? 1 : 2);
+  items.sort((a,b)=>rank(a)-rank(b) || a.name.localeCompare(b.name,'ko'));
+  hint.textContent = q ? `"${q}" 검색 결과 ${items.length}곳` : '탭하면 해당 경기장으로 이동합니다';
+  const admin = typeof isAdminUser==='function' && isAdminUser();
+  let html = items.map(v=>{
+    const [co, nm] = splitVenueName(v.name);
+    const next = v.name===confirmedVenueName;
+    const fav = isFav(v);
+    return `<div class="vl-item${next?' next':''}" data-name="${escapeHtml(v.name)}">
+      <span class="vl-ic"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.2 7-11.5a7 7 0 0 0-14 0C5 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg></span>
+      <span class="vl-tx"><b>${co?escapeHtml(co)+'<br>':''}${vlHighlight(nm,q)}</b>
+      <small>${next?'<em class="vl-tag">이번 경기</em>':''}${v.address?escapeHtml(v.address):'등록된 주소가 없습니다'}</small></span>
+      <button type="button" class="vl-star${fav?' on':''}${admin?'':' ro'}" data-fav="${escapeHtml(v.name)}" aria-label="즐겨찾기">${fav?'★':'☆'}</button></div>`;
+  }).join('');
+  if(!items.length) html = '<div class="vl-empty">일치하는 경기장이 없습니다</div>';
+  if(q) html += `<button type="button" class="vl-direct" data-direct="1">+ "${escapeHtml(q)}" 주소로 직접 찾기</button>`;
+  list.innerHTML = html;
+}
+(function(){
+  const pop = document.getElementById('mapSearchPop'); if(!pop) return;
+  const inp = document.getElementById('venueInput');
+  if(inp) inp.addEventListener('input', renderVenueList);
+  pop.addEventListener('click', (e)=>{
+    const chip = e.target.closest('.vl-chip');
+    if(chip){ venueListChip = chip.dataset.k; renderVenueList(); return; }
+    const star = e.target.closest('.vl-star');
+    if(star){ e.stopPropagation(); if(star.classList.contains('ro')){ toast('즐겨찾기는 관리자만 바꿀 수 있습니다.'); return; } toggleFavoriteVenue(star.dataset.fav); return; }
+    if(e.target.closest('[data-direct]')){ lookupVenueOnMap(); setTimeout(()=>{ pop.hidden = true; }, 200); return; }
+    const it = e.target.closest('.vl-item');
+    if(it){
+      const name = it.dataset.name;
+      inp.value = name;
+      const sel = document.getElementById('venuePresetSelect'); if(sel) sel.value = name;
+      lookupVenueOnMap();
+      setTimeout(()=>{ pop.hidden = true; }, 200);
+    }
+  });
+  const sb = document.getElementById('mapSearchBtn');
+  if(sb) sb.addEventListener('click', ()=>{ if(!pop.hidden){ inp.value=''; venueListChip='all'; renderVenueList(); } });
+})();
