@@ -2068,3 +2068,42 @@ button,.more-row,.tab-btn,.home-quick-btn{touch-action:manipulation;}
 .rec-sheet .rs-hd small{color:#9fb0b8;font-weight:600;}
 .rec-sheet .rs-hd button{background:none;border:0;color:#9fb0b8;font-size:20px;cursor:pointer;padding:4px 8px;}
 .rec-sheet .rs-body{overflow-y:auto;-webkit-overflow-scrolling:touch;min-height:0;}
+
+/* v49 날씨탭 압축형 */
+#sectionWeather .page-banner.pb-slim .pb-sub{display:none;}
+.wx-top{margin:8px 2px 8px;}
+.wx-ver{gap:10px;padding:10px 12px;border-radius:16px;margin-bottom:8px;}
+.wx-ver .wv-ic{font-size:28px;}
+.wx-ver .wv-d{font-size:10.5px;}
+.wx-ver .wv-l{font-size:17px;margin:2px 0;}
+.wx-ver .wv-s{font-size:11.5px;line-height:1.4;}
+.wx-ver .wv-n{display:none;}
+.wx-hero{padding:10px 14px;border-radius:18px;margin-bottom:8px;}
+.wx-hero .wh-t{font-size:38px;}.wx-hero .wh-t small{font-size:16px;}
+.wx-hero .wh-d{font-size:11.5px;margin-top:3px;}.wx-hero .wh-s{font-size:11.5px;margin-top:2px;}
+.wx-hero .wh-i{font-size:40px;}
+.wx-row2{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;}
+.wx-row2 .wx-kma{height:auto;margin:0;padding:8px 10px;border-radius:12px;font-size:12px;gap:5px;white-space:nowrap;flex:0 1 auto;min-width:0;}
+.wx-row2 .wx-seg{margin:0;padding:3px;width:150px;flex:0 0 150px;border-radius:12px;}
+.wx-row2 .wx-seg .week-tab{padding:6px 0;font-size:12px;border-radius:9px;}
+.wx-list{padding:4px 10px;margin-bottom:8px;}
+.wx-row{padding:7px 4px;}
+.wr-a i{font-size:18px;}
+.wr-d b{font-size:14px;}.wr-d small{font-size:10px;}
+.wr-t{font-size:14px;}
+.wx-h2{margin:6px 2px 6px;font-size:12px;}
+.wx-card{padding:8px 12px;margin-bottom:8px;}
+.wx-bars{height:62px;margin-top:2px;}
+.wx-bn{display:none;}
+#sectionWeather .wx-row{padding:5px 4px;}
+#sectionWeather .wr-d b{line-height:1.15;}#sectionWeather .wr-d small{line-height:1.1;}
+#sectionWeather .wx-status,#sectionWeather .weather-status{margin:4px 2px 0;font-size:11px;}
+#sectionWeather .wr-d{display:flex;align-items:baseline;gap:5px;width:74px;white-space:nowrap;}
+#sectionWeather .wx-row.today .wr-d,#sectionWeather .wx-row.match .wr-d{width:74px;}
+#sectionWeather .wr-d b{display:inline;font-size:14px;}#sectionWeather .wr-d small{display:inline;font-size:10px;}
+#sectionWeather .wx-row{padding:6px 4px;}
+#sectionWeather .wx-hero .wh-d{display:none;}
+#sectionWeather .wx-bm{display:none;}
+#sectionWeather .wx-top{margin:4px 2px 6px;}
+#sectionWeather .wx-bars{height:52px;}
+#sectionWeather .wx-hero{padding:8px 14px;}
