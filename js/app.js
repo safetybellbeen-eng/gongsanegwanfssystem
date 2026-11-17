@@ -149,47 +149,85 @@ async function initAppUI(){
   initMatchesTabOnce();
 }
 
-/* 부상 설정은 관리자뿐 아니라 로그인한 본인도 스스로 할 수 있습니다. */
-function renderMyInjuryPanel(){
-  const statusText = $('#myInjuryStatusText');
-  if(!statusText || !myName) return;
-  const m = appData.members && appData.members[myName];
-  if(m && isCurrentlyInjured(myName)){
-    statusText.textContent = `현재 부상 중입니다 (복귀 예정일: ${m.injuryEnd}).`;
-  } else if(m && m.injuryStart && m.injuryEnd){
-    statusText.textContent = `등록된 부상 기간: ${m.injuryStart} ~ ${m.injuryEnd} (지금은 해당하지 않습니다)`;
-  } else {
-    statusText.textContent = '현재 등록된 부상 기간이 없습니다.';
-  }
-  const startInput = $('#myInjuryStartInput');
-  const endInput = $('#myInjuryEndInput');
-  if(startInput) startInput.value = (m && m.injuryStart) || '';
-  if(endInput) endInput.value = (m && m.injuryEnd) || '';
+/* 부상 설정은 관리자뿐 아니라 로그인한 본인도 스스로 할 수 있습니다. (아래에서 올라오는 시트) */
+function fmtKDate(s){
+  if(!s) return '';
+  const o = parseYMD(s);
+  return `${o.getMonth()+1}월 ${o.getDate()}일 (${weekdayKR[o.getDay()]})`;
 }
-const myInjuryToggleBtn = $('#myInjuryToggleBtn');
-if(myInjuryToggleBtn) myInjuryToggleBtn.addEventListener('click', ()=>{
-  const panel = $('#myInjuryPanel');
-  if(!panel) return;
-  const show = panel.style.display === 'none';
-  panel.style.display = show ? 'block' : 'none';
-  if(show) renderMyInjuryPanel();
-});
-const myInjurySaveBtn = $('#myInjurySaveBtn');
-if(myInjurySaveBtn) myInjurySaveBtn.addEventListener('click', async ()=>{
-  const start = $('#myInjuryStartInput').value;
-  const end = $('#myInjuryEndInput').value;
-  if(!start || !end){ toast('시작일과 종료일을 모두 선택해 주시기 바랍니다.'); return; }
-  if(end < start){ toast('종료일이 시작일보다 빠를 수 없습니다.'); return; }
-  await setInjuryPeriod(myName, start, end);
-  renderMyInjuryPanel();
-  toast('부상 기간을 등록했습니다. 해당 기간 동안 투표와 순위 집계에서 제외됩니다.');
-});
-const myInjuryClearBtn = $('#myInjuryClearBtn');
-if(myInjuryClearBtn) myInjuryClearBtn.addEventListener('click', async ()=>{
-  await setInjuryPeriod(myName, '', '');
-  renderMyInjuryPanel();
-  toast('부상 상태를 해제했습니다.');
-});
+function daysBetween(a, b){ return Math.round((parseYMD(b) - parseYMD(a)) / 86400000); }
+function addDaysStr(s, n){
+  const o = parseYMD(s); o.setDate(o.getDate()+n);
+  return `${o.getFullYear()}-${String(o.getMonth()+1).padStart(2,'0')}-${String(o.getDate()).padStart(2,'0')}`;
+}
+function renderInjurySheet(){
+  if(!myName) return;
+  const m = (appData.members && appData.members[myName]) || {};
+  const st = $('#myInjuryStartInput').value, en = $('#myInjuryEndInput').value;
+  $('#injStartTxt').textContent = st ? fmtKDate(st) : '날짜 선택';
+  $('#injEndTxt').textContent = en ? fmtKDate(en) : '날짜 선택';
+  $('#injStartCard').classList.toggle('on', !!st);
+  $('#injEndCard').classList.toggle('on', !!en);
+  const box = $('#injStatus'), t = $('#injStatusTitle'), sub = $('#injStatusSub');
+  const has = !!(m.injuryStart && m.injuryEnd);
+  const now = has && isCurrentlyInjured(myName);
+  box.classList.toggle('inj', now);
+  if(now){
+    const left = daysBetween(todayStr(), m.injuryEnd);
+    t.textContent = `🤕 부상 중 · ${left>0?'D-'+left+' ':''}복귀 예정`;
+    sub.textContent = `${fmtKDate(m.injuryStart)} ~ ${fmtKDate(m.injuryEnd)} (총 ${daysBetween(m.injuryStart, m.injuryEnd)+1}일)`;
+  } else if(has){
+    t.textContent = '등록된 부상 기간이 있습니다';
+    sub.textContent = `${fmtKDate(m.injuryStart)} ~ ${fmtKDate(m.injuryEnd)} (지금은 해당하지 않음)`;
+  } else {
+    t.textContent = '현재 등록된 부상 기간이 없습니다';
+    sub.textContent = '정상 투표·순위 집계 중';
+  }
+  $('#myInjurySaveBtn').textContent = has ? '기간 수정 저장' : '부상 등록';
+  $('#myInjuryClearBtn').disabled = !has;
+}
+function openInjurySheet(){
+  if(!myName){ toast('로그인 후 이용해 주세요.'); return; }
+  const m = (appData.members && appData.members[myName]) || {};
+  $('#myInjuryStartInput').value = m.injuryStart || '';
+  $('#myInjuryEndInput').value = m.injuryEnd || '';
+  renderInjurySheet();
+  $('#injSheetDim').hidden = false; $('#injurySheet').hidden = false;
+}
+function closeInjurySheet(){ $('#injSheetDim').hidden = true; $('#injurySheet').hidden = true; }
+function renderMyInjuryPanel(){ try{ renderInjurySheet(); }catch(e){} } // 하위 호환
+(function initInjurySheet(){
+  const startInput = $('#myInjuryStartInput'), endInput = $('#myInjuryEndInput');
+  startInput.addEventListener('change', ()=>{
+    if(startInput.value && endInput.value && endInput.value < startInput.value) endInput.value = '';
+    renderInjurySheet();
+  });
+  endInput.addEventListener('change', renderInjurySheet);
+  document.querySelectorAll('#injurySheet .inj-chips button').forEach(b=>b.addEventListener('click', ()=>{
+    const start = startInput.value || todayStr();
+    startInput.value = start;
+    endInput.value = addDaysStr(start, parseInt(b.dataset.w,10)*7 - 1);
+    renderInjurySheet();
+  }));
+  $('#injCloseBtn').addEventListener('click', closeInjurySheet);
+  $('#injSheetDim').addEventListener('click', closeInjurySheet);
+  const toggle = $('#myInjuryToggleBtn');
+  if(toggle) toggle.addEventListener('click', openInjurySheet);
+  $('#myInjurySaveBtn').addEventListener('click', async ()=>{
+    const start = startInput.value, end = endInput.value;
+    if(!start || !end){ toast('시작일과 종료일을 모두 선택해 주시기 바랍니다.'); return; }
+    if(end < start){ toast('종료일이 시작일보다 빠를 수 없습니다.'); return; }
+    await setInjuryPeriod(myName, start, end);
+    closeInjurySheet();
+    toast('부상 기간을 등록했습니다. 해당 기간 동안 투표와 순위 집계에서 제외됩니다.');
+  });
+  $('#myInjuryClearBtn').addEventListener('click', async ()=>{
+    if(!confirm('부상 상태를 해제할까요?')) return;
+    await setInjuryPeriod(myName, '', '');
+    closeInjurySheet();
+    toast('부상 상태를 해제했습니다.');
+  });
+})();
 
 /* 관리자 도구의 "지금 새로고침" 버튼: 페이지를 다시 불러오지 않고 Supabase의 최신 데이터를 가져와 화면을 갱신합니다.
    웹/모바일 브라우저는 물론, 홈 화면에 추가해서 실행한 경우에도 동일하게 동작합니다. */
@@ -1438,6 +1476,7 @@ async function cancelWeekAbsence(weekKey){
    이제는 이 주기적 갱신이 실제로 관여하는 투표 관련 필드만 선택적으로 갱신하고, 나머지 필드는
    그대로 둡니다. */
 setInterval(async ()=>{
+  if(document.hidden) return;
   const fresh = await remoteLoad();
   appData.members = fresh.members;
   renderMemberList();
@@ -2629,7 +2668,7 @@ async function showVenueOnMapImpl(info){
   if(!map){
     map = new kakao.maps.Map($('#map'), { center: new kakao.maps.LatLng(37.5665,126.9780), level: 8 });
   }
-  await renderAllVenuePins(); // 목록에 있는 모든 경기장 핀을 먼저 준비합니다 (첫 실행 후에는 캐시되어 즉시 완료됨).
+  await renderAllVenuePins(info.name); // 요청한 경기장 핀을 먼저 올리고, 나머지는 뒤에서 채웁니다.
   await placeVenueMarker(info);
   currentVenueName = info.name;
   // 탭이 막 열려 지도 크기가 늦게 확정되는 경우를 대비해, 크기 확정 후 핀을 화면 가운데로 다시 맞춥니다.
@@ -2706,41 +2745,64 @@ function expandVenuePin(name){
   updateFavVenueBtn();
 }
 
-let venuePinsPromise = null;
-function renderAllVenuePins(){
-  if(!map) return Promise.resolve();
-  if(!venuePinsPromise) venuePinsPromise = renderAllVenuePinsImpl();
-  return venuePinsPromise;
+/* 경기장 좌표는 바뀌지 않으므로 기기에 저장해 두고 다음부터는 카카오 검색 없이 즉시 사용합니다. */
+const GEO_LS_KEY = 'gsg-venue-geo-v1';
+let venueGeoStore = null;
+function geoStoreGet(addr){
+  if(!venueGeoStore){ try{ venueGeoStore = JSON.parse(localStorage.getItem(GEO_LS_KEY)||'{}') || {}; }catch(e){ venueGeoStore = {}; } }
+  return venueGeoStore[addr];
 }
-async function renderAllVenuePinsImpl(){
-  if(!map || allVenuePinsPlaced) return;
-  allVenuePinsPlaced = true;
-  for(const v of FUTSAL_VENUES){
-    let coords = venueGeocodeCache[v.name];
-    if(!coords){
-      coords = await kakaoGeocode(v.address, true);
-      if(coords) venueGeocodeCache[v.name] = coords;
-    }
-    if(!coords) continue;
-    const pos = new kakao.maps.LatLng(coords.lat, coords.lng);
-    const isFav = favoriteVenueSet.has(v.name);
-    const el = document.createElement('div');
-    el.addEventListener('click', (e)=>{
-      e.stopPropagation();
-      const obj = venuePinObjects[v.name];
-      if(obj.expanded){ collapseAllVenuePins(); } else { expandVenuePin(v.name); }
-    });
-    const overlay = new kakao.maps.CustomOverlay({
-      position: pos, content: el, yAnchor: 1, xAnchor: 0.5,
-      zIndex: isFav ? 3 : 2
-    });
-    overlay.setMap(map);
-    venuePinObjects[v.name] = { overlay, el, pos, address: v.address, type: isFav?'favorite':'regular', expanded:false };
-    renderVenuePinContent(v.name);
+function geoStoreSet(addr, c){
+  geoStoreGet(addr); venueGeoStore[addr] = c;
+  try{ localStorage.setItem(GEO_LS_KEY, JSON.stringify(venueGeoStore)); }catch(e){}
+}
+let venuePinsStarted = false;
+const venuePinReady = {};   // { 이름: Promise } 해당 경기장 핀이 지도에 올라간 뒤 완료
+const venuePinResolve = {};
+async function placeVenuePin(v){
+  let coords = venueGeocodeCache[v.name] || geoStoreGet(v.address);
+  if(!coords){
+    coords = await kakaoGeocode(v.address, true);
+    if(coords){ geoStoreSet(v.address, coords); }
   }
-  // 지도 빈 공간을 누르면 열려있던 상세정보를 닫습니다.
-  kakao.maps.event.addListener(map, 'click', ()=>{ collapseAllVenuePins(); });
-  applyConfirmedVenueMarker();
+  if(coords) venueGeocodeCache[v.name] = coords;
+  if(!coords || venuePinObjects[v.name]) return;
+  const pos = new kakao.maps.LatLng(coords.lat, coords.lng);
+  const isFav = favoriteVenueSet.has(v.name);
+  const el = document.createElement('div');
+  el.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    const obj = venuePinObjects[v.name];
+    if(obj.expanded){ collapseAllVenuePins(); } else { expandVenuePin(v.name); }
+  });
+  const overlay = new kakao.maps.CustomOverlay({ position: pos, content: el, yAnchor: 1, xAnchor: 0.5, zIndex: isFav ? 3 : 2 });
+  overlay.setMap(map);
+  venuePinObjects[v.name] = { overlay, el, pos, address: v.address, type: isFav?'favorite':'regular', expanded:false };
+  renderVenuePinContent(v.name);
+}
+/* 요청한 경기장의 핀을 가장 먼저 올려 곧바로 보여주고, 나머지 경기장은 뒤에서 여러 개씩 동시에 올립니다. */
+function renderAllVenuePins(priorityName){
+  if(!map) return Promise.resolve();
+  if(!venuePinsStarted){
+    venuePinsStarted = true;
+    allVenuePinsPlaced = true;
+    FUTSAL_VENUES.forEach(v=>{ venuePinReady[v.name] = new Promise(r=>{ venuePinResolve[v.name] = r; }); });
+    kakao.maps.event.addListener(map, 'click', ()=>{ collapseAllVenuePins(); });
+    const list = FUTSAL_VENUES.slice();
+    const pi = list.findIndex(v=>v.name===priorityName);
+    if(pi > 0) list.unshift(list.splice(pi,1)[0]);
+    (async ()=>{
+      const run = async (v)=>{ try{ await placeVenuePin(v); }catch(e){ console.error(e); } venuePinResolve[v.name](); };
+      if(list.length){ await run(list.shift()); try{ applyConfirmedVenueMarker(); }catch(e){} }
+      const CONC = 6;
+      for(let i=0;i<list.length;i+=CONC){
+        await Promise.all(list.slice(i,i+CONC).map(run));
+        await new Promise(r=>setTimeout(r,0));
+      }
+      try{ applyConfirmedVenueMarker(); }catch(e){}
+    })();
+  }
+  return venuePinReady[priorityName] || Promise.resolve();
 }
 
 /* 홈 화면과 동일한 "가장 가까운 확정 경기"의 경기장을 ⚽ 아이콘으로 확실하게 구분해서 표시합니다. */
@@ -2987,6 +3049,12 @@ function loadKakaoScript(){
     document.head.appendChild(s);
   });
 }
+/* 지도 탭을 누르기 전에 카카오 지도 스크립트를 미리 받아 두어, 처음 열 때의 대기를 없앱니다. */
+window.addEventListener('load', ()=>{
+  if(location.protocol==='file:') return;
+  const go = ()=>{ if(kakaoLoadFailed || kakaoReady) return; loadKakaoScript().then(()=>{ kakaoReady = true; }).catch(()=>{}); };
+  if('requestIdleCallback' in window) requestIdleCallback(go, {timeout:3000}); else setTimeout(go, 2000);
+});
 async function ensureKakaoReady(){
   if(kakaoLoadFailed){ $('#mapConfigBox').style.display='block'; return false; }
   if(kakaoReady) return true;
@@ -3174,7 +3242,6 @@ function kakaoGeocode(query, isAddress){
     if(isAddress){
       const geocoder = new kakao.maps.services.Geocoder();
       geocoder.addressSearch(query, (result, status)=>{
-        console.log('[카카오 주소검색]', query, 'status:', status, result);
         if(status === kakao.maps.services.Status.OK && result[0]){
           resolve({ lat: parseFloat(result[0].y), lng: parseFloat(result[0].x) });
         } else { resolve(null); }
@@ -3182,7 +3249,6 @@ function kakaoGeocode(query, isAddress){
     } else {
       const places = new kakao.maps.services.Places();
       places.keywordSearch(query, (result, status)=>{
-        console.log('[카카오 키워드검색]', query, 'status:', status, result);
         if(status === kakao.maps.services.Status.OK && result[0]){
           resolve({ lat: parseFloat(result[0].y), lng: parseFloat(result[0].x) });
         } else { resolve(null); }
@@ -3736,7 +3802,7 @@ document.querySelectorAll('#sectionMore .more-row').forEach(row=>{
     if(act==='invite') shareInviteLink();
     else if(act==='bell') enableAppNotifications();
     else if(act==='logout') click('logoutBtn');
-    else if(act==='injury'){ click('myInjuryToggleBtn'); pageScrollTop('smooth'); }
+    else if(act==='injury'){ openInjurySheet(); }
   });
 });
 
@@ -3753,6 +3819,7 @@ function setActiveMobileSection(tabKey){
   pageScrollTop('instant');
   if(tabKey==='home') tryRenderHomeTab();
   if(tabKey==='more') tryRenderMoreTab();
+  try{ scheduleFit(); }catch(e){}
   if(tabKey==='members'){ try{ renderMembersPage(); }catch(e){ console.error(e); } }
   if(tabKey==='calendar') tryRenderAttendPanes();
   if(tabKey==='map') loadDefaultMapVenue();
@@ -4884,7 +4951,6 @@ function fitHomeToScreen(){
   const wrap = document.querySelector('.wrap');
   const padB = wrap ? parseFloat(getComputedStyle(wrap).paddingBottom) || 96 : 96;
   const prevH = sec.style.height, prevMin = sec.style.minHeight;
-  sec.style.height = ''; sec.style.minHeight = '';
   let top, avail;
   if(isPhoneShell() && wrap){
     top = sec.getBoundingClientRect().top - wrap.getBoundingClientRect().top + wrap.scrollTop;
@@ -4901,7 +4967,11 @@ function fitHomeToScreen(){
 }
 window.addEventListener('resize', fitHomeToScreen);
 window.addEventListener('orientationchange', ()=>setTimeout(fitHomeToScreen,200));
-setInterval(fitHomeToScreen, 1000); // 탭 전환·데이터 로딩 후 높이 재계산(가벼운 계산)
+/* 높이 재계산: 예전에는 1초마다 강제로 계산해 버벅임의 원인이 됐습니다.
+   이제는 탭 전환·화면 크기 변화·이미지 로딩 직후에만 계산하고, 보이는 동안 6초 간격으로만 보정합니다. */
+function scheduleFit(){ [0,150,600,1500].forEach(ms=>setTimeout(fitHomeToScreen, ms)); }
+window.addEventListener('load', scheduleFit);
+setInterval(()=>{ if(!document.hidden) fitHomeToScreen(); }, 6000);
 
 
 /* ================= 투표 팝업(바텀시트) & 이번 주 투표 현황 ================= */
@@ -4971,7 +5041,7 @@ function updateVoteAlertBtn(){
       toast(await sendMatchAlert('🗳️ 공생관 투표 알림', `${label} 경기 투표를 아직 안 하셨어요. 지금 참석 투표해 주세요!`, { kind:'vote', targets: names }));
     }finally{ btn.disabled = false; }
   });
-  setInterval(updateVoteAlertBtn, 1500);
+  setInterval(()=>{ if(!document.hidden) updateVoteAlertBtn(); }, 6000);
   setTimeout(updateVoteAlertBtn, 600);
 })();
 
