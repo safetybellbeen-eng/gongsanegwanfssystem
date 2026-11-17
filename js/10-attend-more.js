@@ -139,6 +139,7 @@ document.querySelectorAll('#sectionMore .more-row').forEach(row=>{
     else if(act==='logout') click('logoutBtn');
     else if(act==='injury'){ openInjurySheet(); }
     else if(act==='diag'){ openDiag(); }
+    else if(act==='manual'){ openInstallTutorial(true); }
     else if(act==='update'){ refreshApp(); }
   });
 });

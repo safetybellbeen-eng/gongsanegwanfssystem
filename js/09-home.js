@@ -345,28 +345,101 @@ window.addEventListener('appinstalled', ()=>{ deferredInstallPrompt = null; try{
 function isStandaloneApp(){
   return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
 }
-function showInstallGuide(){
+/* ---------- 홈 화면 추가 튜토리얼 (첫 로그인 1회 + 더보기 > 홈화면 매뉴얼) ---------- */
+const INSTALL_TUT_KEY = 'gsw_install_tut_seen';
+function getInstallEnv(){
   const ua = navigator.userAgent || '';
-  const isIOS = /iPhone|iPad|iPod/i.test(ua);
-  const inApp = /KAKAOTALK|NAVER|Line\/|FBAN|FBAV|Instagram/i.test(ua);
-  let steps;
-  if(inApp){
-    steps = ['오른쪽 위(또는 아래) 메뉴(⋯)를 누르세요.', isIOS ? '"Safari로 열기"를 선택하세요.' : '"다른 브라우저로 열기" → Chrome을 선택하세요.', '열린 화면에서 이 버튼을 다시 눌러 주세요.'];
-  } else if(isIOS){
-    steps = ['Safari 하단의 공유 버튼(□↑)을 누르세요.', '"홈 화면에 추가"를 선택하세요.', '오른쪽 위 "추가"를 누르면 완료됩니다.'];
-  } else {
-    steps = ['브라우저 오른쪽 위 메뉴(⋮)를 누르세요.', '"홈 화면에 추가" 또는 "앱 설치"를 선택하세요.', '"설치"를 누르면 완료됩니다.'];
-  }
-  const old = document.getElementById('installGuide'); if(old) old.remove();
-  const el = document.createElement('div');
-  el.id = 'installGuide'; el.className = 'install-guide';
-  el.innerHTML = `<div class="ig-box" role="dialog" aria-label="홈 화면 추가 방법">
-    <b>홈 화면에 추가하기</b>
-    <ol>${steps.map(t=>`<li>${t}</li>`).join('')}</ol>
-    <button type="button" class="ig-close">확인</button></div>`;
-  el.addEventListener('click', (e)=>{ if(e.target===el || e.target.closest('.ig-close')) el.remove(); });
-  document.body.appendChild(el);
+  const ios = /iPhone|iPad|iPod/i.test(ua) || (/Macintosh/i.test(ua) && navigator.maxTouchPoints>1);
+  const android = /Android/i.test(ua);
+  const kakao = /KAKAOTALK/i.test(ua);
+  const inApp = kakao || /NAVER\(inapp|NAVER|Line\/|FBAN|FBAV|Instagram|DaumApps/i.test(ua);
+  const iosOtherBrowser = ios && /CriOS|FxiOS|EdgiOS|NAVER|DaumApps/i.test(ua);
+  return { ua, ios, android, kakao, inApp, iosOtherBrowser, mobile: ios||android };
 }
+function openInExternalBrowser(env){
+  const url = location.href.split('#')[0];
+  if(env.kakao){ location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(url); return; }
+  if(env.android){
+    const u = new URL(url);
+    location.href = 'intent://' + u.host + u.pathname + u.search + '#Intent;scheme=https;package=com.android.chrome;end';
+    return;
+  }
+  try{ navigator.clipboard.writeText(url); toast('주소를 복사했어요. 사파리에 붙여넣어 열어주세요.'); }catch(_){ toast('우측 하단 메뉴에서 Safari로 열기를 눌러주세요.'); }
+}
+function buildInstallSlides(env, forced){
+  const ball = '<div class="it-icon">⚽</div>';
+  const S = [];
+  if(env.inApp){
+    S.push({ warn:true, tag:'필수', title:`지금은 <em>${env.kakao?'카카오톡':'앱'} 안</em>이라<br>홈 화면에 추가할 수 없어요`,
+      big: env.ios ? '사파리(Safari)로<br>다시 열어야 해요' : '크롬 등 기본 브라우저로<br>다시 열어야 해요',
+      desc:'아래 버튼을 누르면 자동으로 이동해요', vis:'', btn: env.ios?'🧭 사파리로 열기':'🌐 브라우저로 열기', act:'external', sub:'버튼이 안 되면? 수동으로 열기' });
+    S.push({ warn:true, tag:'방법', title:`오른쪽 아래 <em>⋯</em> →<br><em>'${env.ios?'Safari로 열기':'다른 브라우저로 열기'}'</em>`,
+      desc:'카카오톡 화면 하단의 ⋯ 또는 공유 버튼', vis:'<div class="it-kb"><div class="it-kh"><span>공생관 FS</span><span>✕</span></div><div class="it-kc">(앱 화면)</div><div class="it-kf"><span>‹</span><span>›</span><b>⋯</b></div></div>', btn:'확인했어요', act:'close' });
+    return S;
+  }
+  if(env.ios || (!env.android)){
+    if(env.iosOtherBrowser){
+      S.push({ warn:true, tag:'먼저 확인', title:'<em>사파리</em>로<br>열어주세요', desc:'아이폰은 사파리에서만 홈 화면에 추가할 수 있어요', vis:'<div class="it-big">주소를 복사해 사파리에 붙여넣거나<br>메뉴에서 "Safari로 열기"를 눌러주세요</div>', btn:'알겠어요', act:'close' });
+    }
+    S.push({ tag:'사파리에서 시작', title:'홈 화면에 추가하면<br><em>앱처럼</em> 쓸 수 있어요', desc:'주소창 없이 전체 화면으로 열리고<br>경기 알림도 받을 수 있어요', vis:ball, btn:'시작하기 (30초)', act:'next' });
+    S.push({ tag:'STEP 1', title:'사파리 하단의<br><em>공유 버튼</em>을 누르세요', desc:'화면 아래 가운데 □↑ 모양입니다', vis:'<div class="it-safari"><div class="it-bar">🔒 주소창</div><div class="it-tb"><span></span><span></span><b>↑</b><span></span><span></span></div></div>', btn:'다음', act:'next' });
+    S.push({ tag:'STEP 2~3', title:"'홈 화면에 추가' →<br><em>오른쪽 위 '추가'</em>", desc:'이후 홈 화면의 ⚽ 아이콘으로 접속하세요', vis:'<div class="it-menu"><div>북마크 추가 <span>☆</span></div><div class="hi">홈 화면에 추가 <span>＋</span></div><div>페이지 내 찾기 <span>🔍</span></div></div>', btn:'확인했어요', act:'close' });
+    return S;
+  }
+  /* 안드로이드(크롬) */
+  S.push({ tag:'시작', title:'버튼 한 번으로<br><em>바로 설치</em>돼요', desc:'설치하면 홈 화면에 아이콘이 생기고<br>앱처럼 열려요', vis:ball,
+    btn: deferredInstallPrompt ? '지금 설치하기' : '설치 방법 보기', act:'install', sub:'다음에 할게요' });
+  return S;
+}
+function openInstallTutorial(forced){
+  const env = getInstallEnv();
+  const old = document.getElementById('installTut'); if(old) old.remove();
+  const slides = buildInstallSlides(env, forced);
+  let i = 0;
+  const el = document.createElement('div');
+  el.id = 'installTut'; el.className = 'install-tut';
+  const close = ()=>{ try{ localStorage.setItem(INSTALL_TUT_KEY,'1'); }catch(_){} el.remove(); };
+  const render = ()=>{
+    const s = slides[i];
+    el.innerHTML = `<div class="it-ph${s.warn?' warn':''}" role="dialog" aria-label="홈 화면 추가 안내">
+      <div class="it-top"><span>${slides.length>1?`${i+1} / ${slides.length}`:''}</span><button type="button" class="it-skip">${forced?'닫기':'건너뛰기'}</button></div>
+      <div class="it-body"><span class="it-step">${s.tag||''}</span><h2>${s.title}</h2>
+        ${s.big?`<div class="it-bigtxt">${s.big}</div>`:''}
+        <div class="it-d">${s.desc||''}</div><div class="it-vis">${s.vis||''}</div></div>
+      ${slides.length>1?`<div class="it-dots">${slides.map((_,k)=>`<i class="${k===i?'on':''}"></i>`).join('')}</div>`:''}
+      <button type="button" class="it-btn${s.warn?' y':''}">${s.btn}</button>
+      ${s.sub?`<button type="button" class="it-btn g">${s.sub}</button>`:''}</div>`;
+    el.querySelector('.it-skip').onclick = close;
+    el.querySelector('.it-btn:not(.g)').onclick = async ()=>{
+      if(s.act==='next'){ i++; render(); }
+      else if(s.act==='external'){ openInExternalBrowser(env); }
+      else if(s.act==='install'){
+        if(deferredInstallPrompt){ const dp=deferredInstallPrompt; deferredInstallPrompt=null; close(); try{ dp.prompt(); await dp.userChoice; }catch(e){ console.error(e); } }
+        else { slides[0] = { tag:'방법', title:'크롬 메뉴 <em>⋮</em> →<br><em>\'홈 화면에 추가\'</em>', desc:'오른쪽 위 ⋮ 를 누른 뒤 "홈 화면에 추가" 또는 "앱 설치"를 선택하고 "설치"를 누르세요', vis:'', btn:'확인했어요', act:'close' }; render(); }
+      } else close();
+    };
+    const g = el.querySelector('.it-btn.g');
+    if(g) g.onclick = ()=>{ if(s.act==='external' && slides[1]){ i=1; render(); } else close(); };
+  };
+  document.body.appendChild(el);
+  render();
+}
+function showInstallGuide(){ openInstallTutorial(true); }
+function maybeShowInstallTutorial(){
+  try{
+    if(isStandaloneApp()) return;
+    const env = getInstallEnv();
+    if(!env.mobile) return;
+    if(localStorage.getItem(INSTALL_TUT_KEY)) return;
+    const lo = document.getElementById('loginOverlay');
+    if(lo && !lo.classList.contains('hidden')) return;
+    openInstallTutorial(false);
+  }catch(e){ console.error(e); }
+}
+(function(){
+  const orig = initAppUI;
+  initAppUI = async function(){ const r = await orig.apply(this, arguments); setTimeout(maybeShowInstallTutorial, 900); return r; };
+})();
 async function installToHomeScreen(){
   if(isStandaloneApp()){ toast('이미 홈 화면에서 실행 중입니다.'); return; }
   if(deferredInstallPrompt){
