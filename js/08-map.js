@@ -2,8 +2,9 @@
 function updateVenueCard(name, address){
   const card = $('#venueCard');
   if(!card || !name) return;
-  card.hidden = false; card.classList.remove('mini');
-  $('#vcName').textContent = name;
+  card.hidden = false;
+  const _short = (typeof splitVenueName==='function') ? splitVenueName(name)[1] : name;
+  $('#vcName').textContent = _short; $('#vcName').title = name;
   $('#vcAddr').textContent = address || '등록된 주소가 없습니다';
   const cp = $('#vcCopyBtn'); if(cp) cp.style.display = address ? '' : 'none';
   syncVenueCardStar();
@@ -112,7 +113,6 @@ function openNavApp(app){
     if(!pos){ toast('경기장 위치를 찾지 못했습니다.'); return; }
     mapUserMoved = true;
     try{ map.relayout(); map.setLevel(3); map.setCenter(pos); }catch(e){}
-    if(card) card.classList.add('mini');
     try{
       if(window.__venuePulse) window.__venuePulse.setMap(null);
       const d = document.createElement('div'); d.className='venue-pulse'; d.innerHTML='<i></i><i></i>';
@@ -122,8 +122,6 @@ function openNavApp(app){
     }catch(e){}
     toast('📍 경기장 위치로 이동했어요');
   });
-  const exBtn = q('vcExBtn');
-  if(exBtn) exBtn.addEventListener('click', ()=>{ if(card) card.classList.remove('mini'); });
   const star = q('vcFavBtn');
   if(star) star.addEventListener('click', ()=>{ const b=q('favVenueBtn'); if(b) b.click(); });
   const sb = q('mapSearchBtn');
@@ -238,12 +236,10 @@ function renderVenueList(){
   const all = (typeof FUTSAL_VENUES !== 'undefined' ? FUTSAL_VENUES : []).slice();
   const isFav = v=>favoriteVenueSet.has(v.name);
   const isFlap = v=>/^플랩\s*스타디움\s*가산/.test(v.name);
-  const chips = [['all','전체'],['fav','★ 즐겨찾기'],['flap','플랩 가산'],['etc','기타']];
+  const chips = [['all','전체'],['fav','★ 즐겨찾기']];
   chipsEl.innerHTML = chips.map(([k,t])=>`<button type="button" class="vl-chip${k===venueListChip?' on':''}" data-k="${k}">${t}</button>`).join('');
   let items = all.filter(v=>{
     if(venueListChip==='fav' && !isFav(v)) return false;
-    if(venueListChip==='flap' && !isFlap(v)) return false;
-    if(venueListChip==='etc' && isFlap(v)) return false;
     if(q){ const s = (v.name+' '+(v.address||'')).toLowerCase().replace(/\s+/g,''); if(!s.includes(q.toLowerCase().replace(/\s+/g,''))) return false; }
     return true;
   });
