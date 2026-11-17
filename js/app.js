@@ -3938,6 +3938,7 @@ function setActiveMobileSection(tabKey){
   pageScrollTop('instant');
   if(tabKey==='home') tryRenderHomeTab();
   if(tabKey==='more') tryRenderMoreTab();
+  try{ fitHomeToScreen(); }catch(e){}   // 첫 화면이 그려지기 전에 높이를 먼저 맞춰, 전환 후 크기가 다시 바뀌는 현상을 막습니다.
   try{ scheduleFit(); }catch(e){}
   if(tabKey==='members'){ try{ renderMembersPage(); }catch(e){ console.error(e); } }
   if(tabKey==='calendar') tryRenderAttendPanes();
@@ -5089,7 +5090,7 @@ window.addEventListener('resize', fitHomeToScreen);
 window.addEventListener('orientationchange', ()=>setTimeout(fitHomeToScreen,200));
 /* 높이 재계산: 예전에는 1초마다 강제로 계산해 버벅임의 원인이 됐습니다.
    이제는 탭 전환·화면 크기 변화·이미지 로딩 직후에만 계산하고, 보이는 동안 6초 간격으로만 보정합니다. */
-function scheduleFit(){ [0,150,600,1500].forEach(ms=>setTimeout(fitHomeToScreen, ms)); }
+function scheduleFit(){ [150,600,1500].forEach(ms=>setTimeout(fitHomeToScreen, ms)); }
 window.addEventListener('load', scheduleFit);
 setInterval(()=>{ if(!document.hidden) fitHomeToScreen(); }, 6000);
 
