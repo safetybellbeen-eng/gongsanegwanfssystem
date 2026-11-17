@@ -1834,3 +1834,5 @@ button,.more-row,.tab-btn,.home-quick-btn{touch-action:manipulation;}
   #heroMatchCard .nm3-act .hero-link-btn,#heroMatchCard .nm3-act .hero-alert-btn{padding-left:10px;padding-right:10px;font-size:13px;}
   #heroMatchCard .nm3-act .hero-share-btn,#heroMatchCard .nm3-act .hero-pin-btn{width:38px;flex-basis:38px;}
 }
+
+#homeVoteCard .home-goto-btn.is-injured{background:#3a1d22!important;color:#ff8f8f!important;border:1px solid rgba(255,107,107,.45);justify-content:center;opacity:1;box-shadow:none;font-weight:800;}
