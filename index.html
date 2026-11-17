@@ -5,8 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>공차는인생 공생관 — 팀 대시보드</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://dapi.kakao.com">
+<link rel="dns-prefetch" href="https://t1.daumcdn.net">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="./css/style.css?v=25">
+<link rel="stylesheet" href="./css/style.css?v=26">
 
 <!-- PWA: 홈 화면 추가(설치) 및 아이콘 -->
 <link rel="manifest" href="./manifest.json">
@@ -134,20 +137,6 @@ html.show-splash #splashScreen{display:block}
 <div class="quote-bar" id="quoteBar"></div>
 
 <div class="wrap">
-
-  <div class="weather-card my-injury-panel" id="myInjuryPanel" style="display:none;">
-    <div class="admin-feed-status">부상으로 설정한 기간 동안에는 투표(가능일 선택·불참 선언)를 할 수 없고, 팀 순위(참석·미투표·불참) 집계에서도 그 기간이 제외됩니다.</div>
-    <div class="admin-feed-status" id="myInjuryStatusText" style="color:var(--pitch);font-weight:600;"></div>
-    <div class="admin-row">
-      <input type="date" id="myInjuryStartInput">
-      <span>~</span>
-      <input type="date" id="myInjuryEndInput">
-    </div>
-    <div class="admin-row">
-      <button id="myInjurySaveBtn">부상 등록</button>
-      <button id="myInjuryClearBtn" class="danger">부상 해제</button>
-    </div>
-  </div>
 
   <div class="modal-backdrop" id="memberModalBackdrop" style="display:none;">
     <div class="modal-card">
@@ -584,6 +573,20 @@ html.show-splash #splashScreen{display:block}
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
 
+<div class="map-sheet-dim" id="injSheetDim" hidden></div>
+<div class="map-sheet inj-sheet" id="injurySheet" hidden>
+  <div class="ms-grip"></div>
+  <div class="inj-head"><b>내 부상 설정</b><button type="button" class="inj-x" id="injCloseBtn" aria-label="닫기">✕</button></div>
+  <div class="inj-status" id="injStatus"><span class="dot"></span><div><b id="injStatusTitle"></b><small id="injStatusSub"></small></div></div>
+  <div class="inj-lab">부상 기간</div>
+  <div class="inj-dates">
+    <label class="inj-dc" id="injStartCard"><small>시작일</small><b id="injStartTxt">날짜 선택</b><input type="date" id="myInjuryStartInput"></label>
+    <label class="inj-dc" id="injEndCard"><small>종료일(복귀 예정)</small><b id="injEndTxt">날짜 선택</b><input type="date" id="myInjuryEndInput"></label>
+  </div>
+  <div class="inj-chips"><button type="button" data-w="1">1주</button><button type="button" data-w="2">2주</button><button type="button" data-w="4">4주</button><button type="button" data-w="8">8주</button></div>
+  <div class="inj-info">• 부상 기간에는 투표(가능일·불참)를 할 수 없습니다.<br>• 팀 순위(참석·미투표·불참) 집계에서도 제외됩니다.</div>
+  <div class="inj-btns"><button type="button" class="inj-save" id="myInjurySaveBtn">부상 등록</button><button type="button" class="inj-clear" id="myInjuryClearBtn">부상 해제</button></div>
+</div>
 <div class="map-sheet-dim" id="mapSheetDim" hidden></div>
 <div class="map-sheet" id="favSheet" hidden>
   <div class="ms-grip"></div>
@@ -598,7 +601,7 @@ html.show-splash #splashScreen{display:block}
   <button type="button" class="nav-app" data-app="tmap"><img src="./assets/tmap.png" alt=""><span><b>티맵</b><small>도착지가 자동으로 입력됩니다</small></span><i>›</i></button>
   <button type="button" class="ms-cancel" data-close="1">취소</button>
 </div>
-<script src="./js/app.js?v=25" defer></script>
+<script src="./js/app.js?v=26" defer></script>
 <div class="vote-sheet" id="voteSheet" hidden>
   <div class="vote-sheet-dim" id="voteSheetDim"></div>
   <div class="vote-sheet-panel" role="dialog" aria-modal="true" aria-label="출석 투표">

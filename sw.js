@@ -3,7 +3,7 @@
    - 우리 도메인의 정적 파일만 캐시하고, 외부 API(JSONBin·카카오맵·날씨·폰트 등)는 그대로 네트워크로 보냄
    - 알림을 눌렀을 때 앱 창을 포커스하거나 새로 여는 역할
 */
-const CACHE_NAME = 'gongsaengwan-v25';
+const CACHE_NAME = 'gongsaengwan-v26';
 const CORE_ASSETS = [
   './',
   './index.html',
@@ -51,20 +51,32 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 네트워크 우선(network-first) 방식: 온라인이면 항상 최신 파일을 먼저 받아오고,
-  // 그 결과로 캐시를 갱신합니다. 오프라인이거나 요청이 실패했을 때만 캐시를 사용합니다.
-  // (예전의 "캐시 우선" 방식은 앱을 자주 업데이트하는 지금 같은 경우, 수정한 내용을 반영해도
-  //  브라우저가 옛날 캐시를 계속 보여주는 문제가 있어서 방식을 바꿨습니다.)
-  event.respondWith(
-    fetch(req)
-      .then((networkResponse) => {
-        if (networkResponse && networkResponse.status === 200) {
-          const clone = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(req, clone));
-        }
-        return networkResponse;
+  // 속도 최적화:
+  //  - HTML(앱 화면)은 네트워크 우선(최대 2.5초 대기, 실패·지연 시 캐시)으로 항상 최신 버전을 감지합니다.
+  //  - CSS/JS/이미지는 ?v= 버전이 붙어 있으므로 캐시 우선으로 즉시 불러오고, 뒤에서 조용히 갱신합니다.
+  const isDoc = req.mode === 'navigate' || /\.html?$/.test(url.pathname) || url.pathname.endsWith('/');
+  if (isDoc) {
+    event.respondWith(
+      new Promise((resolve) => {
+        let done = false;
+        const fromCache = () => caches.match(req).then((r) => r || caches.match('./index.html'));
+        const timer = setTimeout(() => { if (!done) fromCache().then((r) => { if (r && !done) { done = true; resolve(r); } }); }, 2500);
+        fetch(req).then((res) => {
+          if (res && res.status === 200) { const c = res.clone(); caches.open(CACHE_NAME).then((cache) => cache.put(req, c)); }
+          if (!done) { done = true; clearTimeout(timer); resolve(res); }
+        }).catch(() => { if (!done) { clearTimeout(timer); fromCache().then((r) => { done = true; resolve(r || Response.error()); }); } });
       })
-      .catch(() => caches.match(req))
+    );
+    return;
+  }
+  event.respondWith(
+    caches.match(req).then((cached) => {
+      const net = fetch(req).then((res) => {
+        if (res && res.status === 200) { const c = res.clone(); caches.open(CACHE_NAME).then((cache) => cache.put(req, c)); }
+        return res;
+      }).catch(() => cached);
+      return cached || net;
+    })
   );
 });
 
