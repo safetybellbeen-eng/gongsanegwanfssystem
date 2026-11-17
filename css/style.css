@@ -1899,9 +1899,9 @@ button,.more-row,.tab-btn,.home-quick-btn{touch-action:manipulation;}
 .rec-me-tx b{display:block;font-size:16px;font-weight:900;color:#fff;margin-bottom:4px;line-height:1.3;}
 .rec-me-tx em{font-style:normal;font-weight:800;}.rec-me-tx .g{color:#b6f23a}.rec-me-tx .y{color:#ffb020}.rec-me-tx .r{color:#ff8f8f}
 .rec-me-tx small{color:#8fa0a8;font-size:11.5px;}
-.rec-swipe{display:flex;gap:0;margin:0 -5px;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;align-items:flex-start;scrollbar-width:none;}
+.rec-swipe{display:flex;gap:0;margin:0 -5px;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;touch-action:pan-x pan-y;align-items:flex-start;scrollbar-width:none;}
 .rec-swipe::-webkit-scrollbar{display:none;}
-.rec-slide{flex:0 0 100%;min-width:0;padding:0 5px;scroll-snap-align:start;scroll-snap-stop:always;}
+.rec-slide{flex:0 0 100%;min-width:0;padding:0 5px;scroll-snap-align:start;}
 .rec-pane{padding:12px 14px;}
 .rec-pt{font-size:14px;font-weight:900;margin-bottom:6px;}.rec-pt small{font-size:11px;color:#8fa0a8;font-weight:600;}
 .rec-pt.g{color:#b6f23a}.rec-pt.y{color:#ffb020}.rec-pt.r{color:#ff8f8f}
@@ -1933,7 +1933,7 @@ button,.more-row,.tab-btn,.home-quick-btn{touch-action:manipulation;}
 .rec-stat3 div{flex:1;background:#0d151b;border-radius:12px;padding:10px 4px;text-align:center;}
 .rec-stat3 b{display:block;font-size:22px;color:#b6f23a;font-weight:900;}.rec-stat3 b.up{color:#ffb020;}
 .rec-stat3 small{font-size:10.5px;color:#8fa0a8;}
-.rec-swipe{transition:height .2s ease;}
+.rec-swipe{transition:none;}
 
 /* ===== v41: 날씨탭 (경기 가능 여부 → 오늘 → 기상청 → 7일 → 시간별) ===== */
 .wx-top{display:flex;align-items:center;gap:8px;margin:14px 2px 12px;}
