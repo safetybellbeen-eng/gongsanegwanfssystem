@@ -1867,3 +1867,12 @@ button,.more-row,.tab-btn,.home-quick-btn{touch-action:manipulation;}
 .mem-tag.tb{background:rgba(74,163,255,.15);color:#4aa3ff;}
 .mem-tag.tr{background:rgba(255,107,107,.15);color:#ff8f8f;}
 .mem-empty{text-align:center;color:#8fa0a8;padding:36px 0;font-size:14px;}
+
+/* ===== v37: 홈 경기 카드 여유 간격 + 선명한 경기장 배경 ===== */
+#sectionHome #heroMatchCard.hero-match-card:not(.empty){
+  background:linear-gradient(180deg,rgba(8,12,15,.28) 0%,rgba(8,12,15,.40) 45%,rgba(8,12,15,.90) 100%),url(../assets/home-card-bg.jpg) center 40%/cover #0b1115;}
+#heroMatchCard .nm-body.nm-photo3{min-height:250px;padding:20px 20px 18px;}
+#heroMatchCard .nm3-date{margin-top:16px;}
+#heroMatchCard .nm3-venue{margin-top:8px;}
+#heroMatchCard .nm3-roster{margin:14px 0 16px;}
+#heroMatchCard .nm3-act{margin-top:0;gap:10px;}
