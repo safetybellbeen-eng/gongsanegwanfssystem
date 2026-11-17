@@ -348,59 +348,118 @@ function computePlayability(d){
   }
   return { level:'good', icon:'😎☀️', label:'무조건 가능', detail:`${win} 강수확률 ${pop}% · 예상 강수량 ${rain}mm` };
 }
+function weatherLabelFromCode(code){
+  if(code===0) return '맑음';
+  if([1,2].includes(code)) return '구름 조금';
+  if(code===3) return '흐림';
+  if([45,48].includes(code)) return '안개';
+  if([51,53,55,56,57].includes(code)) return '이슬비';
+  if([61,63,65,66,67].includes(code)) return '비';
+  if([80,81,82].includes(code)) return '소나기';
+  if([71,73,75,77,85,86].includes(code)) return '눈';
+  if([95,96,99].includes(code)) return '뇌우';
+  return '';
+}
+function ymdCompact(s){ return s.replace(/-/g,''); }
+/* 오늘 이후 가장 가까운 확정 경기 날짜 (YYYYMMDD) */
+function getNextMatchCompact(){
+  try{
+    const today = todayStr();
+    const ds = Object.keys(appData.votes||{}).filter(d=>/^\d{4}-\d{2}-\d{2}$/.test(d) && d>=today && (appData.votes[d]||[]).length>0).sort();
+    return ds.length ? ymdCompact(ds[0]) : null;
+  }catch(e){ return null; }
+}
+function findWeatherDay(compact){
+  return [...(weekData.thisWeek||[]), ...(weekData.nextWeek||[])].find(x=>x.date===compact) || null;
+}
+let selectedWeatherDate = null; // 사용자가 목록에서 직접 고른 날짜(YYYYMMDD)
 function showDayVerdict(d){
   const el = $('#dayVerdict');
   if(!el) return;
   const v = computePlayability(d);
   const dateObj = new Date(d.date.slice(0,4), d.date.slice(4,6)-1, d.date.slice(6,8));
+  const isNext = d.date===getNextMatchCompact();
   el.style.display = 'flex';
-  el.className = 'day-verdict level-'+v.level;
+  el.className = 'wx-ver level-'+v.level;
   el.innerHTML = `
-    <div class="dv-icon">${v.icon}</div>
-    <div class="dv-text">
-      <div class="dv-date">${dateObj.getMonth()+1}월 ${dateObj.getDate()}일 (${weekdayKR[dateObj.getDay()]}) 경기 가능 여부</div>
-      <div class="dv-label">${v.label}</div>
-      <div class="dv-detail">${v.detail} · 자체 기준 예측이니 참고용으로만 확인하시기 바랍니다</div>
+    <div class="wv-ic">${v.icon}</div>
+    <div class="wv-tx">
+      <div class="wv-d">${isNext?'다음 경기 · ':''}${dateObj.getMonth()+1}월 ${dateObj.getDate()}일 (${weekdayKR[dateObj.getDay()]}) ${isNext?'':'경기 가능 여부'}</div>
+      <div class="wv-l">${v.label}</div>
+      <div class="wv-s">${v.detail}</div>
+      <div class="wv-n">자체 기준 예측 · 참고용</div>
+    </div>`;
+}
+/* 맨 위 판정 카드: 선택한 날짜가 있으면 그 날짜, 없으면 다음 경기일. 둘 다 없으면 숨김 */
+function refreshWeatherVerdict(){
+  const el = $('#dayVerdict');
+  if(!el) return;
+  const target = selectedWeatherDate || getNextMatchCompact();
+  const d = target ? findWeatherDay(target) : null;
+  if(d) showDayVerdict(d); else el.style.display = 'none';
+  document.querySelectorAll('#weekStrip .wx-row').forEach(r=>r.classList.toggle('sel', !!selectedWeatherDate && r.dataset.date===selectedWeatherDate));
+}
+function renderWxHero(){
+  const el = $('#wxHero');
+  if(!el) return;
+  const k = kstNow();
+  const todayC = `${k.getFullYear()}${pad(k.getMonth()+1)}${pad(k.getDate())}`;
+  const d = findWeatherDay(todayC);
+  if(!d){ el.style.display='none'; return; }
+  el.style.display = 'flex';
+  const amL = weatherLabelFromCode(d.amCode!=null?d.amCode:d.code), pmL = weatherLabelFromCode(d.pmCode!=null?d.pmCode:d.code);
+  el.innerHTML = `
+    <div class="wh-l">
+      <div class="wh-t">${isFinite(d.tmax)?Math.round(d.tmax):'-'}°<small> / ${isFinite(d.tmin)?Math.round(d.tmin):'-'}°</small></div>
+      <div class="wh-d">서울 · 오늘 ${k.getMonth()+1}월 ${k.getDate()}일 (${weekdayKR[k.getDay()]})</div>
+      <div class="wh-s">오전 ${amL} ${d.amPop||0}% · 오후 ${pmL} ${d.pmPop||0}%</div>
     </div>
-  `;
+    <div class="wh-i">${weatherIconFromCode(d.code!=null?d.code:d.amCode)}</div>`;
 }
 function renderWeekStrip(which){
   const strip = $('#weekStrip');
   strip.innerHTML='';
-  $('#dayVerdict').style.display = 'none';
-  const todayStr = `${kstNow().getFullYear()}${pad(kstNow().getMonth()+1)}${pad(kstNow().getDate())}`;
+  const k = kstNow();
+  const todayC = `${k.getFullYear()}${pad(k.getMonth()+1)}${pad(k.getDate())}`;
+  const matchC = getNextMatchCompact();
   const list = weekData[which];
-  if(!list || !list.length){ strip.innerHTML = '<div style="grid-column:1/-1;color:var(--muted);font-size:13px;text-align:center;padding:20px;">데이터가 없습니다.</div>'; return; }
+  if(!list || !list.length){ strip.innerHTML = '<div class="wx-empty">데이터가 없습니다.</div>'; refreshWeatherVerdict(); renderWxHero(); return; }
   list.forEach(d=>{
     const dateObj = new Date(d.date.slice(0,4), d.date.slice(4,6)-1, d.date.slice(6,8));
-    const isToday = d.date===todayStr;
+    const isToday = d.date===todayC, isMatch = d.date===matchC;
     const amIcon = weatherIconFromCode(d.amCode!=null?d.amCode:d.code);
     const pmIcon = weatherIconFromCode(d.pmCode!=null?d.pmCode:d.code);
     const div = document.createElement('div');
-    div.className = 'day-chip'+(isToday?' today':'');
+    div.className = 'wx-row'+(isToday?' today':'')+(isMatch?' match':'');
+    div.dataset.date = d.date;
     div.innerHTML = `
-      <div class="dow">${isToday?'오늘':weekdayKR[dateObj.getDay()]}</div>
-      <div class="ddate">${dateObj.getMonth()+1}.${dateObj.getDate()}</div>
-      <div class="ampm-row">
-        <div class="ampm-col"><span class="ampm-label">오전</span><span class="ampm-ico">${amIcon}</span><span class="ampm-pop">${d.amPop||0}%</span></div>
-        <div class="ampm-col"><span class="ampm-label">오후</span><span class="ampm-ico">${pmIcon}</span><span class="ampm-pop">${d.pmPop||0}%</span></div>
-      </div>
-      <div class="temps"><span class="max">${isFinite(d.tmax)?Math.round(d.tmax):'-'}°</span> <span class="min">${isFinite(d.tmin)?Math.round(d.tmin):'-'}°</span></div>
-    `;
-    div.addEventListener('click', ()=>showDayVerdict(d));
+      <div class="wr-d"><b>${isToday?'오늘':weekdayKR[dateObj.getDay()]}${isMatch?' <span class="wr-tag">경기</span>':''}</b><small>${dateObj.getMonth()+1}.${dateObj.getDate()}</small></div>
+      <div class="wr-a"><span class="l">오전</span><i>${amIcon}</i><span class="p">${d.amPop||0}%</span><span class="l">오후</span><i>${pmIcon}</i><span class="p">${d.pmPop||0}%</span></div>
+      <div class="wr-t">${isFinite(d.tmax)?Math.round(d.tmax):'-'}°<small> ${isFinite(d.tmin)?Math.round(d.tmin):'-'}°</small></div>`;
+    div.addEventListener('click', ()=>{
+      selectedWeatherDate = (selectedWeatherDate===d.date) ? null : d.date;
+      refreshWeatherVerdict();
+      const v = $('#dayVerdict'); if(v && v.style.display!=='none') v.scrollIntoView({behavior:'smooth', block:'nearest'});
+    });
     strip.appendChild(div);
   });
+  refreshWeatherVerdict();
+  renderWxHero();
 }
 function renderHourly(){
   const hourly = $('#hourlyRow');
   hourly.innerHTML='';
-  if(!hourlyToday.length){ hourly.innerHTML = '<div style="color:var(--muted);font-size:12px;">오늘 남은 시간대의 예보 데이터가 없습니다.</div>'; return; }
-  hourlyToday.forEach(h=>{
-    const cell = document.createElement('div');
-    cell.className='hour-cell';
-    cell.innerHTML = `<div class="t">${h.time.slice(0,2)}시</div><div class="p">${h.pop}%</div><div class="mm">${h.rn}mm</div>`;
-    hourly.appendChild(cell);
-  });
+  if(!hourlyToday.length){ hourly.innerHTML = '<div class="wx-empty">오늘 남은 시간대의 예보 데이터가 없습니다.</div>'; return; }
+  const win = (appData.matchTimeWindow) || { startHour:19, endHour:21 };
+  const maxP = Math.max(30, ...hourlyToday.map(h=>h.pop));
+  const cols = hourlyToday.map(h=>{
+    const hh = parseInt(h.time.slice(0,2));
+    const hi = hh>=win.startHour && hh<=win.endHour;
+    return `<div class="${hi?'hi':''}"><b>${h.pop}</b><i style="height:${Math.max(3, Math.round(h.pop/maxP*100))}%"></i></div>`;
+  }).join('');
+  const labs = hourlyToday.map(h=>`<span>${h.time.slice(0,2)}시</span>`).join('');
+  const mms = hourlyToday.map(h=>`<span>${h.rn>0 ? h.rn : 0}</span>`).join('');
+  hourly.innerHTML = `<div class="wx-bars">${cols}</div><div class="wx-bl">${labs}</div><div class="wx-bm">${mms}</div><div class="wx-bn">아래 줄 = 강수량(mm) · 주황 = 경기 시간대</div>`;
 }
 $('#tabThis').addEventListener('click', ()=>{ $('#tabThis').classList.add('active'); $('#tabNext').classList.remove('active'); renderWeekStrip('thisWeek'); });
 $('#tabNext').addEventListener('click', ()=>{ $('#tabNext').classList.add('active'); $('#tabThis').classList.remove('active'); renderWeekStrip('nextWeek'); });

@@ -16,6 +16,7 @@ function renderMatchStats(){
   renderHeroMatch();
   renderNoticeCard();
   tryRenderHomeTab();
+  try{ if(typeof refreshWeatherVerdict==='function') refreshWeatherVerdict(); }catch(e){}
   checkMatchConfirmedNotification();
   ensurePushSubscription();
   checkVoteDeadlineReminder();
