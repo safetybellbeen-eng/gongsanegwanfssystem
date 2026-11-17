@@ -2310,10 +2310,12 @@ function renderHeroMatch(){
       e.stopPropagation();
       const vn = venue ? String(venue.name).replace(/^플랩\s*스타디움\s+/,'') : '';
       const when = `${dObj.getMonth()+1}월 ${dObj.getDate()}일(${weekdayKR[dObj.getDay()]})${venue && venue.time ? ' ' + String(venue.time).slice(0,5) : ''}`;
-      if(!confirm(`전체 회원에게 경기 알림을 보낼까요?\n\n${when}\n${vn}`)) return;
+      const targets = yesList.map(v=>v.name);
+      if(!targets.length){ toast('이 경기 참석자가 아직 없어 알림을 보낼 대상이 없습니다.'); return; }
+      if(!confirm(`이 경기 참석자 ${targets.length}명에게 경기 알림을 보낼까요?\n\n${when}\n${vn}\n\n대상: ${targets.join(', ')}`)) return;
       alertBtn.disabled = true;
       try{
-        const r = await sendMatchAlert('⚽ 공생관 경기 알림', `${when} · ${vn}${myName ? ' (' + myName + ')' : ''}`);
+        const r = await sendMatchAlert('⚽ 공생관 경기 알림', `${when} · ${vn}${myName ? ' (' + myName + ')' : ''}`, { kind:'match', targets });
         toast(r);
       }finally{ alertBtn.disabled = false; }
     });
@@ -3534,14 +3536,37 @@ function tryRenderHomeTab(){
 
 /* ---------- 홈 상단: 알림 벨 / 내 메뉴 / 퀵 버튼 ---------- */
 /* 홈 '알림 설정' 타일: 알림 허용 + 푸시 구독 등록 */
-function updateNotifyTile(){
-  const b=document.getElementById('homeNotifyBtn'), lb=document.getElementById('homeNotifyLb');
-  if(!b||!lb) return;
-  const on = typeof Notification!=='undefined' && Notification.permission==='granted';
-  b.classList.toggle('notify-on', on);
-  lb.textContent = on ? '알림 켜짐' : '알림 꺼짐';
-  const bs = document.getElementById('moreBellSub'); if(bs) bs.textContent = (on ? '켜짐' : '꺼짐') + ' · 경기 알림·투표 알림';
+const NOTIFY_OFF_KEY = 'gsg-notify-off';
+const BELL_ON_SVG = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>';
+const BELL_OFF_SVG = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M13.7 21a2 2 0 0 1-3.4 0"/><path d="M18.6 14.6C18 13 18 10 18 8a6 6 0 0 0-9.9-4.6"/><path d="M6 8c0 7-3 9-3 9h13"/><path d="M2 2l20 20"/></svg>';
+/* 알림 상태: 기기 알림 허용 + 앱에서 끄지 않음 */
+function notifyIsOn(){
+  try{ return typeof Notification!=='undefined' && Notification.permission==='granted' && localStorage.getItem(NOTIFY_OFF_KEY)!=='1'; }catch(e){ return false; }
 }
+function updateNotifyTile(){
+  const on = notifyIsOn();
+  const b=document.getElementById('homeNotifyBtn'), lb=document.getElementById('homeNotifyLb');
+  if(b && lb){
+    b.classList.toggle('notify-on', on);
+    b.classList.toggle('notify-off', !on);
+    lb.textContent = on ? '알림 켜짐' : '알림 꺼짐';
+    const ic = b.querySelector('svg'); if(ic){ const t=document.createElement('div'); t.innerHTML = on ? BELL_ON_SVG : BELL_OFF_SVG; const n=t.firstChild; n.setAttribute('width','30'); n.setAttribute('height','30'); ic.replaceWith(n); }
+  }
+  const bs = document.getElementById('moreBellSub'); if(bs) bs.textContent = (on ? '켜짐' : '꺼짐') + ' · 눌러서 ' + (on ? '끄기' : '켜기');
+}
+async function disablePushSubscription(){
+  try{
+    if(!('serviceWorker' in navigator)) return;
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    if(sub){
+      try{ if(supabaseClient) await supabaseClient.rpc('unregister_push', { p_endpoint: sub.endpoint }); }catch(e){ console.error(e); }
+      try{ await sub.unsubscribe(); }catch(e){}
+    }
+    pushEnsuredFor = null;
+  }catch(e){ console.error('push unsubscribe', e); }
+}
+/* 홈 '알림' 타일 / 더보기 '알림 설정': 눌러서 켜기 ↔ 끄기 */
 async function enableAppNotifications(){
   if(typeof Notification==='undefined'){
     const ua=navigator.userAgent||'';
@@ -3553,20 +3578,25 @@ async function enableAppNotifications(){
   }
   if(Notification.permission==='denied'){
     alert('알림이 차단되어 있습니다.\n\n[아이폰] 설정 → 알림 → 공생관 → 알림 허용\n[안드로이드] 앱 길게 누르기 → 앱 정보 → 알림 허용\n\n허용한 뒤 앱을 다시 열어 주세요.');
+    updateNotifyTile();
     return;
   }
-  if(Notification.permission==='granted'){
-    try{ ensurePushSubscription(); }catch(e){ console.error(e); }
-    toast('알림이 켜져 있습니다. 경기 알림·투표 알림을 받을 수 있어요.');
+  if(notifyIsOn()){            // 켜져 있음 → 끄기
+    try{ localStorage.setItem(NOTIFY_OFF_KEY,'1'); }catch(e){}
     updateNotifyTile(); updateBellState();
+    await disablePushSubscription();
+    toast('알림을 껐습니다. 경기·투표 알림이 오지 않습니다.');
     return;
   }
-  let perm='default';
-  try{ perm = await Notification.requestPermission(); }catch(e){ console.error(e); }
+  let perm = Notification.permission;   // 꺼져 있음 → 켜기
+  if(perm==='default'){
+    try{ perm = await Notification.requestPermission(); }catch(e){ console.error(e); }
+  }
   if(perm==='granted'){
-    try{ ensurePushSubscription(); }catch(e){ console.error(e); }
-    toast('알림이 켜졌습니다. 경기 알림·투표 알림을 받을 수 있어요.');
-    try{ sendLocalNotification('공생관 알림이 켜졌습니다',{body:'경기 확정, 투표 소식을 알려드리겠습니다.',icon:'./assets/icon-192.png'}); }catch(e){}
+    try{ localStorage.removeItem(NOTIFY_OFF_KEY); }catch(e){}
+    updateNotifyTile(); updateBellState();
+    await ensurePushSubscription();
+    toast('알림을 켰습니다. 경기 알림·투표 알림을 받을 수 있어요.');
   } else if(perm==='denied'){
     toast('알림이 차단되었습니다. 기기 설정에서 허용해 주세요.');
   }
@@ -3578,7 +3608,7 @@ window.addEventListener('focus', ()=>{ try{ updateNotifyTile(); }catch(e){} });
 function updateBellState(){
   const b = document.getElementById('bellBtn');
   if(!b) return;
-  b.classList.toggle('on', typeof Notification!=='undefined' && Notification.permission==='granted');
+  b.classList.toggle('on', notifyIsOn());
   try{ updateNotifyTile(); }catch(e){}
 }
 function updateUserMenuLabel(){
@@ -3863,7 +3893,7 @@ let pushEnsuredFor = '';
 async function ensurePushSubscription(){
   try{
     if(!supabaseClient || !('serviceWorker' in navigator) || !('PushManager' in window)) return;
-    if(!isNotificationSupported() || Notification.permission !== 'granted') return;
+    if(!isNotificationSupported() || Notification.permission !== 'granted' || localStorage.getItem(NOTIFY_OFF_KEY)==='1') return;
     const key = myName || '-';
     if(pushEnsuredFor === key) return;
     const reg = await navigator.serviceWorker.ready;
@@ -3887,13 +3917,13 @@ async function sendMatchAlert(title, body, opts){
     const j = await res.json().catch(()=>({}));
     if(res.status === 429) return `방금 알림을 보냈습니다. ${Math.ceil((j.retryAfterSec||300)/60)}분 뒤에 다시 보낼 수 있어요.`;
     if(!res.ok) return '알림을 보내지 못했습니다. 잠시 후 다시 시도해 주세요.';
-    if(!j.total) return opts.targets ? '미투표 회원 중 알림을 켠 사람이 없습니다. (더보기 > 알림 설정에서 켜야 받을 수 있어요)' : '아직 알림을 켠 회원이 없습니다. (더보기 > 알림 설정에서 켜야 받을 수 있어요)';
+    if(!j.total) return opts.targets ? '대상 회원 중 알림을 켠 사람이 없습니다. (더보기 > 알림 설정에서 켜야 받을 수 있어요)' : '아직 알림을 켠 회원이 없습니다. (더보기 > 알림 설정에서 켜야 받을 수 있어요)';
     return `알림을 보냈습니다. (${j.sent}/${j.total}명)`;
   }catch(e){ console.error(e); return '네트워크 오류로 알림을 보내지 못했습니다.'; }
 }
 
 async function sendLocalNotification(title, options){
-  if(!isNotificationSupported() || Notification.permission !== 'granted') return;
+  if(!notifyIsOn()) return;
   try{
     if('serviceWorker' in navigator){
       const reg = await navigator.serviceWorker.ready;
@@ -3936,7 +3966,7 @@ if(notifyDismissBtn) notifyDismissBtn.addEventListener('click', ()=>{
 /* 경기 확정 알림: 마지막으로 확인했던 확정 경기일과 지금 실제 확정된 경기일이 다르면(=새로 확정됨) 알려줍니다.
    주의: 서버가 없어 실시간 푸시는 아니며, 이 브라우저에서 앱을 열거나 새로고침했을 때만 확인합니다. */
 function checkMatchConfirmedNotification(){
-  if(!isNotificationSupported() || Notification.permission!=='granted') return;
+  if(!notifyIsOn()) return;
   if(typeof appData==='undefined' || !appData) return;
   const todayS = todayStr();
   const confirmedDates = Object.keys(appData.votes||{})
@@ -3960,7 +3990,7 @@ function checkMatchConfirmedNotification(){
 /* 투표 마감 리마인드: 이번 주가 아직 확정되지 않았고, 내가 가능일 선택도 불참 선언도 안 했으면
    목요일부터 하루 한 번만 알려줍니다. */
 function checkVoteDeadlineReminder(){
-  if(!isNotificationSupported() || Notification.permission!=='granted') return;
+  if(!notifyIsOn()) return;
   if(typeof myName==='undefined' || !myName) return;
   const now = kstNow();
   if(now.getDay() < 4) return; // 목(4)·금(5)·토(6)요일에만 리마인드
@@ -4929,7 +4959,8 @@ function fitAppShell(){
     const standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
     const portrait = window.innerHeight >= window.innerWidth;
     const sh = portrait ? Math.max(screen.height, screen.width) : Math.min(screen.height, screen.width);
-    if(phone && standalone && portrait && sh > window.innerHeight && sh - window.innerHeight < 160){
+    const ios = /iPhone|iPad|iPod/i.test(navigator.userAgent||'');   // 안드로이드 등에서는 화면 높이를 억지로 지정하지 않음(탭바가 잘리는 원인)
+    if(ios && phone && standalone && portrait && sh > window.innerHeight && sh - window.innerHeight <= 60){
       root.style.setProperty('--app-h', sh + 'px');
     }else{
       root.style.removeProperty('--app-h');
@@ -5020,7 +5051,7 @@ function getUnvotedNames(){
   const { key } = getWsWeekInfo();
   const avail = (appData.weekAvailability && appData.weekAvailability[key]) || {};
   const absence = (appData.weekAbsence && appData.weekAbsence[key]) || {};
-  return getApprovedNonAdminNames().filter(n=> !(absence[n] || (avail[n]||[]).length));
+  return getApprovedNonAdminNames().filter(n=> !isCurrentlyInjured(n) && !(absence[n] || (avail[n]||[]).length)); // 부상자는 투표 대상이 아니므로 제외
 }
 function updateVoteAlertBtn(){
   const cnt = document.getElementById('voteAlertCnt');
