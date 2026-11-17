@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://dapi.kakao.com">
 <link rel="dns-prefetch" href="https://t1.daumcdn.net">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="./css/style.css?v=34">
+<link rel="stylesheet" href="./css/style.css?v=35">
 
 <!-- PWA: 홈 화면 추가(설치) 및 아이콘 -->
 <link rel="manifest" href="./manifest.json">
@@ -574,6 +574,13 @@ html.show-splash #splashScreen{display:block}
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
 
+<div class="map-sheet-dim" id="memSheetDim" hidden></div>
+<div class="map-sheet inj-sheet mem-sheet" id="membersSheet" hidden>
+  <div class="ms-grip"></div>
+  <div class="inj-head"><b id="memSheetTitle">멤버</b><button type="button" class="inj-x" id="memCloseBtn" aria-label="닫기">✕</button></div>
+  <div class="mem-seg" id="memSeg"></div>
+  <div class="mem-list" id="memList"></div>
+</div>
 <div class="map-sheet-dim" id="injSheetDim" hidden></div>
 <div class="map-sheet inj-sheet" id="injurySheet" hidden>
   <div class="ms-grip"></div>
@@ -602,7 +609,7 @@ html.show-splash #splashScreen{display:block}
   <button type="button" class="nav-app" data-app="tmap"><img src="./assets/tmap.png" alt=""><span><b>티맵</b><small>도착지가 자동으로 입력됩니다</small></span><i>›</i></button>
   <button type="button" class="ms-cancel" data-close="1">취소</button>
 </div>
-<script src="./js/app.js?v=34" defer></script>
+<script src="./js/app.js?v=35" defer></script>
 <div class="vote-sheet" id="voteSheet" hidden>
   <div class="vote-sheet-dim" id="voteSheetDim"></div>
   <div class="vote-sheet-panel" role="dialog" aria-modal="true" aria-label="출석 투표">
