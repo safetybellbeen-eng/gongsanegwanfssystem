@@ -599,7 +599,7 @@
   @media screen{
     nav.mobile-tabbar{
       position:fixed;bottom:0;left:0;right:0;z-index:40;display:flex;
-      background:rgba(17,22,27,0.97);backdrop-filter:blur(10px);
+      background:rgba(17,22,27,0.97);
       border-top:1px solid var(--line);
       padding:6px 4px calc(6px + env(safe-area-inset-bottom));
     }
@@ -1434,3 +1434,637 @@ body.sheet-open{overflow:hidden;}
 .ws-nm small{font-size:10px;color:var(--lime);flex-shrink:0;}
 .ws-nm.me{color:var(--lime);font-weight:800;}
 .ws-empty{font-size:11.5px;color:#7d8d96;text-align:center;padding:8px 0;}
+
+/* 달력 확정 표시 + 달력 아래 경기일 배너 + 날짜별 투표자(칩) */
+.cal-weeks .cal-cell .cf-tag{font-size:8.5px;font-weight:800;line-height:1;margin-top:3px;height:6px;color:var(--ink);letter-spacing:-.3px;}
+.gameday-wrap{margin-top:10px;}
+.gameday-wrap[hidden]{display:none;}
+.gameday-wrap .gameday-card{margin-top:0;}
+.vv{margin-top:10px;border-radius:16px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);padding:12px;}
+.vv-t{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:14px;}
+.vv-t small{color:#8fa0a8;font-size:11.5px;font-weight:600;}
+.vv-chips{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-bottom:10px;}
+.vc{font-family:inherit;color:#e8eef1;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);padding:7px 0 6px;text-align:center;cursor:pointer;}
+.vc b{display:block;font-size:10.5px;color:#8fa0a8;font-weight:700;}
+.vc span{display:block;font-size:15px;font-weight:800;margin:1px 0;}
+.vc em{display:block;font-style:normal;font-size:11px;color:#8fa0a8;font-weight:700;}
+.vc.zero{opacity:.5;}
+.vc.hot{background:rgba(182,242,58,.14);border-color:rgba(182,242,58,.5);}
+.vc.hot em{color:#b6f23a;}
+.vc.sel{background:#b6f23a;border-color:#b6f23a;color:#0b1218;opacity:1;}
+.vc.sel b,.vc.sel em{color:#0b1218;}
+.vv-det{background:rgba(255,255,255,.04);border-radius:12px;padding:11px 12px;}
+.vv-det h4{display:flex;justify-content:space-between;font-size:13.5px;margin:0 0 9px;}
+.vv-det h4 i{font-style:normal;color:#b6f23a;}
+.vv-det .nm{display:flex;flex-wrap:wrap;gap:6px;}
+.vv-det .nm u{text-decoration:none;background:#b6f23a;color:#0b1218;font-weight:800;font-size:12.5px;padding:5px 11px;border-radius:99px;}
+.vv-det .nm u.o{background:rgba(255,255,255,.1);color:#e8eef1;}
+.vv-none{font-size:12.5px;color:#8fa0a8;}
+
+/* ===== 로그인 화면 v2 (시안 기준) ===== */
+#loginOverlay{display:block;overflow-y:auto;-webkit-overflow-scrolling:touch;background:#050a0e url('../assets/login-bg-mobile.jpg') center bottom/cover no-repeat;}
+#loginOverlay::after{display:none;}
+@media (min-width:760px){#loginOverlay{background:linear-gradient(180deg,rgba(5,10,14,.55),rgba(5,10,14,.8)),url('../assets/login-background.jpg') center/cover no-repeat;}}
+#loginOverlay .login-card.lg2{background:none;border:none;border-radius:0;box-shadow:none;width:100%;max-width:420px;margin:0 auto;padding:clamp(44px,9vh,92px) 26px 40px;min-height:100%;display:flex;flex-direction:column;justify-content:flex-start;}
+.lg2-brand{text-align:center;margin-bottom:clamp(22px,4.5vh,38px);}
+.lg2-logo{width:clamp(92px,26vw,112px);height:auto;display:block;margin:0 auto;filter:drop-shadow(0 6px 18px rgba(0,0,0,.6));}
+#loginOverlay .login-card.lg2 h2{font-family:inherit;font-size:clamp(32px,10.5vw,42px);font-weight:900;font-style:italic;letter-spacing:-.5px;color:#fff;margin:14px 0 6px;white-space:nowrap;text-shadow:0 3px 14px rgba(0,0,0,.6);}
+.lg2-en{font-size:10.5px;letter-spacing:.34em;color:#dfe8ec;font-weight:500;padding-left:.34em;}
+.lg2-swoosh{display:block;width:120px;height:3px;margin:16px auto 0;border-radius:3px;background:linear-gradient(90deg,transparent,#b6f23a 40%,transparent);transform:rotate(-2deg);opacity:.9;}
+.lg2-field{display:flex;align-items:center;height:56px;border-radius:16px;margin-bottom:12px;background:rgba(10,18,24,.72);border:1.5px solid rgba(255,255,255,.22);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);}
+.lg2-field:focus-within{border-color:#b6f23a;box-shadow:0 0 0 3px rgba(182,242,58,.18);}
+.lg2-ic{width:58px;display:flex;align-items:center;justify-content:center;color:#f2f6f8;flex-shrink:0;position:relative;}
+.lg2-ic::after{content:"";position:absolute;right:0;top:15px;bottom:15px;width:1px;background:rgba(255,255,255,.28);}
+#loginOverlay .lg2-field input{flex:1;min-width:0;height:100%;padding:0 14px;font-size:16px;color:#fff;background:transparent;border:none;}
+#loginOverlay .lg2-field input::placeholder{color:rgba(225,233,238,.62);}
+.lg2-opts{display:flex;align-items:center;justify-content:space-between;margin:8px 2px 16px;}
+#loginOverlay .lg2 .remember-row{display:flex;align-items:center;gap:9px;margin:0;font-size:14px;color:#f2f6f8;cursor:pointer;}
+#loginOverlay .lg2 .remember-row input{appearance:none;-webkit-appearance:none;width:22px;height:22px;border-radius:6px;border:1.5px solid rgba(255,255,255,.45);background:transparent;margin:0;display:grid;place-content:center;cursor:pointer;}
+#loginOverlay .lg2 .remember-row input:checked{background:#b6f23a;border-color:#b6f23a;}
+#loginOverlay .lg2 .remember-row input:checked::after{content:"";width:6px;height:11px;border:solid #0b1218;border-width:0 3px 3px 0;transform:rotate(45deg) translate(-1px,-1px);}
+.lg2-help{display:inline-flex;align-items:center;gap:5px;font-size:14px;color:#f2f6f8;cursor:pointer;user-select:none;}
+#loginOverlay .lg2 .login-note{margin:-6px 0 14px;padding:11px 13px;border-radius:12px;background:rgba(10,18,24,.8);border:1px solid rgba(255,255,255,.14);color:#cfd9de;font-size:12px;line-height:1.6;text-align:left;}
+#loginOverlay .lg2 .login-note[hidden]{display:none;}
+#loginOverlay .lg2 .lg2-btn{display:block;width:100%;height:58px;padding:0;border:none;border-radius:18px;font-family:inherit;font-size:19px;font-weight:800;letter-spacing:.02em;color:#0b1218;background:linear-gradient(180deg,#c6ff4a,#9fe21c);box-shadow:0 8px 22px rgba(150,230,30,.28),inset 0 1px 0 rgba(255,255,255,.45);cursor:pointer;}
+#loginOverlay .lg2 .lg2-btn:active{transform:translateY(1px);}
+#loginOverlay .lg2 .login-error{margin:0 0 8px;min-height:0;}
+#loginOverlay .lg2 .login-error:empty{display:none;}
+
+.ws-nm .inj-tag{font-style:normal;font-size:10px;font-weight:800;color:#ff8a8a;background:rgba(255,93,93,.14);border:1px solid rgba(255,93,93,.4);border-radius:99px;padding:1px 6px;margin-left:4px;white-space:nowrap;}
+.ws-nm.inj span{color:#c9d3d8;}
+.ws-nm .inj-tag{padding:0 4px;font-size:11px;}
+
+/* ===== 경기탭 v4: 필터 1줄 + 슬림 리스트 ===== */
+.mf2{display:flex;align-items:center;gap:7px;margin:0 0 10px;}
+.mf2-sp{flex:1;}
+.mf2-sel{position:relative;display:inline-flex;border-radius:99px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);}
+.mf2-sel.on{background:rgba(182,242,58,.14);border-color:rgba(182,242,58,.6);}
+.mf2-sel select{appearance:none;-webkit-appearance:none;background:transparent;border:none;color:#e8eef1;font-family:inherit;font-size:13px;font-weight:700;padding:8px 26px 8px 13px;border-radius:99px;cursor:pointer;}
+.mf2-sel.on select{color:#b6f23a;}
+.mf2-sel select option{background:#101a22;color:#e8eef1;}
+.mf2-sel::after{content:"▾";position:absolute;right:11px;top:50%;transform:translateY(-52%);font-size:11px;color:#aebcc3;pointer-events:none;}
+.mf2-sel.on::after{color:#b6f23a;}
+.mf2-fav{width:36px;height:34px;border-radius:99px;display:grid;place-items:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);color:#aebcc3;cursor:pointer;padding:0;}
+.mf2-fav[hidden]{display:none;}
+.mf2-fav.active{background:rgba(182,242,58,.16);border-color:rgba(182,242,58,.6);color:#b6f23a;}
+.mf2-tg{display:inline-flex;align-items:center;gap:7px;background:none;border:none;color:#aebcc3;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;padding:4px 0;}
+.mf2-tg i{width:32px;height:18px;border-radius:9px;background:rgba(255,255,255,.18);position:relative;display:block;transition:background .15s;}
+.mf2-tg i::after{content:"";position:absolute;left:2px;top:2px;width:14px;height:14px;border-radius:50%;background:#0b1218;transition:transform .15s;}
+.mf2-tg.on i{background:#b6f23a;}
+.mf2-tg.on i::after{transform:translateX(14px);}
+.mx{border-radius:14px;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.09);margin-bottom:7px;overflow:hidden;}
+.mx.open{border-color:rgba(182,242,58,.45);background:rgba(182,242,58,.05);}
+.mx.is-full .mx-main{opacity:.6;}
+.mx-main{display:grid;grid-template-columns:50px 1fr auto;gap:10px;align-items:center;padding:12px 11px;cursor:pointer;}
+.mx-t{font-size:15px;font-weight:800;color:#f2f6f8;}
+.mx-v{min-width:0;}
+.mx-v b{display:block;font-size:14px;font-weight:700;color:#f2f6f8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mx-v small{display:block;font-size:11.5px;color:#8fa0a8;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mx-r{display:flex;flex-direction:column;align-items:flex-end;gap:4px;}
+.mx-r .mt-fmt{height:auto;min-width:0;padding:3px 8px;font-size:11.5px;border-radius:7px;line-height:1.3;}
+.mx-r .mt-st{font-size:11px;font-weight:800;white-space:nowrap;}
+.mx-act{display:none;gap:6px;padding:0 10px 10px;}
+.mx.open .mx-act{display:flex;}
+.mx-ic,.mx-b{height:40px;border-radius:11px;border:none;background:rgba(255,255,255,.08);color:#e8eef1;font-family:inherit;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:5px;}
+.mx-ic{width:44px;flex:0 0 44px;padding:0;}
+.mx-b{padding:0 12px;font-size:12.5px;font-weight:700;}
+.mx-b.on{color:#b6f23a;}
+.mx-go{flex:1;height:40px;border-radius:11px;border:none;background:#b6f23a;color:#0b1218;font-family:inherit;font-size:14px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;}
+.mx-act .mc-adopt-btn{margin:0;border:none;background:rgba(255,255,255,.08);font-size:16px;padding:0;}
+.mx-r .mt-fmt{border:none;background:rgba(182,242,58,.15);color:#b6f23a;font-weight:800;}
+
+.mx-ic.mt-fav.on{color:#b6f23a;background:rgba(182,242,58,.16);}
+.mt-meta .match-count{display:flex;align-items:baseline;gap:8px;}
+.mt-meta .mc-count-num{font-size:14px;}
+
+/* ===== 홈 히어로 배너: 시안과 동일하게 ===== */
+.home-hero-banner{background:linear-gradient(90deg,#0b1115 0%,rgba(11,17,21,.55) 34%,rgba(11,17,21,0) 62%),url("../assets/home-hero-v2.jpg") right center/cover no-repeat #0b1115;}
+.home-hero-banner::after{height:26px;}
+.hhb-text{padding:18px 18px 0 26px;font-size:17px;font-weight:600;font-style:italic;line-height:1.3;letter-spacing:-.01em;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.7);}
+.hhb-name{margin-top:6px;font-size:28px;font-weight:900;font-style:italic;color:#b6f23a;letter-spacing:-.02em;line-height:1.1;}
+.hhb-line{width:112px;height:4px;margin:4px 0 0 4px;border-radius:50%;background:linear-gradient(90deg,rgba(236,224,160,0),#e8dc9c 28%,#f6efc4 62%,rgba(236,224,160,0));transform:rotate(-3deg);}
+#sectionHome .home-hero-banner .hhb-text{font-size:clamp(15px,2.2vh,18px);}
+#sectionHome .home-hero-banner .hhb-name{font-size:clamp(23px,3.4vh,29px);}
+
+/* ===== 탭 화면 꽉 채우기(하단 빈 공간 제거) ===== */
+#sectionCalendar.mobile-active,#sectionMatches.mobile-active,#sectionMap.mobile-active{display:flex;flex-direction:column;}
+#sectionCalendar.mobile-active > *,#sectionMatches.mobile-active > *,#sectionMap.mobile-active > *{flex-shrink:0;}
+#sectionCalendar .attend-pane.active[data-pane="vote"]{display:flex;flex-direction:column;flex:1 1 auto;min-height:0;}
+#sectionCalendar .cal-layout{flex:1 1 auto;min-height:0;}
+#sectionCalendar .cal-card{flex:1 1 auto;display:flex;flex-direction:column;}
+#sectionCalendar .cal-weeks{flex:1 1 auto;display:flex;flex-direction:column;}
+#sectionCalendar .cal-weeks .cal-wk{flex:1 1 0;min-height:40px;}
+#sectionCalendar .cal-weeks .cal-wk-head{flex:0 0 auto;min-height:0;}
+#sectionCalendar .cal-weeks.week-mode .cal-wk{flex:0 0 auto;}
+#sectionCalendar .cal-card:has(.week-mode){flex:0 0 auto;}
+#sectionMatches .mt-panel{flex:1 1 auto;}
+#sectionMap .map-card{flex:1 1 auto;display:flex;flex-direction:column;}
+#sectionMap #mapWrap{position:relative;flex:1 1 auto;min-height:260px;margin-top:12px;}
+#sectionMap #mapWrap #map{position:absolute;inset:0;height:auto;margin:0;}
+#sectionMap #mapWrap .map-empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:16px;}
+#sectionMap #mapWrap.map-fullscreen-mode{position:fixed;inset:0;margin-top:0;}
+#sectionMap #mapWrap.map-fullscreen-mode #map{position:relative;inset:auto;height:100%;width:100%;}
+/* 더보기: 한 화면에 들어가도록 행 높이 정리 / 날씨: 화면 채우기 */
+.more-list{gap:7px;}
+.more-row{padding:11px 16px;}
+.more-row .mr-tx small{margin-top:1px;}
+#sectionWeather.mobile-active{display:flex;flex-direction:column;}
+#sectionWeather.mobile-active > *{flex-shrink:0;}
+#sectionWeather.mobile-active > .weather-card{flex:1 1 auto;}
+#sectionMore.mobile-active{display:flex;flex-direction:column;}
+#sectionMore.mobile-active > *{flex-shrink:0;}
+#sectionMore.mobile-active > .more-list{flex:1 1 auto;justify-content:space-between;gap:7px;}
+#sectionMore .more-list .more-row{flex:1 1 auto;max-height:92px;}
+
+/* ===== 홈: 다음 경기 카드 정리(시안 기준) + 낮은 화면에서도 상단 배너 표시 ===== */
+#heroMatchCard .nm-body{display:grid;grid-template-columns:1fr 34%;grid-template-rows:auto auto;min-height:0;}
+#heroMatchCard .nm-venue{grid-column:1 / 3;grid-row:1;padding:9px 16px 2px;font-size:17px;font-weight:800;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+#heroMatchCard .nm-info{grid-column:1;grid-row:2;padding:0 6px 11px 16px;display:flex;flex-direction:column;gap:7px;min-width:0;}
+#heroMatchCard .nm-line{font-size:14px;gap:7px;white-space:nowrap;}
+#heroMatchCard .nm-line svg{width:17px;height:17px;}
+#heroMatchCard .nm-actions{gap:7px;margin:0;flex-wrap:nowrap;}
+#heroMatchCard .nm-format,#heroMatchCard .hero-link-btn{height:26px;padding:0 10px;font-size:12.5px;border-radius:8px;font-weight:800;border:none;white-space:nowrap;}
+#heroMatchCard .nm-photo{grid-column:2;grid-row:2;width:auto;max-width:none;margin:0 0 0 -22px;align-self:stretch;min-height:0;}
+#heroMatchCard .nm-chev{right:calc(34% - 4px);top:62%;font-size:24px;}
+#heroMatchCard .nm-admin{margin:0 14px 10px;padding-top:6px;font-size:12.5px;}
+@media (max-height:800px){
+  #sectionHome .home-hero-banner{display:block !important;flex:0 0 auto;height:92px;min-height:0;max-height:92px;margin-bottom:6px;}
+  #sectionHome .home-hero-banner .hhb-text{padding:10px 16px 0 22px;font-size:14px;line-height:1.25;}
+  #sectionHome .home-hero-banner .hhb-name{font-size:21px;margin-top:3px;}
+  #sectionHome .home-hero-banner .hhb-line{width:84px;height:3px;margin-top:2px;}
+  #sectionHome .home-quick-btn{min-height:52px;padding:7px 2px 6px;}
+  #sectionHome .home-team-photo{display:none;}
+}
+@media (max-height:700px){ #sectionHome .home-hero-banner{height:78px;max-height:78px;} #sectionHome .home-hero-banner .hhb-text{font-size:13px;padding-top:7px;} #sectionHome .home-hero-banner .hhb-name{font-size:18px;} }
+
+/* ===== 다음 경기 카드 C안: 날짜 블록형 ===== */
+#heroMatchCard .hero-top{display:flex;align-items:flex-start;justify-content:space-between;}
+#heroMatchCard .hero-dday{margin:8px 14px 0 0;background:#0b1218;color:#b6f23a;font-size:12px;font-weight:800;border-radius:99px;padding:3px 10px;}
+#heroMatchCard .nm-body.nm-c{display:flex;align-items:stretch;gap:12px;padding:8px 14px 13px;min-height:0;}
+#heroMatchCard .nm-blk{width:64px;flex-shrink:0;border-radius:14px;background:#0b1218;color:#b6f23a;text-align:center;display:flex;flex-direction:column;justify-content:center;padding:6px 0;}
+#heroMatchCard .nm-blk i{font-style:normal;font-size:11px;color:#9fb0b8;font-weight:700;}
+#heroMatchCard .nm-blk b{font-size:28px;line-height:1.05;font-weight:900;}
+#heroMatchCard .nm-blk small{font-size:11.5px;color:#e8eef1;font-weight:700;margin-top:2px;}
+#heroMatchCard .nm-c .nm-info{flex:1;min-width:0;padding:0;display:flex;flex-direction:column;justify-content:center;gap:6px;}
+#heroMatchCard .nm-c .nm-venue{grid-column:auto;padding:0;font-size:16.5px;}
+#heroMatchCard .nm-c .nm-line{font-size:13.5px;}
+#heroMatchCard .hero-share-btn{width:26px;height:26px;border-radius:8px;border:1.5px solid #c4cfd4;background:#fff;color:#0b1218;display:inline-grid;place-items:center;padding:0;cursor:pointer;}
+#heroMatchCard .hero-share-btn svg{width:15px;height:15px;color:#0b1218;}
+#heroMatchCard .nm-c .nm-chev,#heroMatchCard .nm-c .nm-photo{display:none;}
+
+/* ===== 다음 경기 카드 최종: 구장 사진형 + 경기 알림 ===== */
+#sectionHome #heroMatchCard.hero-match-card:not(.empty){padding:0;overflow:hidden;border:1px solid #2b3a44;color:#fff;
+  background:linear-gradient(180deg,rgba(8,12,15,0) 0%,rgba(8,12,15,.55) 48%,rgba(8,12,15,.96) 82%),url(../assets/home-stadium.jpg) center 30%/cover #0b1115;}
+#heroMatchCard .nm-body.nm-photo3{display:flex;flex-direction:column;justify-content:space-between;gap:0;min-height:196px;padding:14px 16px 14px;cursor:pointer;}
+#heroMatchCard .nm3-top{display:flex;justify-content:space-between;align-items:center;}
+#heroMatchCard .nm3-chip{background:rgba(11,17,21,.7);border:1px solid #3a4a54;border-radius:99px;padding:4px 12px;font-size:12px;font-weight:800;color:#b6f23a;}
+#heroMatchCard .nm3-dd{background:#b6f23a;color:#0b1218;border-radius:99px;padding:4px 11px;font-weight:900;font-size:12.5px;}
+#heroMatchCard .nm3-date{font-size:27px;font-weight:900;letter-spacing:-.02em;line-height:1.1;text-shadow:0 2px 10px rgba(0,0,0,.6);}
+#heroMatchCard .nm3-date em{font-style:normal;color:#b6f23a;font-size:15px;margin-left:6px;font-weight:800;}
+#heroMatchCard .nm3-venue{display:flex;align-items:center;gap:6px;margin-top:5px;font-size:14.5px;font-weight:700;color:#e8eef1;min-width:0;}
+#heroMatchCard .nm3-venue svg{width:15px;height:15px;flex-shrink:0;color:#b6f23a;}
+#heroMatchCard .nm3-venue span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+#heroMatchCard .nm3-act{display:flex;gap:8px;margin-top:12px;}
+#heroMatchCard .nm3-act .hero-link-btn{flex:1;height:36px;border-radius:11px;font-size:13.5px;font-weight:800;background:#b6f23a;color:#0b1218;border:0;}
+#heroMatchCard .nm3-act .hero-alert-btn{height:36px;border-radius:11px;padding:0 12px;font-size:13px;font-weight:800;background:rgba(11,17,21,.75);border:1px solid #3a4a54;color:#b6f23a;display:inline-flex;align-items:center;gap:5px;cursor:pointer;}
+#heroMatchCard .nm3-act .hero-alert-btn svg{width:15px;height:15px;}
+#heroMatchCard .nm3-act .hero-alert-btn:disabled{opacity:.5;}
+#heroMatchCard .nm3-act .hero-share-btn{width:36px;height:36px;border-radius:11px;background:rgba(11,17,21,.75);border:1px solid #3a4a54;color:#fff;}
+#heroMatchCard .nm3-act .hero-share-btn svg{color:#fff;}
+#heroMatchCard .nm-admin{margin:0;padding:8px 14px 10px;background:rgba(8,12,15,.96);color:#e8eef1;}
+@media (max-height:800px){#heroMatchCard .nm-body.nm-photo3{min-height:168px;padding:11px 14px 12px;}#heroMatchCard .nm3-date{font-size:23px;}}
+
+/* 홈 화면 추가 안내 */
+.install-guide{position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center;padding:16px;}
+.install-guide .ig-box{width:100%;max-width:420px;background:#fff;color:#0b1218;border-radius:20px;padding:20px 20px 16px;box-shadow:0 10px 30px rgba(0,0,0,.5);}
+.install-guide b{font-size:17px;font-weight:800;}
+.install-guide ol{margin:12px 0 14px 20px;font-size:14.5px;line-height:1.7;}
+.install-guide .ig-close{width:100%;height:44px;border:0;border-radius:12px;background:#b6f23a;color:#0b1218;font-weight:800;font-size:15px;cursor:pointer;}
+
+/* 출석: 투표 현황 | 투표 알림 2분할 */
+.ws-actions{display:flex;gap:8px;}
+.ws-actions .ws-toggle{flex:0 0 38%;width:auto;}
+.ws-alert{flex:1;min-width:0;height:46px;border-radius:14px;border:0;background:#b6f23a;color:#0b1218;font-weight:900;font-size:14.5px;display:flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap;cursor:pointer;font-family:inherit;}
+.ws-alert em{font-style:normal;font-size:11px;background:#0b1218;color:#b6f23a;border-radius:99px;padding:2px 7px;font-weight:800;}
+.ws-alert:disabled{opacity:.55;}
+
+/* ===== 지도 탭 최종 (전체화면 버튼 · 구장 카드 · 길안내 · 즐겨찾는 경기장 목록) ===== */
+#sectionMap .map-card{padding:8px;border-radius:20px;}
+#sectionMap #mapWrap{margin-top:0;border-radius:16px;overflow:hidden;border:1px solid rgba(255,255,255,.12);min-height:300px;}
+#sectionMap .venue-address-row{display:none !important;}
+#sectionMap .mapctl,#sectionMap .mapzoom button{width:40px;height:40px;border-radius:50%;background:rgba(20,29,35,.92);border:1px solid #3a4852;color:#fff;display:grid;place-items:center;padding:0;cursor:pointer;font-family:inherit;}
+#sectionMap #mapFullscreenBtn{position:absolute;top:10px;left:10px;right:auto;z-index:20;padding:0;font-size:0;}
+#sectionMap #mapFullscreenBtn:hover{border-color:#b6f23a;}
+#sectionMap .map-ctl-right{position:absolute;top:10px;right:10px;z-index:20;flex-direction:column;align-items:flex-end;gap:8px;}
+#sectionMap .mapzoom{display:flex;flex-direction:column;border-radius:20px;overflow:hidden;background:rgba(20,29,35,.92);border:1px solid #3a4852;}
+#sectionMap .mapzoom button{border:0;border-radius:0;background:transparent;font-size:20px;font-weight:700;}
+#sectionMap .mapzoom button+button{border-top:1px solid #3a4852;}
+#sectionMap .map-search-pop{position:absolute;top:10px;left:58px;right:58px;z-index:21;background:rgba(14,22,27,.97);border:1px solid #3a4852;border-radius:14px;padding:8px;}
+#sectionMap .map-search-pop[hidden]{display:none;}
+#sectionMap .map-search-pop .venue-row{margin:0;flex-wrap:wrap;}
+#sectionMap .map-search-pop select{max-width:none;flex:1 1 100%;}
+#sectionMap .venue-card{position:absolute;left:8px;right:8px;bottom:8px;z-index:20;display:flex;gap:11px;align-items:stretch;background:rgba(14,22,27,.96);border:1px solid #2b3a44;border-radius:18px;padding:10px;color:#e8eef1;}
+#sectionMap .venue-card[hidden]{display:none;}
+#sectionMap .vc-th{width:84px;min-height:66px;border-radius:12px;background:url(../assets/home-stadium.jpg) center/cover;flex-shrink:0;}
+#sectionMap .vc-in{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;}
+#sectionMap .vc-name{display:flex;align-items:center;gap:6px;}
+#sectionMap .vc-name b{font-size:16px;font-weight:800;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+#sectionMap .vc-star{width:26px;height:26px;border-radius:8px;border:1px solid #3a4852;background:transparent;color:#cdd8dc;font-size:15px;place-items:center;cursor:pointer;flex-shrink:0;}
+#sectionMap .vc-star.on{color:#b6f23a;border-color:#b6f23a;}
+#sectionMap .vc-addr{font-size:11.5px;color:#a9b8bf;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+#sectionMap .vc-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:auto;}
+#sectionMap .vc-copy{background:transparent;border:1px solid #3a4852;color:#cdd8dc;border-radius:10px;height:34px;padding:0 11px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;}
+#sectionMap .vc-go{background:linear-gradient(135deg,#b6f23a,#8fd61f);color:#0b1218;font-weight:900;font-size:13px;border:0;border-radius:12px;height:36px;padding:0 14px;display:flex;align-items:center;gap:5px;cursor:pointer;font-family:inherit;margin-left:auto;}
+#sectionMap .map-fav-row{display:flex;align-items:center;justify-content:space-between;width:100%;height:46px;margin-top:8px;padding:0 14px;border-radius:15px;background:var(--surface);border:1px solid var(--line);color:#e8eef1;font-family:inherit;font-weight:800;font-size:14.5px;cursor:pointer;flex:0 0 auto;}
+#sectionMap .map-fav-row .mfr-t{display:flex;align-items:center;gap:8px;}
+#sectionMap .map-fav-row i{width:10px;height:10px;border-radius:50%;background:#b6f23a;display:inline-block;}
+#sectionMap .map-fav-row small{font-size:12.5px;font-weight:600;color:#cdd8dc;}
+/* 전체화면: 화면 전체를 지도로 */
+#sectionMap #mapWrap.map-fullscreen-mode{padding:0;border-radius:0;border:0;display:block;}
+#sectionMap #mapWrap.map-fullscreen-mode #map{position:absolute;inset:0;height:auto;width:auto;}
+#sectionMap #mapWrap.map-fullscreen-mode #mapFullscreenBtn{top:calc(10px + env(safe-area-inset-top));left:12px;}
+#sectionMap #mapWrap.map-fullscreen-mode .map-ctl-right{top:calc(10px + env(safe-area-inset-top));right:12px;}
+#sectionMap #mapWrap.map-fullscreen-mode .map-search-pop{top:calc(10px + env(safe-area-inset-top));left:60px;right:60px;}
+#sectionMap #mapWrap.map-fullscreen-mode .venue-card{left:12px;right:12px;bottom:calc(14px + env(safe-area-inset-bottom));}
+/* 바텀시트 (즐겨찾는 경기장 / 길안내 앱 선택) */
+.map-sheet-dim{position:fixed;inset:0;z-index:10040;background:rgba(0,0,0,.62);}
+.map-sheet-dim[hidden],.map-sheet[hidden]{display:none;}
+.map-sheet{position:fixed;left:8px;right:8px;bottom:calc(8px + env(safe-area-inset-bottom));z-index:10050;max-height:78vh;overflow:auto;background:#10181d;border:1px solid #2b3a44;border-radius:28px;padding:10px 16px 16px;color:#e8eef1;max-width:520px;margin:0 auto;}
+.ms-grip{width:40px;height:4px;border-radius:3px;background:#4a5962;margin:0 auto 12px;}
+.ms-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;font-size:17px;}
+.ms-head em{font-style:normal;color:#b6f23a;margin-left:6px;}
+.ms-x{background:transparent;border:0;color:#b8c6cc;font-size:14px;font-family:inherit;cursor:pointer;}
+.ms-list{display:flex;flex-direction:column;gap:8px;}
+.ms-item{display:flex;align-items:center;gap:11px;background:#1b262d;border:1px solid #2d3b44;border-radius:16px;padding:8px 12px 8px 8px;color:#e8eef1;font-family:inherit;text-align:left;cursor:pointer;}
+.ms-ph{width:56px;height:44px;border-radius:10px;background:url(../assets/home-stadium.jpg) center/cover;flex-shrink:0;}
+.ms-tx{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}
+.ms-tx b{font-size:14.5px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ms-tx small{font-size:11px;color:#9fb0b8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ms-item em{font-style:normal;color:#b6f23a;font-size:17px;}
+.ms-empty{padding:26px 0;text-align:center;color:#9fb0b8;font-size:13.5px;}
+.ms-title{text-align:center;font-size:18px;font-weight:800;}
+.ms-sub{text-align:center;font-size:12.5px;color:#9fb0b8;margin:4px 0 14px;}
+.nav-app{display:flex;align-items:center;gap:13px;width:100%;background:#1b262d;border:1px solid #2d3b44;border-radius:18px;padding:11px 14px;margin-bottom:9px;color:#e8eef1;font-family:inherit;text-align:left;cursor:pointer;}
+.nav-app img{width:46px;height:46px;border-radius:11px;flex-shrink:0;}
+.nav-app span{flex:1;display:flex;flex-direction:column;}
+.nav-app b{font-size:16px;}.nav-app small{font-size:12px;color:#9fb0b8;}
+.nav-app i{font-style:normal;color:#9fb0b8;font-size:20px;}
+.ms-cancel{width:100%;height:46px;border-radius:16px;border:0;background:#26323a;color:#e8eef1;font-weight:800;font-size:15px;font-family:inherit;margin-top:4px;cursor:pointer;}
+
+/* ===== 공통 상단 배너 (B안: 모든 탭 동일 · 높이 84px) ===== */
+#sectionCalendar .page-banner.pb-slim,#sectionMatches .page-banner.pb-slim,#sectionMap .page-banner.pb-slim,
+#sectionMore .page-banner.pb-slim,#sectionWeather .page-banner.pb-slim,#sectionTactics .page-banner.pb-slim,
+#sectionRecords .page-banner.pb-slim,#sectionAdmin .page-banner.pb-slim{
+  min-height:84px;height:84px;padding:11px 16px;margin:4px -14px 10px;box-sizing:border-box;}
+.pb-slim::after{display:none;}
+.pb-slim .pb-title{gap:9px;}
+.pb-slim .pb-title h2{font-size:24px;}
+.pb-slim .pb-title h2 small{font-size:13px;}
+.pb-slim .pb-sub{margin:5px 0 0;font-size:12px;font-style:normal;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+#sectionMatches .page-banner.pb-slim .pb-sub{font-size:12px;font-style:normal;}
+.pb-back{position:absolute;right:12px;top:12px;z-index:3;height:28px;border-radius:14px;background:rgba(14,22,27,.88);
+  border:1px solid #3a4852;color:#fff;font-size:12px;font-weight:700;padding:0 11px;cursor:pointer;}
+.pb-back:hover{border-color:var(--lime);color:var(--lime);}
+@media (min-width:769px){.pb-back{display:none !important;}}
+/* 배너가 제목을 대신하므로 중복되는 소제목 숨김 */
+#sectionTactics > .eyebrow,#sectionAdmin > #adminSectionEyebrow{display:none !important;}
+#sectionWeather > .eyebrow > .num,#sectionWeather > .eyebrow > h2{display:none;}
+#sectionRecords > .eyebrow:first-of-type > .num{display:none;}
+#sectionCalendar .pb-slim .pb-title h2{font-size:24px;}
+#sectionCalendar .pb-slim .pb-sub{margin:5px 0 0;font-size:12px;}
+
+/* ===== 폰: 앱 셸 (하단 탭바가 모든 탭에서 화면 맨 아래에 고정되도록) ===== */
+@media (max-width:768px){
+  html,body{position:fixed;top:0;left:0;right:0;bottom:0;width:100%;height:100%;overflow:hidden;margin:0;}
+  body{display:flex;flex-direction:column;}
+  .wrap{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain;}
+  body.hide-header .wrap{padding-top:0;}
+  nav.mobile-tabbar{position:fixed;left:0;right:0;bottom:0;}
+}
+@media (max-width:768px){ .wrap{min-width:0;width:100%;max-width:100%;box-sizing:border-box;} }
+
+/* 홈 다음경기 카드: 버튼 높이 통일(40px) + 위치 핀 버튼 */
+#heroMatchCard .nm3-act{align-items:center;gap:8px;}
+#heroMatchCard .nm3-act .hero-link-btn,#heroMatchCard .nm3-act .hero-alert-btn{height:40px;box-sizing:border-box;line-height:1;}
+#heroMatchCard .nm3-act .hero-link-btn{display:inline-flex;align-items:center;justify-content:center;}
+#heroMatchCard .nm3-act .hero-share-btn,#heroMatchCard .nm3-act .hero-pin-btn{width:40px;height:40px;flex:0 0 40px;box-sizing:border-box;border-radius:11px;
+  background:rgba(11,17,21,.75);border:1px solid #3a4a54;display:inline-flex;align-items:center;justify-content:center;padding:0;cursor:pointer;}
+#heroMatchCard .nm3-act .hero-pin-btn{color:#b6f23a;}
+#heroMatchCard .nm3-act .hero-pin-btn svg,#heroMatchCard .nm3-act .hero-share-btn svg{width:18px;height:18px;}
+#sectionHome #heroMatchCard .nm3-act > button{height:40px !important;min-height:40px !important;max-height:40px !important;box-sizing:border-box;margin:0;}
+
+.home-quick-btn.notify-on svg,.home-quick-btn.notify-on span{color:#b6f23a;}
+.home-quick-btn.notify-off svg,.home-quick-btn.notify-off span{color:#8fa0a8;}
+
+/* ===== 여백 제거: 화면 전체 사용 (상단 배너는 상태표시줄 뒤까지, 탭바는 맨 아래까지) ===== */
+@media (max-width:768px){
+  html,body{height:var(--app-h,auto);}
+  nav.mobile-tabbar{position:absolute;left:0;right:0;bottom:0;padding-bottom:max(8px,calc(env(safe-area-inset-bottom) - 12px));}
+  body.hide-header .app-section.mobile-active{padding-top:0;}
+  .page-banner.pb-slim{margin-top:0 !important;}
+  #sectionCalendar .page-banner.pb-slim,#sectionMatches .page-banner.pb-slim,#sectionMap .page-banner.pb-slim,
+  #sectionMore .page-banner.pb-slim,#sectionWeather .page-banner.pb-slim,#sectionTactics .page-banner.pb-slim,
+  #sectionRecords .page-banner.pb-slim,#sectionAdmin .page-banner.pb-slim{
+    margin-top:0;height:calc(84px + env(safe-area-inset-top));min-height:calc(84px + env(safe-area-inset-top));
+    padding-top:calc(11px + env(safe-area-inset-top));}
+  .pb-back{top:calc(12px + env(safe-area-inset-top));}
+}
+
+/* 팀 멤버 페이지 · 멤버 등급 */
+.mp-lab{font-size:11.5px;color:#7d8e98;margin:14px 2px 7px;letter-spacing:.04em;}
+.mp-row{display:flex;align-items:center;gap:11px;padding:11px 12px;background:#121b21;border:1px solid #232f37;border-radius:14px;margin-bottom:8px;}
+.mp-av{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#d7ff6a,#8fd61f);color:#0b1218;font-weight:900;font-size:15px;display:grid;place-items:center;flex-shrink:0;}
+.mp-n{flex:1;min-width:0;font-size:14.5px;font-weight:700;}
+.mp-n.me{color:#b6f23a;}
+.mp-n small{display:block;font-size:11px;color:#8fa0a8;font-weight:500;margin-top:2px;}
+.mp-chip{font-size:11px;font-weight:800;padding:4px 10px;border-radius:10px;background:#1a252c;color:#b9c6cd;border:1px solid #2f3d46;white-space:nowrap;}
+.mp-chip.a{background:#26340f;color:#b6f23a;border-color:#4f7d1d;}
+.role-seg{display:flex;background:#0e161b;border:1px solid #2a3841;border-radius:12px;padding:3px;gap:3px;flex-shrink:0;}
+.role-seg button{border:0;background:transparent;font-size:12px;font-weight:800;padding:6px 12px;border-radius:9px;color:#8fa0a8;cursor:pointer;}
+.role-seg button.on{background:#b6f23a;color:#0b1218;}
+.role-seg.disabled{opacity:.55;}
+
+/* 내 부상 설정 시트 */
+.inj-sheet{padding:10px 18px calc(22px + env(safe-area-inset-bottom));background:#101a22;max-height:88dvh;overflow-y:auto;z-index:10060;}
+#injSheetDim{z-index:10055;}
+.inj-head{display:flex;align-items:center;justify-content:space-between;margin:4px 0 12px;}
+.inj-head b{font-size:19px;}
+.inj-x{width:32px;height:32px;border-radius:50%;border:0;background:#1a252c;color:#b9c6cd;font-size:14px;cursor:pointer;}
+.inj-status{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:14px;background:#14200f;border:1px solid #3d6f1c;margin-bottom:14px;}
+.inj-status .dot{width:10px;height:10px;border-radius:50%;background:#b6f23a;flex-shrink:0;}
+.inj-status b{display:block;font-size:14px;color:#d7ff6a;}
+.inj-status small{display:block;font-size:11.5px;color:#9fb0a0;margin-top:2px;}
+.inj-status.inj{background:#2a1517;border-color:#7a2f35;}
+.inj-status.inj .dot{background:#ff6b6b;}
+.inj-status.inj b{color:#ff9a9a;}
+.inj-status.inj small{color:#c9a0a3;}
+.inj-lab{font-size:11.5px;color:#7d8e98;margin:0 2px 7px;}
+.inj-dates{display:flex;gap:10px;margin-bottom:10px;}
+.inj-dc{position:relative;flex:1;min-width:0;background:#0e161b;border:1px solid #2a3841;border-radius:14px;padding:11px 14px;cursor:pointer;overflow:hidden;}
+.inj-dc small{display:block;font-size:11px;color:#8fa0a8;}
+.inj-dc b{display:block;margin-top:3px;font-size:16px;color:#5d6e78;font-weight:600;white-space:nowrap;}
+.inj-dc.on{border-color:#b6f23a;}
+.inj-dc.on b{color:#fff;font-weight:800;}
+.inj-dc input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;font-size:16px;}
+.inj-chips{display:flex;gap:8px;margin-bottom:14px;}
+.inj-chips button{font-size:12px;font-weight:700;padding:7px 14px;border-radius:18px;background:#1a252c;border:1px solid #2f3d46;color:#c3ced4;cursor:pointer;}
+.inj-info{background:#0e161b;border-radius:12px;padding:11px 13px;font-size:12px;color:#9fb0b8;line-height:1.65;margin-bottom:14px;}
+.inj-btns{display:flex;gap:10px;}
+.inj-save{flex:1;border:0;border-radius:14px;padding:14px;font-size:15px;font-weight:800;background:#b6f23a;color:#0b1218;cursor:pointer;}
+.inj-clear{width:112px;border-radius:14px;padding:14px;font-size:14px;font-weight:800;background:transparent;color:#ff8d8d;border:1px solid #7a2f35;cursor:pointer;}
+.inj-clear:disabled{color:#5d6e78;border-color:#2a3841;cursor:default;}
+/* 터치 반응 개선 */
+html{-webkit-tap-highlight-color:transparent;}
+button,.more-row,.tab-btn,.home-quick-btn{touch-action:manipulation;}
+.map-sheet.inj-sheet{left:0;right:0;bottom:0;border-radius:26px 26px 0 0;border:0;border-top:1px solid rgba(182,242,58,.35);}
+
+/* 홈 다음경기 카드: 참석자 아바타 */
+#heroMatchCard .nm3-roster{display:flex;align-items:center;gap:9px;margin:0 0 10px;min-height:30px;}
+#heroMatchCard .nm3-av{display:flex;}
+#heroMatchCard .nm3-av span{width:28px;height:28px;border-radius:50%;color:#0b1218;font-weight:900;font-size:12px;display:grid;place-items:center;border:2px solid #0e161b;margin-left:-8px;flex-shrink:0;}
+#heroMatchCard .nm3-av span:first-child{margin-left:0;}
+#heroMatchCard .nm3-av span.g{opacity:.75;}
+#heroMatchCard .nm3-av span.more{background:#26323a;color:#fff;font-size:10.5px;font-weight:800;}
+#heroMatchCard .nm3-roster b{font-size:13px;font-weight:800;color:#d7ff6a;}
+#heroMatchCard .nm3-roster b.none{color:#8fa0a8;font-weight:600;}
+
+#heroMatchCard .nm3-act .hero-alert-btn,#heroMatchCard .nm3-act .hero-link-btn{white-space:nowrap;}
+@media (max-width:370px){
+  #heroMatchCard .nm3-act{gap:6px;}
+  #heroMatchCard .nm3-act .hero-link-btn,#heroMatchCard .nm3-act .hero-alert-btn{padding-left:10px;padding-right:10px;font-size:13px;}
+  #heroMatchCard .nm3-act .hero-share-btn,#heroMatchCard .nm3-act .hero-pin-btn{width:38px;flex-basis:38px;}
+}
+
+#homeVoteCard .home-goto-btn.is-injured{background:#3a1d22!important;color:#ff8f8f!important;border:1px solid rgba(255,107,107,.45);justify-content:center;opacity:1;box-shadow:none;font-weight:800;}
+
+/* iOS 홈 화면 앱: 그려지는 영역이 화면보다 짧을 때(탭바 아래 잘림 방지) */
+@media (max-width:768px){
+  html.ios-short, html.ios-short body{background:#0b1115;}
+  /* 아래 47pt(홈 인디케이터 자리)는 앱이 칠할 수 없으므로, 탭바를 최대한 아래로 붙이고 같은 색으로 이어 보이게 함 */
+  html.ios-short nav.mobile-tabbar{padding-top:10px;padding-bottom:0;background:#0b1115;border-bottom:0;}
+  html.ios-short .wrap{padding-bottom:88px;}
+}
+
+/* 홈 경기카드: 멤버 보기 버튼 + 멤버 시트 */
+#heroMatchCard .nm3-roster .nm3-mb{margin-left:auto;border:1px solid rgba(182,242,58,.5);background:rgba(182,242,58,.08);color:#b6f23a;border-radius:18px;padding:6px 12px;font-size:12px;font-weight:800;white-space:nowrap;cursor:pointer;}
+#heroMatchCard .nm3-roster .nm3-mb:active{background:rgba(182,242,58,.2);}
+.mem-sheet{left:0;right:0;bottom:0;border-radius:28px 28px 0 0;background:#101a22;max-height:80dvh;display:flex;flex-direction:column;padding:10px 18px calc(18px + env(safe-area-inset-bottom));z-index:10060;overflow:hidden;}
+.mem-sheet .inj-head b{font-size:18px;font-weight:800;}
+.mem-sheet .inj-head b em{font-style:normal;color:#b6f23a;margin-left:6px;font-size:16px;}
+.mem-seg{display:flex;gap:8px;margin:12px 0 8px;flex:0 0 auto;}
+.mem-seg button{flex:1;height:42px;border-radius:12px;border:1px solid #2b3a44;background:#0d151b;color:#9fb0b8;font-size:13px;font-weight:700;}
+.mem-seg button.on{background:#b6f23a;border-color:#b6f23a;color:#111;font-weight:800;}
+.mem-list{overflow-y:auto;-webkit-overflow-scrolling:touch;flex:1 1 auto;min-height:120px;padding-bottom:6px;}
+.mem-sec{font-size:12px;color:#8fa0a8;margin:10px 2px 6px;font-weight:700;}
+.mem-li{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:14px;background:#0d151b;border:1px solid #1d2a31;margin-bottom:8px;}
+.mem-av{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font-weight:900;color:#111;font-size:16px;flex:0 0 38px;}
+.mem-li b{font-size:15px;color:#fff;}
+.mem-li b i{font-style:normal;font-size:10px;font-weight:800;color:#b6f23a;border:1px solid rgba(182,242,58,.5);border-radius:8px;padding:1px 6px;margin-left:4px;}
+.mem-li small{display:block;font-size:11px;color:#8fa0a8;margin-top:1px;}
+.mem-tag{margin-left:auto;font-size:11px;font-weight:800;border-radius:10px;padding:3px 9px;white-space:nowrap;}
+.mem-tag.tg{background:rgba(182,242,58,.14);color:#b6f23a;}
+.mem-tag.tw{background:rgba(255,176,32,.15);color:#ffb020;}
+.mem-tag.tb{background:rgba(74,163,255,.15);color:#4aa3ff;}
+.mem-tag.tr{background:rgba(255,107,107,.15);color:#ff8f8f;}
+.mem-empty{text-align:center;color:#8fa0a8;padding:36px 0;font-size:14px;}
+
+/* ===== v37: 홈 경기 카드 여유 간격 + 선명한 경기장 배경 ===== */
+#sectionHome #heroMatchCard.hero-match-card:not(.empty){
+  background:linear-gradient(180deg,rgba(8,12,15,.28) 0%,rgba(8,12,15,.40) 45%,rgba(8,12,15,.90) 100%),url(../assets/home-card-bg.jpg) center 40%/cover #0b1115;}
+#heroMatchCard .nm-body.nm-photo3{min-height:250px;padding:20px 20px 18px;}
+#heroMatchCard .nm3-date{margin-top:16px;}
+#heroMatchCard .nm3-venue{margin-top:8px;}
+#heroMatchCard .nm3-roster{margin:14px 0 16px;}
+#heroMatchCard .nm3-act{margin-top:0;gap:10px;}
+
+/* ===== v38: 생일 종 배지 + 생일 시트 ===== */
+.bell-btn .bell-bday{position:absolute;top:-4px;left:-5px;font-size:15px;line-height:1;filter:drop-shadow(0 1px 3px rgba(0,0,0,.6));animation:bdayPop 2.4s ease-in-out infinite;transform-origin:50% 100%;}
+.bell-btn .bell-bday[hidden]{display:none;}
+@keyframes bdayPop{0%,80%,100%{transform:scale(1) rotate(0)}88%{transform:scale(1.25) rotate(-12deg)}94%{transform:scale(1.25) rotate(12deg)}}
+.bday-notify{flex:0 0 auto;margin-top:8px;height:44px;border-radius:12px;border:1px solid #2b3a44;background:#0d151b;color:#b6f23a;font-weight:800;font-size:14px;}
+.bday-notify[hidden]{display:none;}
+#bdaySheetDim{z-index:10059;}
+
+/* ===== v39: 팀 기록 (내 기록 + 옆으로 넘기는 순위 카드 + 월별 막대) ===== */
+.rec-h2{display:flex;align-items:center;gap:8px;font-size:14px;color:#b6f23a;font-weight:900;margin:18px 2px 10px;}
+.rec-h2 em{font-style:normal;font-size:11px;color:#6f8089;font-weight:600;}
+.rec-h2:after{content:"";flex:1;height:1px;background:#22313a;order:1;}
+.rec-h2 .refresh-btn{order:2;margin-left:0;}
+.rec-h2 em{order:0;}
+.rec-card{background:#111b22;border:1px solid #1f2d36;border-radius:18px;padding:14px;}
+.rec-me{display:flex;gap:16px;align-items:center;background:linear-gradient(135deg,#17251a,#0f1a1f);border:1px solid #1f2d36;border-radius:18px;padding:16px;}
+.rec-ring{width:84px;height:84px;border-radius:50%;display:grid;place-items:center;flex:0 0 84px;}
+.rec-ring i{width:64px;height:64px;border-radius:50%;background:#101a20;display:grid;place-items:center;font-style:normal;font-weight:900;font-size:18px;color:#b6f23a;}
+.rec-me-tx{flex:1;font-size:12.5px;line-height:1.9;color:#cfd8dc;}
+.rec-me-tx b{display:block;font-size:16px;font-weight:900;color:#fff;margin-bottom:4px;line-height:1.3;}
+.rec-me-tx em{font-style:normal;font-weight:800;}.rec-me-tx .g{color:#b6f23a}.rec-me-tx .y{color:#ffb020}.rec-me-tx .r{color:#ff8f8f}
+.rec-me-tx small{color:#8fa0a8;font-size:11.5px;}
+.rec-swipe{display:flex;gap:0;margin:0 -5px;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;touch-action:pan-x pan-y;align-items:flex-start;scrollbar-width:none;}
+.rec-swipe::-webkit-scrollbar{display:none;}
+.rec-slide{flex:0 0 100%;min-width:0;padding:0 5px;scroll-snap-align:start;}
+.rec-pane{padding:12px 14px;}
+.rec-pt{font-size:14px;font-weight:900;margin-bottom:6px;}.rec-pt small{font-size:11px;color:#8fa0a8;font-weight:600;}
+.rec-pt.g{color:#b6f23a}.rec-pt.y{color:#ffb020}.rec-pt.r{color:#ff8f8f}
+.rec-row{display:flex;align-items:center;gap:9px;padding:8px 2px;border-bottom:1px solid #1a262d;}
+.rec-row:last-child{border-bottom:0;}
+.rec-row.me{background:rgba(182,242,58,.08);border-radius:12px;padding-left:8px;padding-right:8px;border-bottom-color:transparent;}
+.rec-row .rk{width:20px;text-align:center;font-weight:900;color:#8fa0a8;font-size:14px;}
+.rec-row .rk.g{color:#ffd76b}.rec-row .rk.s{color:#cfd8dc}.rec-row .rk.b{color:#e29b5c}
+.rec-row .av{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;color:#111;font-weight:900;font-size:13px;flex:0 0 30px;}
+.rec-row .nm{font-size:14px;font-weight:800;min-width:46px;color:#fff;}
+.rec-row .bar{flex:1;height:8px;border-radius:4px;background:#1d2a31;overflow:hidden;}
+.rec-row .bar i{display:block;height:100%;background:#b6f23a;border-radius:4px;}
+.rec-row .val{font-size:13px;font-weight:800;color:#b6f23a;min-width:62px;text-align:right;white-space:nowrap;}
+.rec-row .val small{color:#8fa0a8;font-weight:700;margin-left:5px;font-size:11.5px;}
+.rec-dots{display:flex;justify-content:center;gap:5px;margin-top:10px;}
+.rec-dots i{width:6px;height:6px;border-radius:3px;background:#2b3a44;transition:width .2s,background .2s;cursor:pointer;}
+.rec-dots i.on{background:#b6f23a;width:16px;}
+.rec-note{text-align:center;color:#8fa0a8;font-size:11px;margin-top:10px;}
+.rec-chart-top{display:flex;justify-content:space-between;font-size:11.5px;color:#8fa0a8;}
+.rec-bars{display:flex;align-items:flex-end;gap:9px;height:120px;margin:8px 0 4px;}
+.rec-bars .rb{flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;cursor:default;}
+.rec-bars .rb.has{cursor:pointer;}
+.rec-bars .rb b{font-size:12.5px;margin-bottom:4px;color:#8fa0a8;font-weight:800;}
+.rec-bars .rb i{display:block;width:100%;background:#243540;border-radius:6px 6px 0 0;}
+.rec-bars .rb.on i{background:#b6f23a;}.rec-bars .rb.on b{color:#b6f23a;}
+.rec-bars .rb.sel i{outline:2px solid #fff;outline-offset:1px;}
+.rec-bar-labels{display:flex;gap:9px;font-size:11px;color:#8fa0a8;}.rec-bar-labels span{flex:1;text-align:center;}.rec-bar-labels span.on{color:#b6f23a;font-weight:800;}
+.rec-stat3{display:flex;gap:8px;margin-top:12px;}
+.rec-stat3 div{flex:1;background:#0d151b;border-radius:12px;padding:10px 4px;text-align:center;}
+.rec-stat3 b{display:block;font-size:22px;color:#b6f23a;font-weight:900;}.rec-stat3 b.up{color:#ffb020;}
+.rec-stat3 small{font-size:10.5px;color:#8fa0a8;}
+.rec-swipe{transition:none;}
+
+/* ===== v41: 날씨탭 (경기 가능 여부 → 오늘 → 기상청 → 7일 → 시간별) ===== */
+.wx-top{display:flex;align-items:center;gap:8px;margin:14px 2px 12px;}
+.wx-top .wx-sub{font-size:15px;font-weight:800;color:#fff;margin-right:auto;}
+.wx-ver{display:flex;gap:14px;align-items:center;border-radius:20px;padding:16px;margin-bottom:12px;background:rgba(255,176,32,.11);border:1px solid rgba(255,176,32,.5);}
+.wx-ver .wv-ic{font-size:38px;white-space:nowrap;flex:0 0 auto;line-height:1;}
+.wx-ver .wv-d{font-size:12px;color:#cfd8dc;}
+.wx-ver .wv-l{font-size:21px;font-weight:900;margin:3px 0;color:#ffb020;}
+.wx-ver .wv-s{font-size:12.5px;color:#cfd8dc;line-height:1.5;}
+.wx-ver .wv-n{font-size:10.5px;color:#8fa0a8;margin-top:3px;}
+.wx-ver.level-good{background:rgba(61,220,132,.10);border-color:rgba(61,220,132,.5);}.wx-ver.level-good .wv-l{color:#3ddc84;}
+.wx-ver.level-cloudy{background:rgba(109,184,255,.10);border-color:rgba(109,184,255,.5);}.wx-ver.level-cloudy .wv-l{color:#6db8ff;}
+.wx-ver.level-wet{background:rgba(255,176,32,.11);border-color:rgba(255,176,32,.5);}.wx-ver.level-wet .wv-l{color:#ffb020;}
+.wx-ver.level-no{background:rgba(255,93,93,.11);border-color:rgba(255,93,93,.5);}.wx-ver.level-no .wv-l{color:#ff6b6b;}
+.wx-hero{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-radius:22px;background:linear-gradient(135deg,#15303f,#0f1a1f);border:1px solid #234252;margin-bottom:12px;}
+.wx-hero .wh-t{font-size:54px;font-weight:900;line-height:1;color:#fff;}.wx-hero .wh-t small{font-size:22px;color:#8fa0a8;font-weight:700;}
+.wx-hero .wh-d{font-size:12px;color:#9fb0b8;margin-top:8px;}.wx-hero .wh-s{font-size:12.5px;color:#b6f23a;font-weight:800;margin-top:4px;}
+.wx-hero .wh-i{font-size:62px;line-height:1;}
+.wx-kma{display:flex;align-items:center;justify-content:center;gap:8px;height:52px;border-radius:16px;background:linear-gradient(135deg,#1c3a52,#14283a);border:1px solid #2f6d9c;color:#bfe3ff;font-weight:900;font-size:15px;margin-bottom:12px;text-decoration:none;}
+.wx-seg{display:flex;gap:6px;background:#0d151b;border-radius:14px;padding:4px;margin-bottom:12px;}
+.wx-seg .week-tab{flex:1;text-align:center;font-size:14px;font-weight:800;padding:10px 0;border-radius:11px;color:#8fa0a8;background:none;border:0;}
+.wx-seg .week-tab.active{background:#b6f23a;color:#111;}
+.wx-list{background:#111b22;border:1px solid #1f2d36;border-radius:20px;padding:6px 10px;margin-bottom:12px;display:block;}
+.wx-row{display:flex;align-items:center;gap:8px;padding:11px 4px;border-bottom:1px solid #1a262d;cursor:pointer;}
+.wx-row:last-child{border-bottom:0;}
+.wx-row.today{background:rgba(182,242,58,.07);border-radius:12px;padding-left:8px;padding-right:8px;border-bottom-color:transparent;}
+.wx-row.match{background:rgba(255,176,32,.08);border-radius:12px;padding-left:8px;padding-right:8px;border-bottom-color:transparent;}
+.wx-row.sel{outline:2px solid #fff;outline-offset:-2px;border-radius:12px;}
+.wr-d{width:64px;white-space:nowrap;}.wr-d b{font-size:15px;display:block;color:#fff;}.wr-d small{font-size:11px;color:#8fa0a8;}
+.wr-tag{font-size:10px;font-weight:900;border-radius:7px;padding:2px 6px;background:rgba(255,176,32,.18);color:#ffb020;margin-left:2px;}
+.wr-a{flex:1;display:flex;align-items:center;gap:5px;font-size:13px;font-weight:800;min-width:0;}
+.wr-a i{font-style:normal;font-size:22px;}.wr-a .l{font-size:10px;color:#8fa0a8;font-weight:600;}.wr-a .p{color:#6db8ff;min-width:34px;}
+.wr-t{width:64px;text-align:right;font-size:15px;font-weight:900;color:#fff;white-space:nowrap;}.wr-t small{color:#8fa0a8;font-weight:700;font-size:13px;}
+.wx-h2{display:flex;align-items:center;gap:8px;font-size:13px;color:#b6f23a;font-weight:900;margin:16px 2px 8px;}
+.wx-h2 em{font-style:normal;color:#6f8089;font-weight:600;font-size:11px;}.wx-h2:after{content:"";flex:1;height:1px;background:#22313a;order:3;}
+.wx-card{background:#111b22;border:1px solid #1f2d36;border-radius:20px;padding:14px;margin-bottom:12px;}
+.wx-hb{display:block;}
+.wx-bars{display:flex;align-items:flex-end;gap:4px;height:116px;margin-top:6px;}
+.wx-bars div{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;}
+.wx-bars b{font-size:10.5px;color:#6db8ff;margin-bottom:3px;font-weight:800;}.wx-bars i{display:block;width:100%;background:#2a6fa8;border-radius:5px 5px 0 0;}
+.wx-bars .hi i{background:#ffb020;}.wx-bars .hi b{color:#ffb020;}
+.wx-bl,.wx-bm{display:flex;gap:4px;font-size:10px;margin-top:4px;color:#8fa0a8;}.wx-bm{color:#9fb0b8;margin-top:2px;}.wx-bl span,.wx-bm span{flex:1;text-align:center;min-width:0;}
+.wx-bn{font-size:10.5px;color:#8fa0a8;text-align:center;margin-top:8px;}
+.wx-empty{color:#8fa0a8;font-size:13px;text-align:center;padding:20px;}
+.wr-a .l,.wr-a .p{white-space:nowrap;}
+.wr-a{gap:4px;}
+.wr-d{width:58px;}.wr-t{width:58px;}
+.wx-row.today .wr-d,.wx-row.match .wr-d{width:54px;}
+
+/* v42 경기장 위치 보기 버튼 */
+#sectionMap .vc-copy,#sectionMap .vc-go{white-space:nowrap;flex:0 0 auto;}
+#sectionMap .vc-pin{background:rgba(182,242,58,.14);border:1px solid #b6f23a;color:#b6f23a;border-radius:10px;height:34px;width:38px;display:grid;place-items:center;cursor:pointer;flex:0 0 auto;padding:0;}
+#sectionMap .vc-ex{display:none;background:transparent;border:1px solid #3a4852;color:#9fb0b8;border-radius:10px;height:34px;padding:0 10px;font-size:12px;font-family:inherit;cursor:pointer;white-space:nowrap;}
+#sectionMap .venue-card.mini{align-items:center;padding:10px 12px;}
+#sectionMap .venue-card.mini .vc-th,#sectionMap .venue-card.mini .vc-addr,#sectionMap .venue-card.mini .vc-copy,#sectionMap .venue-card.mini .vc-pin{display:none;}
+#sectionMap .venue-card.mini .vc-in{flex-direction:row;align-items:center;gap:8px;}
+#sectionMap .venue-card.mini .vc-name{flex:1;min-width:0;}
+#sectionMap .venue-card.mini .vc-name b{font-size:14px;}
+#sectionMap .venue-card.mini .vc-row{margin:0;}
+#sectionMap .venue-card.mini .vc-ex{display:block;}
+.venue-pulse{position:relative;width:0;height:0;pointer-events:none;}
+.venue-pulse i{position:absolute;left:-30px;top:-30px;width:60px;height:60px;border-radius:50%;border:2px solid #b6f23a;animation:vpulse 1.4s ease-out infinite;}
+.venue-pulse i+i{animation-delay:.7s;}
+@keyframes vpulse{0%{transform:scale(.3);opacity:.95}100%{transform:scale(1.5);opacity:0}}
+
+/* v44 경기장 핀(다음 경기/즐겨찾기/일반) */
+.vpin{display:flex;flex-direction:column;align-items:center;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.vpn-bubble{background:#fff;color:#0b1218;border-radius:12px;padding:6px 11px 7px;text-align:center;box-shadow:0 5px 16px rgba(0,0,0,.55);}
+.vpn-badges{display:flex;gap:5px;justify-content:center;margin-bottom:3px;}
+.vpn-t{font-size:10px;font-weight:900;background:#b6f23a;color:#0b1218;border-radius:6px;padding:2px 6px;white-space:nowrap;}
+.vpn-d{font-size:10px;font-weight:900;background:#0b1218;color:#b6f23a;border-radius:6px;padding:2px 6px;white-space:nowrap;}
+.vpn-co{font-size:10px;font-weight:700;color:#5b6a74;white-space:nowrap;}
+.vpn-nm{font-size:13px;font-weight:900;white-space:nowrap;}
+.vpn-tail{width:0;height:0;border:7px solid transparent;border-top-color:#fff;margin-top:-1px;}
+.vpn-ball{position:relative;width:46px;height:46px;border-radius:50%;background:#b6f23a;border:3px solid #fff;display:grid;place-items:center;box-shadow:0 5px 14px rgba(0,0,0,.55);margin-top:3px;}
+.vpn-ball:after{content:"";position:absolute;inset:-9px;border-radius:50%;border:2px solid rgba(182,242,58,.6);animation:vpnpulse 1.8s ease-out infinite;}
+@keyframes vpnpulse{0%{transform:scale(.8);opacity:.9}100%{transform:scale(1.35);opacity:0}}
+.vpn-fav{max-width:170px;overflow:hidden;text-overflow:ellipsis;background:rgba(10,16,20,.94);border:1px solid #f5c542;color:#fff;border-radius:10px;padding:4px 9px;font-size:11.5px;font-weight:800;white-space:nowrap;box-shadow:0 5px 14px rgba(0,0,0,.55);}
+.vpn-fav span{color:#f5c542;}
+.vpn-ftail{width:0;height:0;border:6px solid transparent;border-top-color:#f5c542;margin-top:-1px;}
+.vpn-star{width:28px;height:28px;border-radius:50%;background:#f5c542;border:2px solid #fff;display:grid;place-items:center;font-size:13px;color:#0b1218;box-shadow:0 5px 14px rgba(0,0,0,.55);margin-top:2px;}
+.vpn-reg{max-width:130px;overflow:hidden;text-overflow:ellipsis;background:rgba(10,16,20,.88);border:1px solid #3a4852;color:#cdd8dc;border-radius:9px;padding:3px 8px;font-size:11px;font-weight:700;white-space:nowrap;}
+.vpn-rtail{width:0;height:0;border:5px solid transparent;border-top-color:#5b6a74;margin-top:-1px;}
+.vpn-dot{width:16px;height:16px;border-radius:50%;background:#5b6a74;border:2px solid #cdd8dc;margin-top:2px;}
+/* v44 돋보기 검색 목록 */
+#sectionMap .map-search-pop{left:8px;right:60px;top:10px;padding:10px;background:rgba(14,22,27,.98);border-radius:16px;max-height:calc(100% - 20px);display:flex;flex-direction:column;}
+.vl-bar{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);border-radius:14px;height:44px;padding:0 6px 0 12px;color:#9fb0b8;flex:0 0 auto;}
+.vl-bar input{flex:1;min-width:0;background:none;border:0;outline:0;color:#e8eef1;font-size:14px;font-family:inherit;}
+.vl-bar button{background:linear-gradient(135deg,#b6f23a,#8fd61f);color:#0b1218;font-weight:900;font-size:13px;border:0;border-radius:11px;height:32px;padding:0 12px;cursor:pointer;font-family:inherit;}
+.vl-chips{display:flex;gap:6px;overflow-x:auto;margin-top:10px;scrollbar-width:none;flex:0 0 auto;}
+.vl-chips::-webkit-scrollbar{display:none;}
+.vl-chip{flex:0 0 auto;font-size:12.5px;font-weight:800;padding:7px 12px;border-radius:16px;background:#1d2a32;border:1px solid #3a4852;color:#cdd8dc;cursor:pointer;font-family:inherit;}
+.vl-chip.on{background:#b6f23a;border-color:#b6f23a;color:#0b1218;}
+.vl-hint{font-size:11px;color:#9fb0b8;margin:10px 2px 6px;flex:0 0 auto;}
+.vl-list{display:flex;flex-direction:column;gap:2px;overflow-y:auto;-webkit-overflow-scrolling:touch;min-height:0;}
+.vl-item{display:flex;align-items:center;gap:10px;padding:10px 8px 10px 11px;border-radius:12px;border:1px solid transparent;cursor:pointer;}
+.vl-item.next{background:rgba(182,242,58,.12);border-color:#b6f23a;}
+.vl-ic{width:34px;height:34px;border-radius:10px;background:#1d2a32;display:grid;place-items:center;color:#b6f23a;flex:0 0 auto;}
+.vl-tx{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;}
+.vl-tx b{font-size:13.5px;font-weight:800;line-height:1.3;color:#e8eef1;word-break:keep-all;}
+.vl-tx b mark{background:none;color:#b6f23a;}
+.vl-tx small{font-size:11px;color:#9fb0b8;display:flex;flex-wrap:wrap;gap:6px;align-items:center;}
+.vl-tag{font-style:normal;font-size:10px;font-weight:900;background:#b6f23a;color:#0b1218;border-radius:6px;padding:2px 6px;}
+.vl-star{background:none;border:0;font-size:20px;color:#4a5963;cursor:pointer;padding:4px 6px;flex:0 0 auto;font-family:inherit;}
+.vl-star.on{color:#f5c542;}
+.vl-empty{font-size:12.5px;color:#9fb0b8;text-align:center;padding:18px 0;}
+.vl-direct{margin-top:6px;border:0;border-top:1px solid #2b3a44;background:none;color:#b6f23a;font-weight:800;font-size:12.5px;padding:12px 2px 4px;text-align:left;cursor:pointer;font-family:inherit;flex:0 0 auto;}
+
+/* v45 경기장 카드: 한 줄 컴팩트 바 */
+#sectionMap .venue-card{align-items:center;gap:8px;padding:10px 10px 10px 14px;}
+#sectionMap .venue-card .vc-th{display:none;}
+#sectionMap .venue-card .vc-in{flex:1;min-width:0;gap:3px;}
+#sectionMap .venue-card .vc-name b{font-size:15px;}
+#sectionMap .venue-card .vc-addr{-webkit-line-clamp:1;white-space:nowrap;text-overflow:ellipsis;display:block;overflow:hidden;}
+#sectionMap .venue-card .vc-ic{width:38px;height:38px;border-radius:50%;background:rgba(14,22,27,.92);border:1px solid #3a4852;color:#cdd8dc;display:grid;place-items:center;cursor:pointer;padding:0;flex:0 0 auto;}
+#sectionMap .venue-card .vc-pin{border-color:#b6f23a;background:rgba(182,242,58,.14);color:#b6f23a;}
+#sectionMap .venue-card .vc-go{margin-left:0;flex:0 0 auto;white-space:nowrap;}
+
+/* v46 선택/임시 핀 강조 */
+.vpin-sel .vpn-reg,.vpin-adhoc .vpn-reg{border-color:#b6f23a;color:#fff;}
+.vpin-sel .vpn-rtail,.vpin-adhoc .vpn-rtail{border-top-color:#b6f23a;}
+.vpin-sel .vpn-dot,.vpin-adhoc .vpn-dot{background:#b6f23a;border-color:#fff;}
+.vpin-sel .vpn-fav{box-shadow:0 0 0 2px rgba(245,197,66,.45),0 5px 14px rgba(0,0,0,.55);}
+
+/* v47 팀 전체 순위: 1~5위 + 전체보기 시트 */
+.rec-gap{text-align:center;color:#5b6a74;font-size:14px;line-height:10px;padding:2px 0 4px;letter-spacing:3px;}
+.rec-more{width:100%;margin-top:8px;height:42px;border-radius:12px;background:rgba(182,242,58,.1);border:1px solid rgba(182,242,58,.55);color:#b6f23a;font-weight:800;font-size:13.5px;font-family:inherit;cursor:pointer;}
+.rec-more span{font-size:16px;margin-left:2px;}
+.rec-sheet{display:flex;flex-direction:column;max-height:82vh;}
+.rec-sheet[hidden]{display:none;}
+.rec-sheet .rs-hd{display:flex;justify-content:space-between;align-items:center;margin:4px 0 6px;font-size:15px;color:#b6f23a;flex:0 0 auto;}
+.rec-sheet .rs-hd small{color:#9fb0b8;font-weight:600;}
+.rec-sheet .rs-hd button{background:none;border:0;color:#9fb0b8;font-size:20px;cursor:pointer;padding:4px 8px;}
+.rec-sheet .rs-body{overflow-y:auto;-webkit-overflow-scrolling:touch;min-height:0;}
