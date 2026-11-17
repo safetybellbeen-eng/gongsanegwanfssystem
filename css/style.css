@@ -1982,3 +1982,19 @@ button,.more-row,.tab-btn,.home-quick-btn{touch-action:manipulation;}
 .wr-a{gap:4px;}
 .wr-d{width:58px;}.wr-t{width:58px;}
 .wx-row.today .wr-d,.wx-row.match .wr-d{width:54px;}
+
+/* v42 경기장 위치 보기 버튼 */
+#sectionMap .vc-copy,#sectionMap .vc-go{white-space:nowrap;flex:0 0 auto;}
+#sectionMap .vc-pin{background:rgba(182,242,58,.14);border:1px solid #b6f23a;color:#b6f23a;border-radius:10px;height:34px;width:38px;display:grid;place-items:center;cursor:pointer;flex:0 0 auto;padding:0;}
+#sectionMap .vc-ex{display:none;background:transparent;border:1px solid #3a4852;color:#9fb0b8;border-radius:10px;height:34px;padding:0 10px;font-size:12px;font-family:inherit;cursor:pointer;white-space:nowrap;}
+#sectionMap .venue-card.mini{align-items:center;padding:10px 12px;}
+#sectionMap .venue-card.mini .vc-th,#sectionMap .venue-card.mini .vc-addr,#sectionMap .venue-card.mini .vc-copy,#sectionMap .venue-card.mini .vc-pin{display:none;}
+#sectionMap .venue-card.mini .vc-in{flex-direction:row;align-items:center;gap:8px;}
+#sectionMap .venue-card.mini .vc-name{flex:1;min-width:0;}
+#sectionMap .venue-card.mini .vc-name b{font-size:14px;}
+#sectionMap .venue-card.mini .vc-row{margin:0;}
+#sectionMap .venue-card.mini .vc-ex{display:block;}
+.venue-pulse{position:relative;width:0;height:0;pointer-events:none;}
+.venue-pulse i{position:absolute;left:-30px;top:-30px;width:60px;height:60px;border-radius:50%;border:2px solid #b6f23a;animation:vpulse 1.4s ease-out infinite;}
+.venue-pulse i+i{animation-delay:.7s;}
+@keyframes vpulse{0%{transform:scale(.3);opacity:.95}100%{transform:scale(1.5);opacity:0}}
