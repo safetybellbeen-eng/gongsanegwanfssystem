@@ -2,19 +2,39 @@
 let lastNaturalStats = {};
 let lastNaturalMissCounts = {};
 let lastStatPeriodInfo = {};
-/* 가입일(joinedAt, YYYY-MM-DD) 이전 날짜/주는 개인 기록에서 제외. joinedAt이 없는 기존 회원은 전체 기간 집계 */
-function isBeforeJoin(name, dateStr){
+/* 가입일 기준 집계.
+   - joinedAt(YYYY-MM-DD)이 저장된 회원: 그 날짜 이전 날짜/주는 개인 기록에서 제외
+   - joinedAt이 없는 기존 회원: 투표 기록이 처음 나타난 주(참석/불참 선언/투표)를 가입 시점으로 추정 */
+let __joinCache = null;
+function memberJoinDate(name){
+  if(!__joinCache) __joinCache = {};
+  if(name in __joinCache) return __joinCache[name];
   const m = appData.members && appData.members[name];
-  return !!(m && m.joinedAt && dateStr < m.joinedAt);
+  let d = (m && m.joinedAt) || '';
+  if(!d){
+    const cands = [];
+    Object.keys(appData.weekAvailability||{}).forEach(wk=>{ const a = appData.weekAvailability[wk]||{}; if(a[name]) cands.push(wk); });
+    Object.keys(appData.weekAbsence||{}).forEach(wk=>{ const a = appData.weekAbsence[wk]||{}; if(a[name]) cands.push(wk); });
+    Object.keys(appData.votes||{}).forEach(k=>{ if(/^\d{4}-\d{2}-\d{2}$/.test(k) && (appData.votes[k]||[]).some(v=>v.name===name)) cands.push(getWeekStart(k)); });
+    cands.sort();
+    d = cands[0] || '';
+  }
+  __joinCache[name] = d;
+  return d;
+}
+function isBeforeJoin(name, dateStr){
+  const j = memberJoinDate(name);
+  return !!(j && dateStr < j);
 }
 function isWeekBeforeJoin(name, weekStart){
-  const m = appData.members && appData.members[name];
-  if(!m || !m.joinedAt) return false;
+  const j = memberJoinDate(name);
+  if(!j) return false;
   const d = new Date(weekStart+'T00:00:00'); d.setDate(d.getDate()+6);
   const end = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-  return end < m.joinedAt;
+  return end < j;
 }
 function computeAttendanceStats(){
+  __joinCache = null;
   const excludedWeeks = new Set(appData.excludedWeeks || []);
   const validDateKeys = Object.keys(appData.votes)
     .filter(k=>/^\d{4}-\d{2}-\d{2}$/.test(k) && !excludedWeeks.has(getWeekStart(k)));

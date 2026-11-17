@@ -112,10 +112,10 @@ function renderTeamRecords(attendList, missList, noShowList, stats, missCounts){
       </div>
     </div>`;
   const maxMiss = (missList[0]&&missList[0].missed)||1, maxNo = (noShowList[0]&&noShowList[0].no)||1;
-  swipe.innerHTML = `
-    <div class="rec-card rec-pane"><div class="rec-pt g">🏅 참석 순위 <small>· 횟수 · 참석률</small></div>${recRows(attendList, r=>`${r.yes}회<small>${r.total?Math.round(r.yes/r.total*100):0}%</small>`, r=>r.total?Math.round(r.yes/r.total*100):0)}</div>
-    <div class="rec-card rec-pane"><div class="rec-pt y">미투표 순위 <small>· 적을수록 좋아요</small></div>${recRows(missList, r=>r.missed+'회', r=>Math.round(r.missed/maxMiss*100), '#ffb020')}</div>
-    <div class="rec-card rec-pane"><div class="rec-pt r">불참 순위</div>${recRows(noShowList, r=>r.no+'회', r=>Math.round(r.no/maxNo*100), '#ff8f8f')}</div>`;
+  swipe.innerHTML = `<div class="rec-slide">
+    <div class="rec-card rec-pane"><div class="rec-pt g">🏅 참석 순위 <small>· 횟수 · 참석률</small></div>${recRows(attendList, r=>`${r.yes}회<small>${r.total?Math.round(r.yes/r.total*100):0}%</small>`, r=>r.total?Math.round(r.yes/r.total*100):0)}</div></div>
+    <div class="rec-slide"><div class="rec-card rec-pane"><div class="rec-pt y">미투표 순위 <small>· 적을수록 좋아요</small></div>${recRows(missList, r=>r.missed+'회', r=>Math.round(r.missed/maxMiss*100), '#ffb020')}</div></div>
+    <div class="rec-slide"><div class="rec-card rec-pane"><div class="rec-pt r">불참 순위</div>${recRows(noShowList, r=>r.no+'회', r=>Math.round(r.no/maxNo*100), '#ff8f8f')}</div></div>`;
   dots.innerHTML = '<i class="on"></i><i></i><i></i>';
   const fitSwipe = ()=>{
     const panes = swipe.querySelectorAll('.rec-pane');
@@ -131,6 +131,8 @@ function renderTeamRecords(attendList, missList, noShowList, stats, missCounts){
       const i = Math.round(swipe.scrollLeft / Math.max(1, swipe.clientWidth));
       dots.querySelectorAll('i').forEach((d,k)=>d.classList.toggle('on', k===i));
       if(swipe.__fit) swipe.__fit();
+      clearTimeout(swipe.__snapT);
+      swipe.__snapT = setTimeout(()=>{ const k = Math.round(swipe.scrollLeft / Math.max(1, swipe.clientWidth)); const target = k*swipe.clientWidth; if(Math.abs(swipe.scrollLeft-target) > 2) swipe.scrollTo({ left: target, behavior:'smooth' }); }, 140);
     }, {passive:true});
     dots.addEventListener('click', e=>{
       const d = e.target.closest('i'); if(!d) return;
