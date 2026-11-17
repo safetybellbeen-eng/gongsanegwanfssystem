@@ -200,7 +200,7 @@ function renderCalendar(){
   grid.classList.toggle('week-mode', !!window.__calWeekMode);
   const head = document.createElement('div');
   head.className = 'cal-wk cal-wk-head';
-  head.innerHTML = '<span class="wk-label"></span>' + ['일','월','화','수','목','금','토'].map((d,i)=>`<div class="cal-dow ${i===0?'sun':(i===6?'sat':'')}">${d}</div>`).join('');
+  head.innerHTML = ['일','월','화','수','목','금','토'].map((d,i)=>`<div class="cal-dow ${i===0?'sun':(i===6?'sat':'')}">${d}</div>`).join('');
   grid.appendChild(head);
 
   const todayS = todayStr();
@@ -219,9 +219,17 @@ function renderCalendar(){
     const isThis = weekStartStr === thisWk, isNext = weekStartStr === nextWk, isSel = weekStartStr === selWk;
     row.className = 'cal-wk' + (isThis?' is-this':'') + (isNext?' is-next':'') + (isSel?' is-sel':'');
     const sd = new Date(cur), ed = new Date(cur); ed.setDate(ed.getDate()+6);
-    row.innerHTML = (isThis||isNext)
-      ? `<span class="wk-label"><i class="wk-no">${isThis?1:2}</i><span><b>${isThis?'이번 주':'다음 주'}</b><small>(${sd.getMonth()+1}/${sd.getDate()}~${ed.getMonth()+1}/${ed.getDate()})</small></span></span>`
-      : '<span class="wk-label"></span>';
+    const isPastWk = fmtDate(ed) < todayS;
+    if(isPastWk) row.classList.add('is-past');
+    if(isThis||isNext){
+      if(!weekCache[weekStartStr]) weekCache[weekStartStr] = getWeekInfo(weekStartStr);
+      const wi = weekCache[weekStartStr];
+      const cfd = (wi.confirmedDates||[]).slice().sort()[0];
+      let st;
+      if(cfd){ const cd = parseYMD(cfd); st = `<b class="wh-cf">${cd.getDate()}일(${weekdayKR[cd.getDay()]}) 확정</b><span class="wh-n">${wi.counts[cfd]||0}명 참석</span>`; }
+      else st = '<b class="wh-vt">경기일 투표 중</b>';
+      row.innerHTML = `<div class="wk-head"><em class="wh-tag">${isThis?'이번 주':'다음 주'}</em>${st}</div>`;
+    } else row.innerHTML = '';
     for(let i=0;i<7;i++){
       const dObj = new Date(cur);
       const dateStr = fmtDate(dObj);
@@ -237,12 +245,12 @@ function renderCalendar(){
       const myPick = ((info.avail && info.avail[myName]) || []).includes(dateStr);
       const bdayNames = getBirthdayMembersForDate(dObj.getMonth()+1, day);
       const el = document.createElement('div');
-      el.className='cal-cell'+(dObj.getMonth()!==viewMonth?' out':'')+(dateStr===todayS?' today':'')+(dateStr===selectedDate?' selected':'')+(isWinner?' confirmed':'')+(isPendingTop?' pending':'')+(i===0?' sun':(i===6?' sat':''));
+      el.className='cal-cell'+(dObj.getMonth()!==viewMonth?' out':'')+(dateStr===todayS?' today':'')+(dateStr===selectedDate?' selected':'')+(isWinner?' confirmed':'')+((isWinner&&dateStr<todayS)?' done':'')+(isPendingTop?' pending':'')+(i===0?' sun':(i===6?' sat':''));
       const dots = Math.min(2, count>=6 ? 2 : (count>0 ? 1 : 0));
       el.innerHTML = `
         <div class="d">${day}</div>
         ${bdayNames.length?`<div class="bday-badge" title="${escapeHtml(bdayNames.join(', '))} 생일">🎂</div>`:''}
-        ${isWinner ? '<div class="cf-tag">확정</div>' : `<div class="dots" title="${count}명 가능">${'<i></i>'.repeat(dots)}</div>`}
+        ${isWinner ? `<div class="cf-tag">${dateStr<todayS?'완료':'확정'}</div>` : `<div class="dots" title="${count}명 가능">${'<i></i>'.repeat(dots)}</div>`}
         ${(myPick || (myVoteForDay && myVoteForDay.choice==='yes')) ? '<span class="my-mark" title="내가 선택한 날짜"></span>' : ''}
       `;
       el.addEventListener('click', ()=>{ setSelectedDate(dateStr); openVoteSheet(); });
