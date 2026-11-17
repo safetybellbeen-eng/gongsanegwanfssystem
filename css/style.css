@@ -1836,3 +1836,10 @@ button,.more-row,.tab-btn,.home-quick-btn{touch-action:manipulation;}
 }
 
 #homeVoteCard .home-goto-btn.is-injured{background:#3a1d22!important;color:#ff8f8f!important;border:1px solid rgba(255,107,107,.45);justify-content:center;opacity:1;box-shadow:none;font-weight:800;}
+
+/* iOS 홈 화면 앱: 그려지는 영역이 화면보다 짧을 때(탭바 아래 잘림 방지) */
+@media (max-width:768px){
+  html.ios-short, html.ios-short body{background:#0b1115;}
+  html.ios-short nav.mobile-tabbar{padding-bottom:10px;}
+  html.ios-short .wrap{padding-bottom:96px;}
+}
