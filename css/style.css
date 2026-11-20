@@ -2166,3 +2166,18 @@ button,.more-row,.tab-btn,.home-quick-btn{touch-action:manipulation;}
 .it-kc{padding:16px;font-size:12px;color:#8a98a0;height:80px;}
 .it-kf{background:#1a2227;display:flex;justify-content:flex-end;align-items:center;padding:10px 14px;gap:14px;font-size:20px;color:#9db0b8;border-top:1px solid #2a3a43;}
 .it-kf b{background:#f3d77a;color:#111;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 6px rgba(243,215,122,.3);font-size:18px;}
+
+/* v53 투표 알림 이번주/다음주 선택 시트 */
+.va-dim{position:fixed;inset:0;z-index:9990;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center;}
+.va-sheet{width:100%;max-width:480px;background:#10171c;border:1px solid #25323a;border-radius:24px 24px 0 0;padding:10px 18px calc(22px + env(safe-area-inset-bottom));color:#fff;}
+.va-grip{width:40px;height:4px;border-radius:2px;background:#33434c;margin:0 auto 12px;}
+.va-hd{display:flex;justify-content:space-between;align-items:center;font-size:17px;}
+.va-x{background:none;border:0;color:#9db0b8;font-size:18px;cursor:pointer;padding:4px 8px;}
+.va-sub{font-size:12.5px;color:#8fa0a9;margin:4px 0 14px;}
+.va-row{width:100%;display:flex;align-items:center;gap:12px;text-align:left;border-radius:16px;padding:14px;margin-bottom:10px;background:#162026;border:1.5px solid #2a3a43;color:#fff;cursor:pointer;}
+.va-row.this{border-color:rgba(182,242,58,.6);}.va-row.next{border-color:rgba(93,183,255,.55);}
+.va-row:disabled{opacity:.5;cursor:default;}
+.va-tag{font-size:11px;font-weight:900;color:#111;border-radius:8px;padding:3px 9px;background:#b6f23a;white-space:nowrap;}
+.va-row.next .va-tag{background:#6db8ff;}
+.va-mid{flex:1;display:flex;flex-direction:column;gap:2px;}.va-mid b{font-size:15px;}.va-mid small{font-size:12px;color:#aebbc2;}
+.va-go{font-weight:800;color:#b6f23a;font-size:14px;}.va-row.next .va-go{color:#6db8ff;}

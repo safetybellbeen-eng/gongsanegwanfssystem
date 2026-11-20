@@ -189,16 +189,16 @@ document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closeVoteSheet(
 })();
 
 /* ---------- 투표 알림: 이번 주(현황에서 선택한 주) 미투표 회원에게만 푸시 ---------- */
-function getWsWeekInfo(){
-  const offset = window.__wsWeek === 1 ? 1 : 0;
+function getWsWeekInfo(off){
+  const offset = (off===0||off===1) ? off : (window.__wsWeek === 1 ? 1 : 0);
   const base = parseYMD(getWeekStart(todayStr()));
   base.setDate(base.getDate() + offset*7);
   const end = new Date(base); end.setDate(end.getDate()+6);
   return { key: fmtDate(base), start: base, end };
 }
-function getUnvotedNames(){
+function getUnvotedNames(off){
   if(!appData) return [];
-  const { key } = getWsWeekInfo();
+  const { key } = getWsWeekInfo(off);
   const avail = (appData.weekAvailability && appData.weekAvailability[key]) || {};
   const absence = (appData.weekAbsence && appData.weekAbsence[key]) || {};
   return getApprovedNonAdminNames().filter(n=> !isCurrentlyInjured(n) && !(absence[n] || (avail[n]||[]).length)); // 부상자는 투표 대상이 아니므로 제외
@@ -208,20 +208,41 @@ function updateVoteAlertBtn(){
   if(!cnt) return;
   cnt.textContent = '미투표 ' + getUnvotedNames().length + '명';
 }
+/* 투표 알림 버튼 → 이번 주 / 다음 주 선택 시트 */
+function openVoteAlertSheet(){
+  const old = document.getElementById('vaSheet'); if(old) old.remove();
+  const rows = [0,1].map(off=>{
+    const w = getWsWeekInfo(off);
+    const names = getUnvotedNames(off);
+    const label = `${w.start.getMonth()+1}/${w.start.getDate()}~${w.end.getMonth()+1}/${w.end.getDate()}`;
+    return { off, label, names, tag: off===0?'이번 주':'다음 주' };
+  });
+  const el = document.createElement('div');
+  el.id = 'vaSheet'; el.className = 'va-dim';
+  el.innerHTML = `<div class="va-sheet" role="dialog" aria-label="투표 알림 보내기">
+    <div class="va-grip"></div><div class="va-hd"><b>투표 알림 보내기</b><button type="button" class="va-x" aria-label="닫기">✕</button></div>
+    <p class="va-sub">아직 투표하지 않은 회원에게만 푸시가 갑니다.</p>
+    ${rows.map(r=>`<button type="button" class="va-row ${r.off?'next':'this'}" data-off="${r.off}" ${r.names.length?'':'disabled'}>
+      <span class="va-tag">${r.tag}</span><span class="va-mid"><b>${r.label}</b><small>${r.names.length?'미투표 '+r.names.length+'명에게 알림':'모두 투표 완료'}</small></span><span class="va-go">${r.names.length?'보내기 ›':'✓'}</span></button>`).join('')}
+  </div>`;
+  const close = ()=> el.remove();
+  el.addEventListener('click', async (e)=>{
+    if(e.target===el || e.target.closest('.va-x')){ close(); return; }
+    const row = e.target.closest('.va-row'); if(!row || row.disabled) return;
+    const r = rows[+row.dataset.off];
+    if(!confirm(`[${r.tag}] 아직 투표하지 않은 ${r.names.length}명에게 투표 알림을 보낼까요?\n\n대상 주간: ${r.label}\n${r.names.join(', ')}`)) return;
+    row.disabled = true;
+    try{
+      const msg = await sendMatchAlert('🗳️ 공생관 투표 알림', `${r.tag}(${r.label}) 경기 투표를 아직 안 하셨어요. 지금 참석 투표해 주세요!`, { kind:'vote', targets: r.names });
+      toast(msg); close();
+    }catch(err){ console.error(err); toast('알림 전송에 실패했습니다.'); row.disabled = false; }
+  });
+  document.body.appendChild(el);
+}
 (function(){
   const btn = document.getElementById('voteAlertBtn');
   if(!btn) return;
-  btn.addEventListener('click', async ()=>{
-    const names = getUnvotedNames();
-    if(!names.length){ toast('이번 주는 모든 회원이 투표했습니다.'); return; }
-    const w = getWsWeekInfo();
-    const label = `${w.start.getMonth()+1}/${w.start.getDate()}~${w.end.getMonth()+1}/${w.end.getDate()}`;
-    if(!confirm(`아직 투표하지 않은 ${names.length}명에게 투표 알림을 보낼까요?\n\n대상 주간: ${label}\n${names.join(', ')}`)) return;
-    btn.disabled = true;
-    try{
-      toast(await sendMatchAlert('🗳️ 공생관 투표 알림', `${label} 경기 투표를 아직 안 하셨어요. 지금 참석 투표해 주세요!`, { kind:'vote', targets: names }));
-    }finally{ btn.disabled = false; }
-  });
+  btn.addEventListener('click', openVoteAlertSheet);
   setInterval(()=>{ if(!document.hidden) updateVoteAlertBtn(); }, 6000);
   setTimeout(updateVoteAlertBtn, 600);
 })();
