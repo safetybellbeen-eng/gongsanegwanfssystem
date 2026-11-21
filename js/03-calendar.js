@@ -65,6 +65,12 @@ async function remoteLoad(){
       knownAutoVenues: Array.isArray(record.knownAutoVenues) ? record.knownAutoVenues : [],
       venueAddrs: (record.venueAddrs && typeof record.venueAddrs==='object') ? record.venueAddrs : {}
     };
+    /* 참석 집계(votes)는 week_votes에서 파생되는 값인데, 동시 저장 등으로 뒤처질 수 있어 홈·출석 탭 숫자가 달라지는 일이 있었습니다.
+       이번 주부터의 주(週)는 불러올 때마다 원본(week_votes) 기준으로 다시 계산해 항상 같은 숫자가 나오게 합니다. 지난 주 기록은 건드리지 않습니다. */
+    try{
+      const curWk = getWeekStart(todayStr());
+      Array.from(new Set([...Object.keys(wa), ...Object.keys(ab)])).filter(wk=>wk>=curWk).forEach(wk=>resyncWeekDerivedVotes(out, wk));
+    }catch(e){ console.warn('[투표 재계산]', e); }
     Object.defineProperty(out, '__wv', { value: snap, writable:true, enumerable:false });
     Object.defineProperty(out, '__blob', { value: blobJson(out), writable:true, enumerable:false });
     Object.defineProperty(out, '__ver', { value: (data && data.version!=null) ? Number(data.version) : undefined, writable:true, enumerable:false });
