@@ -2325,3 +2325,28 @@ button,.more-row,.tab-btn,.home-quick-btn{touch-action:manipulation;}
 .mv-save #saveMatchVenueTimeBtn{height:48px;border:0;border-radius:14px;background:#b6f23a;color:#111;font:inherit;font-weight:900;font-size:15px;cursor:pointer;}
 .mv-dateRow input[type=date]{background:#10171c;border:1px solid #2a3a43;border-radius:12px;padding:10px 12px;color:#e8eef1;color-scheme:dark;font-size:13px;}
 .mv-save .admin-feed-status:not(:empty){background:#10171c;border:1px solid #2a3a43;border-radius:10px;padding:7px 10px;}
+/* v69 관리자 > 통계 */
+#adminPanel .admin-block[data-cat="stats"]:not(#statsHubBlock){display:none !important;}
+#statsHubBlock h4{display:none;}
+.sh-rng{background:#10171c;border:1.5px solid #25323a;border-radius:15px;padding:11px 12px;margin-bottom:10px;font-size:11.5px;color:#9db0b8;line-height:1.55;}.sh-rng b{color:#b6f23a;}.sh-rng .h{font-size:12px;color:#fff;font-weight:800;margin-bottom:3px;}
+.sh-hd{font-size:11.5px;color:#7d909a;font-weight:800;margin:12px 2px 6px;}.sh-hd small{color:#5d717b;font-weight:600;margin-left:6px;}
+.sh-wk{display:flex;align-items:center;background:#10171c;border:1px solid #25323a;border-radius:12px;padding:10px 12px;margin-bottom:6px;font-size:13px;}
+.sh-x{margin-left:auto;background:none;border:0;color:#ff8a8e;font-weight:900;font-size:15px;padding:2px 8px;cursor:pointer;}
+.sh-add{width:100%;height:40px;border-radius:12px;border:1.5px dashed #3b4f5a;background:none;color:#b5c3ca;font:inherit;font-size:12.5px;font-weight:800;cursor:pointer;margin-top:2px;}
+.sh-empty{font-size:12px;color:#7d909a;padding:6px 2px;}
+.sh-search{width:100%;height:38px;border-radius:12px;background:#10171c;border:1px solid #2a3a43;color:#e8eef1;font-size:13px;padding:0 12px;margin-bottom:6px;box-sizing:border-box;}
+.sh-th{display:flex;gap:6px;font-size:10px;color:#7d909a;padding:0 11px 4px;}.sh-th span{flex:1;text-align:center;}.sh-th i{width:62px;flex:none;}
+.sh-mr{display:flex;align-items:center;gap:8px;width:100%;background:#10171c;border:1px solid #25323a;border-radius:13px;padding:9px 11px;margin-bottom:6px;color:#fff;font:inherit;text-align:left;cursor:pointer;}
+.sh-mr>b{font-size:13.5px;width:62px;flex:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sh-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#b6f23a;margin-left:4px;}
+.sh-mi{display:flex;gap:4px;flex:1;}.sh-mi>div{flex:1;background:#0b1115;border-radius:9px;padding:4px 0;text-align:center;min-height:34px;}
+.sh-mi b{display:block;font-size:13px;}.sh-mi b.p{color:#b6f23a;}.sh-mi b.m{color:#f3a93a;}.sh-mi small{display:block;font-size:9.5px;color:#7d909a;}
+.sh-sheet h3{font-size:16px;margin:8px 0 2px;}.sh-sub{font-size:11px;color:#8fa2ab;margin-bottom:12px;}
+.sh-st{display:flex;align-items:center;gap:8px;margin-bottom:9px;}.sh-st .l{width:52px;font-size:13px;font-weight:800;}.sh-st .n{font-size:10.5px;color:#8fa2ab;}
+.sh-st .c{display:flex;align-items:center;gap:8px;margin-left:auto;}.sh-st .c button{width:36px;height:36px;border-radius:10px;border:0;background:#1d2b33;color:#fff;font-weight:900;font-size:18px;cursor:pointer;}
+.sh-st .c b{min-width:36px;text-align:center;font-size:16px;}.sh-st .c b.p{color:#b6f23a;}.sh-st .c b.m{color:#f3a93a;}
+.sh-res{background:#0b1115;border-radius:11px;padding:9px 11px;font-size:11.5px;color:#9db0b8;margin:6px 0 12px;}.sh-res b{color:#fff;}
+.sh-btns{display:flex;gap:8px;}.sh-save,.sh-ghost{height:46px;border:0;border-radius:13px;font:inherit;font-weight:900;font-size:14px;cursor:pointer;}
+.sh-save{flex:2;background:#b6f23a;color:#111;}.sh-ghost{flex:1;background:#1d2b33;color:#cfd9de;font-weight:800;}
+.sh-chips{display:flex;gap:6px;flex-wrap:wrap;}.sh-chips button{padding:8px 13px;border-radius:16px;background:#10171c;border:1px solid #2a3a43;color:#b5c3ca;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;}.sh-chips button.on{background:#b6f23a;color:#111;border-color:#b6f23a;}
+.sh-date{width:100%;box-sizing:border-box;background:#0b1115;border:1px solid #2a3a43;border-radius:12px;padding:11px 12px;color:#e8eef1;color-scheme:dark;font-size:13px;}
