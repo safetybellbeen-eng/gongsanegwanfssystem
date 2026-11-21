@@ -241,6 +241,10 @@ function renderHeroMatch(){
 
   el.className = 'hero-match-card';
   const svgI = (d)=>`<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+  const rateElig = getApprovedNonAdminNames().filter(n=>!isInjuredOnDate(n, date));
+  const rateYes = yesList.filter(v=>rateElig.includes(v.name)).length;
+  const ratePct = rateElig.length ? Math.round(rateYes / rateElig.length * 100) : null;
+  const rateHtml = ratePct===null ? '' : `<button type="button" class="nm3-ring" id="heroRateBtn" style="--p:${ratePct}" aria-label="참석률 ${ratePct}%" data-yes="${rateYes}" data-all="${rateElig.length}"><span><b>${ratePct}%</b><small>참석률</small></span></button>`;
   const timeText = venue && venue.time ? ` ${escapeHtml(String(venue.time).slice(0,5))}` : '';
   el.innerHTML = `
     <div class="nm-body nm-c nm-photo3" id="nmBody">
@@ -249,8 +253,10 @@ function renderHeroMatch(){
         <span class="nm3-dd">${ddayLabel}</span>
       </div>
       <div class="nm3-main">
+        <div class="nm3-hd"><div class="nm3-hdl">
         <div class="nm3-date">${dObj.getMonth()+1}월 ${dObj.getDate()}일<em>${weekdayKR[dObj.getDay()]}요일${venue && venue.time ? ' ' + escapeHtml(String(venue.time).slice(0,5)) : ''}</em></div>
         <div class="nm3-venue">${svgI('<path d="M12 22s7.5-6.6 7.5-12.3A7.5 7.5 0 0 0 4.5 9.7C4.5 15.4 12 22 12 22z"/><circle cx="12" cy="9.8" r="2.6"/>')}<span>${venue ? escapeHtml(String(venue.name).replace(/^플랩\s*스타디움\s+/,'')) : '경기장 미등록'}</span></div>
+        </div>${rateHtml}</div>
         ${rosterHtml}
         <div class="nm3-act">
           ${venue && venue.link ? `<button type="button" class="hero-link-btn" id="heroLinkBtn" data-link="${escapeHtml(venue.link)}">경기 링크 ›</button>` : ''}
@@ -270,7 +276,7 @@ function renderHeroMatch(){
   /* 카드를 누르면 그 경기가 속한 주의 출석 화면으로 이동합니다 */
   const nmBody = document.getElementById('nmBody');
   if(nmBody) nmBody.addEventListener('click', (e)=>{
-    if(e.target.closest('#heroLinkBtn, #heroShareBtn, #heroAlertBtn, #heroMembersBtn, .nm3-av')) return;
+    if(e.target.closest('#heroLinkBtn, #heroShareBtn, #heroAlertBtn, #heroMembersBtn, #heroRateBtn, .nm3-av')) return;
     setActiveMobileSection('calendar');
     if(typeof setAttendPane==='function') setAttendPane('vote');
     if(typeof setSelectedDate==='function') setSelectedDate(date);
@@ -327,6 +333,8 @@ function renderHeroMatch(){
       catch(_){ window.prompt('아래 내용을 복사해 카카오톡에 붙여넣어 보내세요.', full); }
     });
   }
+  const rateBtn = $('#heroRateBtn');
+  if(rateBtn) rateBtn.addEventListener('click', (e)=>{ e.stopPropagation(); toast(`참석 ${rateBtn.dataset.yes}명 / 대상 선수 ${rateBtn.dataset.all}명 (용병 제외)`); });
   const memBtn = $('#heroMembersBtn');
   if(memBtn) memBtn.addEventListener('click', ()=>openMembersSheet(date));
   const memAv = el.querySelector('.nm3-av');
