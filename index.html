@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://dapi.kakao.com">
 <link rel="dns-prefetch" href="https://t1.daumcdn.net">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="./css/style.css?v=67">
+<link rel="stylesheet" href="./css/style.css?v=68">
 
 <!-- PWA: 홈 화면 추가(설치) 및 아이콘 -->
 <link rel="manifest" href="./manifest.json">
@@ -447,37 +447,31 @@ html.show-splash #splashScreen{display:block}
     </div>
     <div class="admin-block">
       <h4>경기장·시간·링크·용병 등록</h4>
-      <div class="admin-feed-status">확정된 경기 날짜에 경기장, 경기 시간, 경기 신청/안내 링크, 용병(게스트)을 입력하면 홈 화면 "다음 경기" 카드에 그대로 표시됩니다.<br>링크를 입력하면 "경기 링크" 버튼이 함께 표시되어, 눌렀을 때 해당 주소로 이동합니다.<br>용병은 팀원이 아니라 그 경기에 일회성으로 참여하는 인원을 이름으로 등록하는 용도입니다.</div>
-      <div class="admin-feed-status" id="matchVenueConfirmedHint" style="color:var(--pitch);font-weight:600;"></div>
+      <div class="admin-feed-status" id="matchVenueConfirmedHint" style="display:none;"></div>
+      <div class="mv-lab">경기 날짜 <small>확정된 경기만 표시 · 다른 날짜는 직접 선택</small></div>
+      <div class="mv-dates" id="mvDateChips"></div>
+      <div class="admin-row mv-dateRow"><input type="date" id="matchVenueDateInput"></div>
+      <div class="mv-lab">경기장</div>
       <div class="admin-row">
-        <input type="date" id="matchVenueDateInput">
+        <select id="matchVenuePresetSelect" class="mv-sel"><option value="">경기장 목록에서 선택</option></select>
       </div>
+      <div class="mv-lab">시간</div>
+      <div class="mv-chips" id="mvTimeChips"></div>
+      <div class="admin-row mv-timeRow"><input type="text" id="matchVenueTimeInput" placeholder="경기 시간 (예: 20:00~22:00)"></div>
+      <div class="mv-lab">형식</div>
+      <div class="mv-seg" id="mvFormatSeg"><button type="button" data-v="">미지정</button><button type="button" data-v="5">5:5</button><button type="button" data-v="6">6:6</button></div>
+      <select id="matchVenueFormatSelect" hidden><option value="">경기 형식 미지정</option><option value="5">5:5</option><option value="6">6:6</option></select>
+      <div class="mv-lab">신청 링크</div>
+      <div class="admin-row"><input type="text" id="matchVenueLinkInput" placeholder="https://www.plabfootball.com/match/…"></div>
+      <div class="mv-lab">용병(게스트) <small>팀원이 아닌 일회성 참여 인원</small></div>
       <div class="admin-row">
-        <select id="matchVenuePresetSelect" style="background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:9px 10px;color:var(--text);font-size:13px;flex:1;">
-          <option value="">경기장 목록에서 선택</option>
-        </select>
-      </div>
-      <div class="admin-row">
-        <input type="text" id="matchVenueTimeInput" placeholder="경기 시간 (예: 20:00~22:00)">
-      </div>
-      <div class="admin-row">
-        <select id="matchVenueFormatSelect" style="background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:9px 10px;color:var(--text);font-size:13px;flex:1;">
-          <option value="">경기 형식 미지정</option>
-          <option value="5">5:5</option>
-          <option value="6">6:6</option>
-        </select>
-      </div>
-      <div class="admin-row">
-        <input type="text" id="matchVenueLinkInput" placeholder="경기 링크 (예: https://www.plabfootball.com/match/123456)">
-      </div>
-      <div class="admin-row">
-        <input type="text" id="matchVenueGuestNameInput" placeholder="용병(게스트) 이름 입력 후 추가">
+        <input type="text" id="matchVenueGuestNameInput" placeholder="이름 입력 후 추가">
         <button id="addMatchVenueGuestBtn">추가</button>
       </div>
       <div class="guest-chip-list" id="matchVenueGuestList"></div>
-      <div class="admin-row">
-        <button id="saveMatchVenueTimeBtn">저장</button>
+      <div class="mv-save">
         <span class="admin-feed-status" id="matchVenueTimeStatus"></span>
+        <button id="saveMatchVenueTimeBtn">저장</button>
       </div>
     </div>
     <div class="admin-block">
@@ -620,23 +614,24 @@ html.show-splash #splashScreen{display:block}
   <button type="button" class="nav-app" data-app="tmap"><img src="./assets/tmap.png" alt=""><span><b>티맵</b><small>도착지가 자동으로 입력됩니다</small></span><i>›</i></button>
   <button type="button" class="ms-cancel" data-close="1">취소</button>
 </div>
-<script src="./js/01-core.js?v=67" defer></script>
-<script src="./js/02-weather.js?v=67" defer></script>
-<script src="./js/03-calendar.js?v=67" defer></script>
-<script src="./js/04-ranking.js?v=67" defer></script>
-<script src="./js/05-records.js?v=67" defer></script>
-<script src="./js/06-venues.js?v=67" defer></script>
-<script src="./js/07-admin.js?v=67" defer></script>
-<script src="./js/08-map.js?v=67" defer></script>
-<script src="./js/09-home.js?v=67" defer></script>
-<script src="./js/10-attend-more.js?v=67" defer></script>
-<script src="./js/11-notify.js?v=67" defer></script>
-<script src="./js/12-matches.js?v=67" defer></script>
-<script src="./js/13-tactics.js?v=67" defer></script>
-<script src="./js/14-fit-diag-vote.js?v=67" defer></script>
-<script src="./js/15-nudge.js?v=67" defer></script>
-<script src="./js/16-admin-hub.js?v=67" defer></script>
-<script src="./js/17-members-hub.js?v=67" defer></script>
+<script src="./js/01-core.js?v=68" defer></script>
+<script src="./js/02-weather.js?v=68" defer></script>
+<script src="./js/03-calendar.js?v=68" defer></script>
+<script src="./js/04-ranking.js?v=68" defer></script>
+<script src="./js/05-records.js?v=68" defer></script>
+<script src="./js/06-venues.js?v=68" defer></script>
+<script src="./js/07-admin.js?v=68" defer></script>
+<script src="./js/08-map.js?v=68" defer></script>
+<script src="./js/09-home.js?v=68" defer></script>
+<script src="./js/10-attend-more.js?v=68" defer></script>
+<script src="./js/11-notify.js?v=68" defer></script>
+<script src="./js/12-matches.js?v=68" defer></script>
+<script src="./js/13-tactics.js?v=68" defer></script>
+<script src="./js/14-fit-diag-vote.js?v=68" defer></script>
+<script src="./js/15-nudge.js?v=68" defer></script>
+<script src="./js/16-admin-hub.js?v=68" defer></script>
+<script src="./js/17-members-hub.js?v=68" defer></script>
+<script src="./js/18-match-hub.js?v=68" defer></script>
 <div class="vote-sheet" id="voteSheet" hidden>
   <div class="vote-sheet-dim" id="voteSheetDim"></div>
   <div class="vote-sheet-panel" role="dialog" aria-modal="true" aria-label="출석 투표">
