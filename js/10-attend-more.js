@@ -127,6 +127,7 @@ function tryRenderMoreTab(){
     }
     const adminRow = document.getElementById('moreAdminRow');
     if(adminRow) adminRow.style.display = isAdminUser() ? 'flex' : 'none';
+    const ndRow = document.getElementById('moreNudgeRow'); if(ndRow) ndRow.style.display = isAdminUser() ? 'flex' : 'none';
   }catch(e){ console.error(e); }
 }
 document.querySelectorAll('#sectionMore .more-row').forEach(row=>{

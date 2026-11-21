@@ -2232,3 +2232,16 @@ button,.more-row,.tab-btn,.home-quick-btn{touch-action:manipulation;}
 .mf-hd b{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .mf-hd span{flex:0 0 auto;white-space:nowrap;}
 .mf-pill{font-size:12px;padding:0 8px;}
+
+/* v60 연속 불참 독려 */
+.nd-dim{position:fixed;inset:0;z-index:9995;background:rgba(0,0,0,.68);display:flex;align-items:center;justify-content:center;padding:20px;}
+.nd-card{width:100%;max-width:380px;background:#10171c;border:1px solid #2b3a43;border-radius:24px;padding:26px 20px 14px;box-shadow:0 20px 60px rgba(0,0,0,.6);text-align:center;color:#fff;}
+.nd-em{font-size:44px;line-height:1;}.nd-t{font-size:20px;font-weight:900;margin:10px 0 6px;}.nd-t b{color:#b6f23a;}
+.nd-s{font-size:13.5px;color:#b5c3ca;line-height:1.55;}.nd-s b{color:#fff;}
+.nd-st{display:flex;gap:8px;margin:16px 0;}.nd-st div{flex:1;background:#0d1418;border:1px solid #22303a;border-radius:14px;padding:10px 4px;}
+.nd-st b{display:block;font-size:20px;color:#b6f23a;}.nd-st small{font-size:11px;color:#8fa2ab;}
+.nd-nx{background:#0d1418;border:1px dashed #3b4f5a;border-radius:14px;padding:10px;font-size:13px;margin-bottom:14px;line-height:1.5;}.nd-nx b{color:#f3d77a;}
+.nd-go{width:100%;height:50px;border:0;border-radius:15px;background:#b6f23a;color:#111;font-weight:900;font-size:16px;cursor:pointer;font-family:inherit;margin-bottom:6px;}
+.nd-skip{width:100%;height:40px;border:0;background:none;color:#9db0b8;font-size:13px;cursor:pointer;font-family:inherit;}
+.nd-list{max-height:34vh;overflow-y:auto;margin:6px 0 12px;}
+.nd-li{display:flex;align-items:baseline;gap:8px;padding:9px 2px;border-bottom:1px solid #1f2b33;}.nd-li b{font-size:14px;}.nd-li span{color:#b6f23a;font-size:12.5px;font-weight:800;}.nd-li small{margin-left:auto;color:#8fa2ab;font-size:11.5px;}
