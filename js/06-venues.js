@@ -259,7 +259,7 @@ function onMapTabShown(){
       const sm = document.getElementById('sectionMap');
       if(!sm || !sm.classList.contains('mobile-active')) return;
       map.relayout();
-      if(!mapUserMoved) recenterOnCurrentVenue();
+      if(!mapUserMoved){ if(currentVenueName) recenterOnCurrentVenue(); else if(mapOverviewShown) fitSeoul(); }
     }catch(e){}
   };
   requestAnimationFrame(go);
@@ -496,6 +496,34 @@ function refreshVenuePinStyle(){ /* 강조 스타일은 이제 아이콘 종류(
 /* 지도 탭을 처음 열었을 때: 홈 화면과 동일하게 "가장 가까운 확정 경기"의 경기장을 기본으로 보여줍니다.
    경기장 선택 UI는 그대로 남아있어서, 다른 경기장을 직접 검색해서 볼 수도 있습니다. */
 let mapDefaultLoaded = false;
+let mapOverviewShown = false;
+const SEOUL_SW = [37.43, 126.76], SEOUL_NE = [37.70, 127.19];
+function fitSeoul(){
+  try{
+    if(!map) return;
+    map.relayout();
+    map.setBounds(new kakao.maps.LatLngBounds(new kakao.maps.LatLng(SEOUL_SW[0],SEOUL_SW[1]), new kakao.maps.LatLng(SEOUL_NE[0],SEOUL_NE[1])));
+  }catch(e){}
+}
+async function showSeoulOverview(){
+  if(mapOverviewShown || currentVenueName) return;
+  if(location.protocol === 'file:') return;
+  const ok = await ensureKakaoReady();
+  if(!ok || currentVenueName) return;
+  mapOverviewShown = true;
+  $('#mapEmpty').style.display='none';
+  $('#map').style.display='block';
+  $('#mapFullscreenBtn').style.display='grid';
+  $('#mapCtlRight').style.display='flex';
+  try{ $('#venueCard').hidden = true; }catch(e){}
+  if(!map){
+    map = new kakao.maps.Map($('#map'), { center: new kakao.maps.LatLng(37.5665,126.9780), level: 9 });
+    try{ kakao.maps.event.addListener(map, 'dragstart', ()=>{ mapUserMoved = true; }); }catch(e){}
+  }
+  await renderAllVenuePins(null);
+  requestAnimationFrame(()=>{ if(!currentVenueName && !mapUserMoved) fitSeoul(); });
+  [150, 450, 1100, 2500].forEach(ms=>setTimeout(()=>{ if(!currentVenueName && !mapUserMoved) fitSeoul(); }, ms));
+}
 async function loadDefaultMapVenue(force){
   if(mapDefaultLoaded && !force) return;
   if(typeof appData==='undefined' || !appData) return;
@@ -504,9 +532,10 @@ async function loadDefaultMapVenue(force){
     .filter(d=>/^\d{4}-\d{2}-\d{2}$/.test(d) && d>=todayS && (appData.votes[d]||[]).length>0)
     .sort();
   const nearest = confirmedDates[0];
-  if(!nearest) return; // 확정된 예정 경기가 없으면 기존처럼 빈 상태로 둡니다.
+  /* 확정된 예정 경기가 없으면 빈 화면 대신 서울 전역 지도를 구장 핀과 함께 보여줍니다. */
+  if(!nearest){ await showSeoulOverview(); return; }
   const venue = getVenueInfo(nearest);
-  if(!venue || !venue.name) return;
+  if(!venue || !venue.name){ await showSeoulOverview(); return; }
   mapDefaultLoaded = true;
   // 처음 한 번은 신규 구장 자동 등록이 끝나기 전일 수 있어, 목록에 없는 구장이면 잠깐(최대 2.5초) 기다립니다.
   if(!findVenuePreset(venue.name) && !findVenuePreset(baseVenueName(venue.name)) && window.__autoVenuesP){
