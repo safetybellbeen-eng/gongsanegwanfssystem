@@ -278,3 +278,154 @@ function renderVenueList(){
   const sb = document.getElementById('mapSearchBtn');
   if(sb) sb.addEventListener('click', ()=>{ if(!pop.hidden){ inp.value=''; venueListChip='all'; renderVenueList(); } });
 })();
+
+
+/* ================= 지도: 날짜·시간대별 경기 보기 ================= */
+const MF = { date:null, slot:'all', rows:[], keyCount:{}, byKey:{}, loaded:false, loading:false, sel:null, cache:{} };
+const MF_SLOTS = [['all','🕒 전체','00~24시'],['am','🌅 오전','~12시'],['pm','☀️ 오후','12~18시'],['eve','🌆 저녁','18시~']];
+function mfSlotOf(t){ const h = parseInt(String(t||'').split(':')[0],10); if(isNaN(h)) return 'all'; return h<12 ? 'am' : (h<18 ? 'pm' : 'eve'); }
+function mfKey(n){ return normalizeVenueName(baseVenueName(n)).toLowerCase(); }
+function mfSlotLabel(){ const s = MF_SLOTS.find(x=>x[0]===MF.slot); return s ? s[1].replace(/^\S+\s/,'') : '전체'; }
+function mfDateLabel(d){
+  const o = parseYMD(d), t = todayStr();
+  return `${d===t?'오늘 ':''}${o.getMonth()+1}/${o.getDate()}(${weekdayKR[o.getDay()]})`;
+}
+window.mfCountFor = function(name){
+  if(!MF.loaded) return null;
+  return MF.keyCount[mfKey(name)] || 0;
+};
+async function mfLoad(force){
+  if(typeof supabaseClient==='undefined' || !supabaseClient) return;
+  if(!MF.date) MF.date = todayStr();
+  const d = MF.date;
+  const c = MF.cache[d];
+  if(c && !force && Date.now()-c.t < 3*60*1000){ MF.rows = c.rows; mfRegroup(); return; }
+  MF.loading = true; mfRenderAll();
+  try{
+    const { data, error } = await supabaseClient.from('plab_matches').select('*').eq('match_date', d).eq('area_group','서울').order('match_time',{ascending:true});
+    if(error) throw error;
+    MF.cache[d] = { t: Date.now(), rows: data||[] };
+    if(d !== MF.date) return; // 그 사이 다른 날짜로 바뀐 경우
+    MF.rows = data||[];
+    MF.loaded = true; MF.loading = false; MF.failed = false;
+  }catch(e){
+    console.warn('[지도 경기] 조회 실패', e);
+    MF.loading = false; MF.failed = true; MF.loaded = false; MF.rows = [];
+    toast('경기 정보를 불러오지 못했습니다.');
+  }
+  mfRegroup();
+}
+function mfRegroup(){
+  MF.loaded = !MF.failed;
+  const rows = MF.rows.filter(r=> MF.slot==='all' || mfSlotOf(r.match_time)===MF.slot);
+  MF.keyCount = {}; MF.byKey = {};
+  rows.forEach(r=>{
+    const k = mfKey(r.stadium_name || '경기장 미정');
+    MF.keyCount[k] = (MF.keyCount[k]||0)+1;
+    (MF.byKey[k] = MF.byKey[k] || []).push(r);
+  });
+  Object.keys(venuePinObjects||{}).forEach(n=>{ try{ renderVenuePinContent(n); }catch(e){} });
+  mfRenderAll();
+}
+/* 지도에 핀이 없는 경기장(좌표를 못 찾음 등)은 조용히 사라지지 않도록 따로 모아 보여줍니다. */
+function mfUnmatched(){
+  const pinKeys = new Set(Object.keys(venuePinObjects||{}).map(mfKey));
+  return Object.keys(MF.byKey).filter(k=>!pinKeys.has(k));
+}
+function mfPinNameForKey(k){ return Object.keys(venuePinObjects||{}).find(n=>mfKey(n)===k) || null; }
+function mfRowHtml(r){
+  const st = getMatchStatus(r), lb = matchStatusLabel(st);
+  const t = r.match_time ? String(r.match_time).slice(0,5) : '-';
+  const fn = matchFormatNumber(r.player_count);
+  const cnt = (r.confirm_count!=null && r.max_player_cnt!=null) ? `${r.confirm_count}/${r.max_player_cnt}명` : '';
+  const sub = [r.level, r.gender, cnt].filter(Boolean).map(String).join(' · ');
+  const main = r.stadium_short || (fn ? `${fn}:${fn} 매치` : (r.player_count ? String(r.player_count) : '매치'));
+  return `<div class="mf-row${st==='full'?' full':''}"><div class="mf-t">${escapeHtml(t)}</div>
+    <div class="mf-i"><b>${escapeHtml(main)}</b><span class="mt-st ${lb.cls}">${escapeHtml(lb.text.replace(/^[^\s]+\s/,''))}</span><br><small>${escapeHtml(sub||'-')}</small></div>
+    <button type="button" class="mf-go" data-url="${escapeHtml(r.match_url||'')}"${r.match_url?'':' disabled'}>신청 ›</button></div>`;
+}
+function mfRenderSheet(){
+  const sh = document.getElementById('mfSheet'); if(!sh) return;
+  if(!MF.sel){ sh.hidden = true; return; }
+  let rows, title;
+  if(MF.sel.startsWith('key:')){ const k = MF.sel.slice(4); rows = MF.byKey[k]||[]; title = (rows[0] && rows[0].stadium_name) || '경기장'; }
+  else { rows = MF.byKey[mfKey(MF.sel)] || []; title = MF.sel; }
+  const [co, nm] = splitVenueName(title);
+  sh.hidden = false;
+  sh.innerHTML = `<div class="mf-grip"></div><div class="mf-hd"><b>${escapeHtml(nm||title)}</b><span>${escapeHtml(mfDateLabel(MF.date))} ${escapeHtml(mfSlotLabel())} · ${rows.length}경기</span><button type="button" class="mf-x" aria-label="닫기">✕</button></div>
+    <div class="mf-list">${MF.failed?'<div class="mf-empty">경기 정보를 불러오지 못했습니다.</div>':(rows.length?rows.map(mfRowHtml).join(''):'<div class="mf-empty">이 날짜·시간대에는 경기가 없어요.</div>')}</div>`;
+}
+function mfRenderAll(){
+  const dt = document.getElementById('mfDateTx'), st = document.getElementById('mfSlotTx');
+  if(dt) dt.textContent = '📅 ' + mfDateLabel(MF.date || todayStr());
+  if(st) st.textContent = MF_SLOTS.find(x=>x[0]===MF.slot)[1];
+  const un = document.getElementById('mfUnm');
+  if(un){
+    const u = (MF.loaded && MF.settled) ? mfUnmatched() : [];
+    if(u.length){ un.hidden = false; un.innerHTML = `위치를 못 찾은 경기장 ${u.length}곳 · 목록 보기 ›`; }
+    else un.hidden = true;
+  }
+  mfRenderSheet();
+}
+window.mfOnPin = function(name){ MF.sel = name; mfRenderSheet(); };
+window.mfSync = function(){
+  const bar = document.getElementById('mfBar'), map_ = document.getElementById('map');
+  if(!bar || !map_) return;
+  const visible = map_.style.display !== 'none';
+  bar.hidden = !visible;
+  if(!visible) return;
+  if(!MF.date) MF.date = todayStr();
+  mfLoad(false);
+  setTimeout(()=>{ MF.settled = true; try{ mfRenderAll(); }catch(e){} }, 6000);
+};
+function mfClosePop(){ const p = document.getElementById('mfPop'); if(p){ p.hidden = true; p.innerHTML = ''; p.dataset.kind = ''; } }
+function mfOpenPop(kind){
+  const p = document.getElementById('mfPop'); if(!p) return;
+  if(p.dataset.kind === kind && !p.hidden){ mfClosePop(); return; }
+  p.dataset.kind = kind; p.hidden = false;
+  if(kind==='date'){
+    const list = buildMatchDateList();
+    p.innerHTML = `<div class="mf-pt">날짜 선택 (오늘부터 ${list.length}일)</div><div class="mf-cal">${list.map(d=>{ const o=parseYMD(d); return `<button type="button" data-d="${d}" class="${d===MF.date?'on':''}">${weekdayKR[o.getDay()]}<b>${o.getDate()}</b></button>`; }).join('')}</div>`;
+  } else {
+    p.innerHTML = `<div class="mf-pt">시간대 선택</div><div class="mf-tl">${MF_SLOTS.map(s=>`<button type="button" data-s="${s[0]}" class="${s[0]===MF.slot?'on':''}"><span>${s[1]}</span><small>${s[2]}</small></button>`).join('')}</div>`;
+  }
+}
+(function initMapFilter(){
+  const g = (id)=>document.getElementById(id);
+  const d = g('mfDateBtn'), s = g('mfSlotBtn'), f = g('mfFavBtn'), p = g('mfPop'), sh = g('mfSheet'), un = g('mfUnm');
+  if(!d || !s) return;
+  d.addEventListener('click', ()=>mfOpenPop('date'));
+  s.addEventListener('click', ()=>mfOpenPop('slot'));
+  f.addEventListener('click', ()=>{
+    mfClosePop();
+    renderFavSheet();
+    document.querySelectorAll('#favSheetList .ms-item').forEach(it=>{
+      const c = MF.loaded ? (MF.keyCount[mfKey(it.dataset.name)]||0) : null;
+      if(c!==null) it.insertAdjacentHTML('beforeend', `<span class="ms-cnt${c?'':' z'}">${c}경기</span>`);
+    });
+    openMapSheet('favSheet');
+  });
+  p.addEventListener('click', (e)=>{
+    const db = e.target.closest('[data-d]'), sb = e.target.closest('[data-s]');
+    if(db){ MF.date = db.dataset.d; MF.sel = MF.sel; mfClosePop(); mfLoad(false); mfRenderAll(); }
+    if(sb){ MF.slot = sb.dataset.s; mfClosePop(); mfRegroup(); }
+  });
+  sh.addEventListener('click', (e)=>{
+    if(e.target.closest('.mf-x')){ MF.sel = null; mfRenderSheet(); return; }
+    const go = e.target.closest('.mf-go');
+    if(go && go.dataset.url){ window.open(go.dataset.url, '_blank', 'noopener'); }
+  });
+  un.addEventListener('click', ()=>{
+    const u = mfUnmatched();
+    if(!u.length) return;
+    const rows = []; u.forEach(k=>{ (MF.byKey[k]||[]).forEach(r=>rows.push(Object.assign({}, r, {stadium_short:(splitVenueName(r.stadium_name)[1]||r.stadium_name)}))); });
+    rows.sort((a,b)=>String(a.match_time).localeCompare(String(b.match_time)));
+    sh.hidden = false; MF.sel = null;
+    sh.innerHTML = `<div class="mf-grip"></div><div class="mf-hd"><b>위치를 못 찾은 경기장</b><span>${escapeHtml(mfDateLabel(MF.date))} ${escapeHtml(mfSlotLabel())} · ${rows.length}경기</span><button type="button" class="mf-x" aria-label="닫기">✕</button></div><div class="mf-list">${rows.map(mfRowHtml).join('')}</div>`;
+  });
+  const favList = g('favSheetList');
+  if(favList) favList.addEventListener('click', (e)=>{
+    const it = e.target.closest('.ms-item'); if(!it) return;
+    const n = it.dataset.name; setTimeout(()=>{ MF.sel = n; mfRenderSheet(); }, 700);
+  });
+})();

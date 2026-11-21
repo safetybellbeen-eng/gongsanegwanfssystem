@@ -259,6 +259,7 @@ function onMapTabShown(){
       const sm = document.getElementById('sectionMap');
       if(!sm || !sm.classList.contains('mobile-active')) return;
       map.relayout();
+      try{ if(window.mfSync) window.mfSync(); }catch(e){}
       if(!mapUserMoved){ if(currentVenueName) recenterOnCurrentVenue(); else if(mapOverviewShown) fitSeoul(); }
     }catch(e){}
   };
@@ -315,6 +316,7 @@ async function showVenueOnMapImpl(info){
   }
   updateFavVenueBtn();
   updateVenueCard(info.display || info.name, info.address || (findVenuePreset(info.name)||{}).address || '');
+  try{ if(window.mfSync) window.mfSync(); }catch(e){}
 }
 
 /* 목록에 있는 모든 경기장을 이름표와 함께 지도에 항상 표시합니다.
@@ -372,6 +374,14 @@ function renderVenuePinContent(name){
     } else {
       obj.el.innerHTML = `<div class="vpn-reg">${escapeHtml(nm)}</div><i class="vpn-rtail"></i><div class="vpn-dot"></div>`;
     }
+    /* 선택한 날짜·시간대의 경기 수 배지 (지도 경기 필터) */
+    try{
+      const c = window.mfCountFor ? window.mfCountFor(name) : null;
+      if(c !== null){
+        obj.el.classList.toggle('vpin-off', c===0);
+        obj.el.insertAdjacentHTML('beforeend', `<span class="vpn-cnt${c?'':' z'}">${c}</span>`);
+      }
+    }catch(e){}
   }
   // 카카오맵이 새 크기를 다시 계산하도록 강제합니다.
   if(obj.overlay) obj.overlay.setContent(obj.el);
@@ -394,6 +404,7 @@ function expandVenuePin(name){
   map.setCenter(venuePinObjects[name].pos);
   updateVenueCard(name, venuePinObjects[name].address || '');
   updateFavVenueBtn();
+  try{ if(window.mfOnPin) window.mfOnPin(name); }catch(e){}
 }
 
 /* 경기장 좌표는 바뀌지 않으므로 기기에 저장해 두고 다음부터는 카카오 검색 없이 즉시 사용합니다. */
@@ -521,6 +532,7 @@ async function showSeoulOverview(){
     try{ kakao.maps.event.addListener(map, 'dragstart', ()=>{ mapUserMoved = true; }); }catch(e){}
   }
   await renderAllVenuePins(null);
+  try{ if(window.mfSync) window.mfSync(); }catch(e){}
   requestAnimationFrame(()=>{ if(!currentVenueName && !mapUserMoved) fitSeoul(); });
   [150, 450, 1100, 2500].forEach(ms=>setTimeout(()=>{ if(!currentVenueName && !mapUserMoved) fitSeoul(); }, ms));
 }
