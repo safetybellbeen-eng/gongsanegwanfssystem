@@ -2255,3 +2255,22 @@ button,.more-row,.tab-btn,.home-quick-btn{touch-action:manipulation;}
 #map.map-far .vpn-dot{transform:scale(1.25);}
 #map.map-far .vpin:not(.vpin-off) .vpn-dot{background:#b6f23a;border-color:#fff;}
 .toast{white-space:pre-line;max-width:88vw;text-align:center;line-height:1.5;}
+
+/* v66 관리자 허브 */
+#sectionAdmin.ah-home #adminPanel,#sectionAdmin.ah-home #adminSectionEyebrow{display:none !important;}
+#sectionAdmin.ah-cat #adminHub,#sectionAdmin.ah-cat #adminSectionEyebrow{display:none !important;}
+.ah-hub{padding:4px 2px 8px;}
+.ah-todo{background:linear-gradient(135deg,#2a1d0c,#10171c);border:1.5px solid #f3a93a;border-radius:18px;padding:13px 14px;margin-bottom:14px;}
+.ah-todo.ok{background:#10171c;border-color:#25323a;}
+.ah-todo h5{font-size:12.5px;color:#f3a93a;margin:0 0 6px;font-weight:900;}.ah-todo.ok h5{color:#9db0b8;margin:0;}
+.ah-it{display:flex;align-items:center;justify-content:space-between;width:100%;background:none;border:0;border-top:1px solid rgba(243,169,58,.2);color:#fff;font:inherit;font-size:13.5px;padding:11px 2px;cursor:pointer;text-align:left;}
+.ah-it:first-of-type{border-top:0;}.ah-it b{color:#f3a93a;font-size:12.5px;}
+.ah-sec{font-size:11.5px;color:#7d909a;font-weight:800;margin:4px 4px 8px;letter-spacing:.5px;}
+.ah-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+.ah-tile{background:#10171c;border:1.5px solid #25323a;border-radius:16px;padding:16px 4px 14px;text-align:center;color:#fff;font:inherit;cursor:pointer;}
+.ah-tile i{font-style:normal;font-size:26px;display:block;margin-bottom:6px;}.ah-tile b{font-size:13px;}
+.ah-tile.dg{border-color:rgba(255,90,95,.45);background:#1a1214;}.ah-tile.dg b{color:#ff8a8e;}
+.ah-bar{display:flex;align-items:center;gap:10px;margin:2px 0 12px;}.ah-bar[hidden]{display:none;}
+.ah-back{background:#10171c;border:1px solid #2a3a43;color:#b6f23a;border-radius:12px;padding:8px 12px;font:inherit;font-size:13px;font-weight:800;cursor:pointer;}
+.ah-bar b{font-size:16px;}
+#adminPanel .admin-block.ah-first{border-top:none !important;padding-top:0 !important;margin-top:0 !important;}
