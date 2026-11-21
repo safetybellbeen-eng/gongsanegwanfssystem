@@ -35,19 +35,28 @@ async function ensurePushSubscription(){
     pushEnsuredFor = key;
   }catch(e){ console.error('push subscribe', e); }
 }
+/* 알림을 받아야 하는 회원(승인된 회원 전체). 이 중 알림을 켜지 않은 사람은 서버가 돌려줍니다. */
+function notifyExpectedNames(){
+  try{ return Object.keys((appData&&appData.members)||{}).filter(n=>appData.members[n] && appData.members[n].approved); }catch(e){ return []; }
+}
+function notifyMissingText(list){
+  if(!Array.isArray(list) || !list.length) return '';
+  const shown = list.slice(0,12).join(', ') + (list.length>12 ? ` 외 ${list.length-12}명` : '');
+  return `\n⚠️ 알림 미설정 ${list.length}명: ${shown}`;
+}
 async function sendMatchAlert(title, body, opts){
   opts = opts || {};
   try{
     const res = await fetch(SUPABASE_URL + '/functions/v1/send-match-alert', {
       method:'POST',
       headers:{ 'Content-Type':'application/json', 'apikey': SUPABASE_KEY },
-      body: JSON.stringify({ title, body, sender: myName || '', kind: opts.kind || 'match', targets: opts.targets })
+      body: JSON.stringify({ title, body, sender: myName || '', kind: opts.kind || 'match', targets: opts.targets, expected: opts.targets || notifyExpectedNames() })
     });
     const j = await res.json().catch(()=>({}));
     if(res.status === 429) return `방금 알림을 보냈습니다. ${Math.ceil((j.retryAfterSec||300)/60)}분 뒤에 다시 보낼 수 있어요.`;
     if(!res.ok) return '알림을 보내지 못했습니다. 잠시 후 다시 시도해 주세요.';
-    if(!j.total) return opts.targets ? '대상 회원 중 알림을 켠 사람이 없습니다. (더보기 > 알림 설정에서 켜야 받을 수 있어요)' : '아직 알림을 켠 회원이 없습니다. (더보기 > 알림 설정에서 켜야 받을 수 있어요)';
-    return `알림을 보냈습니다. (${j.sent}/${j.total}명)`;
+    if(!j.total) return (opts.targets ? '대상 회원 중 알림을 켠 사람이 없습니다. (더보기 > 알림 설정에서 켜야 받을 수 있어요)' : '아직 알림을 켠 회원이 없습니다. (더보기 > 알림 설정에서 켜야 받을 수 있어요)') + notifyMissingText(j.unsubscribed);
+    return `알림을 보냈습니다. (${j.sent}/${j.total}명)` + notifyMissingText(j.unsubscribed);
   }catch(e){ console.error(e); return '네트워크 오류로 알림을 보내지 못했습니다.'; }
 }
 

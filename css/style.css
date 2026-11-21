@@ -2254,3 +2254,4 @@ button,.more-row,.tab-btn,.home-quick-btn{touch-action:manipulation;}
 #map.map-far .vpn-rtail,#map.map-far .vpn-ftail{display:none;}
 #map.map-far .vpn-dot{transform:scale(1.25);}
 #map.map-far .vpin:not(.vpin-off) .vpn-dot{background:#b6f23a;border-color:#fff;}
+.toast{white-space:pre-line;max-width:88vw;text-align:center;line-height:1.5;}

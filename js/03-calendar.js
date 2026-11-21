@@ -8,6 +8,25 @@ const SUPABASE_ROW_ID = 1; // app_state 테이블의 고정 행(row) id — 팀 
 function emptyAppData(){ return { venues:{}, votedDates:[], votes:{}, members:{}, weekAvailability:{}, weekAbsence:{}, weekOverride:{}, actualAttendance:{}, matchGuests:{}, excludedWeeks:[], statAdjustments:{}, matchTimeWindow:{startHour:19,endHour:21}, kakaoJsKey:'', notice:{title:'',body:'',updatedAt:null}, kmaApiKey:'', knownAutoVenues:[], venueAddrs:{} }; }
 let appData = emptyAppData();
 
+/* 주간 투표 행 비교용 도우미 */
+function wvKey(wk, name){ return wk + '\u0001' + name; }
+function wvJson(dates, absent){ return JSON.stringify([dates, !!absent]); }
+function currentWeekVoteMap(data){
+  const m = {};
+  const wa = data.weekAvailability || {}, ab = data.weekAbsence || {};
+  const weeks = new Set([...Object.keys(wa), ...Object.keys(ab)]);
+  weeks.forEach(wk=>{
+    const names = new Set([...Object.keys(wa[wk]||{}), ...Object.keys(ab[wk]||{})]);
+    names.forEach(n=>{
+      const has = wa[wk] && Object.prototype.hasOwnProperty.call(wa[wk], n);
+      const abs = !!(ab[wk] && ab[wk][n]);
+      if(!has && !abs) return;
+      m[wvKey(wk, n)] = { wk, n, json: wvJson(has ? (wa[wk][n]||[]) : null, abs), dates: has ? (wa[wk][n]||[]) : null, absent: abs };
+    });
+  });
+  return m;
+}
+function blobJson(data){ const d = Object.assign({}, data); delete d.weekAvailability; delete d.weekAbsence; return JSON.stringify(d); }
 async function remoteLoad(){
   try{
     if(!supabaseClient) throw new Error('Supabase 클라이언트가 초기화되지 않았습니다.');
@@ -18,13 +37,22 @@ async function remoteLoad(){
       .single();
     if(error) throw error;
     const record = (data && data.data) || {};
+    // 주간 투표는 week_votes 표(사람·주 단위 행)에서 읽어 기존 모양(weekAvailability / weekAbsence)으로 되돌립니다.
+    const wvRes = await supabaseClient.from('week_votes').select('week_key, member_name, dates, absent');
+    if(wvRes.error) throw wvRes.error;
+    const wa = {}, ab = {}, snap = {};
+    (wvRes.data || []).forEach(r=>{
+      if(r.dates !== null && r.dates !== undefined){ (wa[r.week_key] = wa[r.week_key] || {})[r.member_name] = Array.isArray(r.dates) ? r.dates : []; }
+      if(r.absent){ (ab[r.week_key] = ab[r.week_key] || {})[r.member_name] = true; }
+      snap[wvKey(r.week_key, r.member_name)] = wvJson(r.dates === undefined ? null : r.dates, !!r.absent);
+    });
     const out = {
       venues: record.venues||{},
       votedDates: record.votedDates||[],
       votes: record.votes||{},
       members: record.members||{},
-      weekAvailability: record.weekAvailability||{},
-      weekAbsence: record.weekAbsence||{},
+      weekAvailability: wa,
+      weekAbsence: ab,
       weekOverride: record.weekOverride||{},
       actualAttendance: record.actualAttendance||{},
       notice: record.notice || {title:'',body:'',updatedAt:null},
@@ -37,6 +65,8 @@ async function remoteLoad(){
       knownAutoVenues: Array.isArray(record.knownAutoVenues) ? record.knownAutoVenues : [],
       venueAddrs: (record.venueAddrs && typeof record.venueAddrs==='object') ? record.venueAddrs : {}
     };
+    Object.defineProperty(out, '__wv', { value: snap, writable:true, enumerable:false });
+    Object.defineProperty(out, '__blob', { value: blobJson(out), writable:true, enumerable:false });
     Object.defineProperty(out, '__ver', { value: (data && data.version!=null) ? Number(data.version) : undefined, writable:true, enumerable:false });
     return out;
   }catch(e){
@@ -53,15 +83,28 @@ async function remoteSaveRaw(data){
     if(!supabaseClient) throw new Error('Supabase 클라이언트가 초기화되지 않았습니다.');
     const ver = data && data.__ver;
     if(typeof ver !== 'number' || isNaN(ver)){ console.error('remoteSave 거부: 불러온 버전 정보가 없습니다.'); return { ok:false, reason:'noversion' }; }
-    const { data: rows, error } = await supabaseClient
-      .from('app_state')
-      .update({ data: data, updated_at: new Date().toISOString() })
-      .eq('id', SUPABASE_ROW_ID)
-      .eq('version', ver)
-      .select('version');
-    if(error) throw error;
-    if(!rows || rows.length===0) return { ok:false, reason:'conflict' };
-    data.__ver = Number(rows[0].version);
+    // 1) 주간 투표 변경분(내 행)만 week_votes에 반영 — 사람마다 행이 달라 서로 충돌하지 않습니다.
+    const cur = currentWeekVoteMap(data), snap = data.__wv || {};
+    const ups = Object.keys(cur).filter(k=>snap[k] !== cur[k].json).map(k=>({ week_key:cur[k].wk, member_name:cur[k].n, dates:cur[k].dates, absent:cur[k].absent, updated_at:new Date().toISOString() }));
+    const dels = Object.keys(snap).filter(k=>!cur[k]).map(k=>k.split('\u0001'));
+    // 2) 그 밖의 데이터(blob)는 바뀐 경우에만 버전 검사를 걸어 저장
+    const blobNow = blobJson(data);
+    if(blobNow !== data.__blob){
+      const payload = JSON.parse(blobNow);
+      const { data: rows, error } = await supabaseClient
+        .from('app_state')
+        .update({ data: payload, updated_at: new Date().toISOString() })
+        .eq('id', SUPABASE_ROW_ID)
+        .eq('version', ver)
+        .select('version');
+      if(error) throw error;
+      if(!rows || rows.length===0) return { ok:false, reason:'conflict' };
+      data.__ver = Number(rows[0].version);
+      data.__blob = blobNow;
+    }
+    if(ups.length){ const r = await supabaseClient.from('week_votes').upsert(ups, { onConflict:'week_key,member_name' }); if(r.error) throw r.error; }
+    for(const [wk, n] of dels){ const r = await supabaseClient.from('week_votes').delete().eq('week_key', wk).eq('member_name', n); if(r.error) throw r.error; }
+    const ns = {}; Object.keys(cur).forEach(k=>{ ns[k] = cur[k].json; }); data.__wv = ns;
     return { ok:true };
   }catch(e){
     console.error('remoteSave 실패', e);
