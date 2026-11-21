@@ -74,7 +74,7 @@ function openAdminCat(id){
   const panel = document.getElementById('adminPanel');
   let nb = document.getElementById('adminNudgeBlock');
   if(nb) nb.remove();
-  if(id==='notice'){
+  if(false && id==='notice'){
     nb = document.createElement('div'); nb.id = 'adminNudgeBlock'; nb.className = 'admin-block'; nb.dataset.cat = 'notice';
     nb.innerHTML = `<h4>참여 독려 알림</h4><div class="admin-feed-status">연속 5경기 이상 불참한 회원에게 알림을 보냅니다. (자동 알림과 별개)</div><div class="admin-row"><button type="button" id="adminNudgeOpen">대상 확인 · 보내기</button></div>`;
     panel.appendChild(nb);
