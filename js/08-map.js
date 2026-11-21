@@ -394,16 +394,49 @@ function mfOpenUnmatched(){
         ${admin?`<div class="mf-ai"><input class="mf-addr-in" type="text" placeholder="도로명 주소 (예: 서울 노원구 ○○로 12)" autocomplete="off"><button type="button" class="mf-addr-save">저장</button></div>`:''}
         <div class="mf-list">${rows.map(r=>mfRowHtml(Object.assign({}, r, {stadium_short:''}))).join('')}</div></div>`; }).join('')}`;
 }
+/* 이 구장에서 우리 팀이 확정한 예정 경기(가까운 날짜순 최대 2건). 날짜·시간대 필터와 상관없이 항상 보여줍니다. */
+function mfConfirmedFor(key){
+  const t = todayStr(), out = [];
+  Object.keys(appData.venues||{}).forEach(d=>{
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(d) || d<t) return;
+    if(!(appData.votes && (appData.votes[d]||[]).length)) return;
+    const v = appData.venues[d]; if(!v || !v.name || mfKey(v.name)!==key) return;
+    out.push({ date:d, v });
+  });
+  return out.sort((a,b)=>a.date<b.date?-1:1).slice(0,2);
+}
+function mfConfirmedCardHtml(c){
+  const d = c.date, o = parseYMD(d), v = c.v;
+  const diff = Math.round((o - parseYMD(todayStr())) / 86400000);
+  const dd = diff===0 ? 'D-DAY' : `D-${diff}`;
+  const eff = getEffectiveVotesForDate(d).filter(x=>x.choice==='yes');
+  const elig = getApprovedNonAdminNames().filter(n=>!isInjuredOnDate(n, d));
+  const yes = eff.filter(x=>elig.includes(x.name)).length;
+  const pct = elig.length ? Math.round(yes/elig.length*100) : null;
+  const guests = ((appData.matchGuests && appData.matchGuests[d]) || []).length;
+  const fmt = (v.format==='5'||v.format==='6') ? ` · ${v.format}:${v.format}` : '';
+  const tm = v.time ? escapeHtml(String(v.time).slice(0,5)) : '시간 미정';
+  const sub = `참석 ${eff.length + guests}명${pct!==null?` · ${pct}%`:''}`;
+  const btn = v.link ? `<button type="button" class="mf-cgo" data-url="${escapeHtml(/^https?:/i.test(v.link)?v.link:'https://'+v.link)}">경기 링크 ›</button>` : '<span class="mf-cno">링크 미등록</span>';
+  return `<div class="mf-conf"><div class="mf-conf-tg"><span>✅ 우리 팀 확정 경기</span><em>${dd}</em></div>
+    <div class="mf-conf-m"><b class="mf-conf-t">${tm}</b><div class="mf-conf-i"><b>${o.getMonth()+1}/${o.getDate()}(${weekdayKR[o.getDay()]})${fmt}</b><small>${sub}</small></div>${btn}</div></div>`;
+}
 function mfRenderSheet(){
   const sh = document.getElementById('mfSheet'); if(!sh) return;
   if(!MF.sel){ sh.hidden = true; return; }
-  let rows, title;
-  if(MF.sel.startsWith('key:')){ const k = MF.sel.slice(4); rows = MF.byKey[k]||[]; title = (rows[0] && rows[0].stadium_name) || '경기장'; }
-  else { rows = MF.byKey[mfKey(MF.sel)] || []; title = MF.sel; }
+  let rows, title, key;
+  if(MF.sel.startsWith('key:')){ key = MF.sel.slice(4); rows = MF.byKey[key]||[]; title = (rows[0] && rows[0].stadium_name) || '경기장'; }
+  else { key = mfKey(MF.sel); rows = MF.byKey[key] || []; title = MF.sel; }
   const [co, nm] = splitVenueName(title);
+  let conf = []; try{ conf = mfConfirmedFor(key); }catch(_){}
   sh.hidden = false;
-  sh.innerHTML = `<div class="mf-grip"></div><div class="mf-hd"><b>${escapeHtml(nm||title)}</b><span>${rows.length}경기</span><button type="button" class="mf-x" aria-label="닫기">✕</button></div>
-    <div class="mf-list">${MF.failed?'<div class="mf-empty">경기 정보를 불러오지 못했습니다.</div>':(rows.length?rows.map(mfRowHtml).join(''):'<div class="mf-empty">이 날짜·시간대에는 경기가 없어요.</div>')}</div>
+  const list = MF.failed ? '<div class="mf-empty">경기 정보를 불러오지 못했습니다.</div>' : (rows.length ? rows.map(mfRowHtml).join('') : '<div class="mf-empty">이 날짜·시간대에는 경기가 없어요.</div>');
+  const countTx = conf.length ? `우리 팀 ${conf.length} · 플랩 ${rows.length}` : `${rows.length}경기`;
+  const secLb = conf.length ? `<div class="mf-sec">${escapeHtml(mfDateLabel(MF.date || todayStr()))} 플랩 모집 경기 · 다른 팀 ${rows.length}건</div>` : '';
+  sh.classList.toggle('has-conf', conf.length>0);
+  sh.innerHTML = `<div class="mf-grip"></div><div class="mf-hd"><b>${escapeHtml(nm||title)}</b><span>${countTx}</span><button type="button" class="mf-x" aria-label="닫기">✕</button></div>
+    ${conf.map(mfConfirmedCardHtml).join('')}${secLb}
+    <div class="mf-list">${list}</div>
     ${rows.length?`<div class="mf-asof">${mfAsOfText()}</div>`:''}`;
 }
 function mfRenderAll(){
@@ -465,6 +498,7 @@ function mfOpenPop(kind){
   });
   sh.addEventListener('click', (e)=>{
     if(e.target.closest('.mf-x')){ MF.sel = null; mfRenderSheet(); return; }
+    const cgo = e.target.closest('.mf-cgo'); if(cgo && cgo.dataset.url){ window.open(cgo.dataset.url, '_blank', 'noopener'); return; }
     const go = e.target.closest('.mf-go');
     if(go && go.dataset.url){ window.open(go.dataset.url, '_blank', 'noopener'); }
   });

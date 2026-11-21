@@ -2388,3 +2388,14 @@ button,.more-row,.tab-btn,.home-quick-btn{touch-action:manipulation;}
 #heroMatchCard .nm3-ring span{width:46px;height:46px;border-radius:50%;background:#0a1015;display:flex;flex-direction:column;align-items:center;justify-content:center;}
 #heroMatchCard .nm3-ring b{font-size:14px;font-weight:900;color:#b6f23a;line-height:1;}
 #heroMatchCard .nm3-ring small{font-size:8.5px;color:#9fb0b8;margin-top:2px;line-height:1;}
+
+/* v78 지도 구장 시트: 우리 팀 확정 경기 카드 */
+.mf-conf{background:linear-gradient(135deg,#1c2e1b,#12201a);border:1.5px solid #b6f23a;border-radius:15px;padding:11px 12px;margin:8px 0 10px;}
+.mf-conf-tg{display:flex;align-items:center;gap:6px;margin-bottom:6px;}.mf-conf-tg span{background:#b6f23a;color:#111;font-weight:900;font-size:10.5px;border-radius:7px;padding:2px 8px;}.mf-conf-tg em{font-style:normal;font-size:11px;color:#b6f23a;font-weight:800;margin-left:auto;}
+.mf-conf-m{display:flex;align-items:center;gap:10px;}.mf-conf-t{font-size:21px;font-weight:900;color:#b6f23a;flex:none;}
+.mf-conf-i{min-width:0;flex:1;}.mf-conf-i b{font-size:13px;display:block;}.mf-conf-i small{font-size:11px;color:#9db0b8;}
+.mf-cgo{flex:none;background:#b6f23a;color:#111;font:inherit;font-weight:900;font-size:12.5px;border:0;border-radius:10px;padding:9px 12px;cursor:pointer;}
+.mf-cno{flex:none;font-size:11px;color:#8fa2ab;}
+.mf-sec{font-size:10.5px;color:#7d909a;font-weight:800;margin:4px 2px 2px;display:flex;align-items:center;gap:6px;}.mf-sec:after{content:'';flex:1;height:1px;background:#25323a;}
+#sectionMap .mf-sheet.has-conf .mf-go{background:#1d2b33;color:#cfd9de;}
+#sectionMap .mf-sheet.has-conf .mf-row .mf-t{color:#8fa2ab;}
