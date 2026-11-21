@@ -2377,3 +2377,6 @@ button,.more-row,.tab-btn,.home-quick-btn{touch-action:manipulation;}
 #noticeCard .nc-tag svg{width:18px;height:18px;flex:none;display:block;}
 #noticeCard .nc-title{font-size:14px;line-height:1.2;flex:1;}
 #noticeCard .nc-chevron{line-height:1;display:flex;align-items:center;flex:none;}
+
+/* v74 지도 경기 목록 기준 시각 안내 */
+.mf-asof{font-size:10.5px;color:#7d909a;line-height:1.5;padding:8px 4px 2px;text-align:center;}

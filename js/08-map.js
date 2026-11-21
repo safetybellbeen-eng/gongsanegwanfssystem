@@ -321,7 +321,10 @@ async function mfLoad(force){
 }
 function mfRegroup(){
   MF.loaded = !MF.failed;
-  const rows = MF.rows.filter(r=> MF.slot==='all' || mfSlotOf(r.match_time)===MF.slot);
+  // 오늘이면 이미 시작 시각이 지난 경기는 신청할 수 없으니 제외합니다(경기 탭과 같은 기준).
+  let nowHM = null;
+  if(MF.date === todayStr()){ const n = (typeof kstNow==='function') ? kstNow() : new Date(); nowHM = String(n.getHours()).padStart(2,'0') + ':' + String(n.getMinutes()).padStart(2,'0'); }
+  const rows = MF.rows.filter(r=> (MF.slot==='all' || mfSlotOf(r.match_time)===MF.slot) && !(nowHM && r.match_time && String(r.match_time).slice(0,5) < nowHM));
   MF.keyCount = {}; MF.byKey = {};
   rows.forEach(r=>{
     const k = mfKey(r.stadium_name || '경기장 미정');
@@ -360,6 +363,12 @@ function mfUnmatched(){
   return Object.keys(MF.byKey).filter(k=>!pinKeys.has(k));
 }
 function mfPinNameForKey(k){ return Object.keys(venuePinObjects||{}).find(n=>mfKey(n)===k) || null; }
+function mfAsOfText(){
+  const latest = (MF.rows||[]).reduce((a,r)=> (r.updated_at && (!a || r.updated_at>a)) ? r.updated_at : a, null);
+  if(!latest) return '플랩 정보는 주기적으로 갱신돼 마감됐을 수 있어요. 신청 전 링크에서 확인하세요.';
+  const d = new Date(latest); const hm = String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+  return `플랩 정보 ${hm} 기준 · 그 사이 마감됐을 수 있어요. 신청 전 링크에서 확인하세요.`;
+}
 function mfRowHtml(r){
   const st = getMatchStatus(r), lb = matchStatusLabel(st);
   const t = r.match_time ? String(r.match_time).slice(0,5) : '-';
@@ -394,7 +403,8 @@ function mfRenderSheet(){
   const [co, nm] = splitVenueName(title);
   sh.hidden = false;
   sh.innerHTML = `<div class="mf-grip"></div><div class="mf-hd"><b>${escapeHtml(nm||title)}</b><span>${rows.length}경기</span><button type="button" class="mf-x" aria-label="닫기">✕</button></div>
-    <div class="mf-list">${MF.failed?'<div class="mf-empty">경기 정보를 불러오지 못했습니다.</div>':(rows.length?rows.map(mfRowHtml).join(''):'<div class="mf-empty">이 날짜·시간대에는 경기가 없어요.</div>')}</div>`;
+    <div class="mf-list">${MF.failed?'<div class="mf-empty">경기 정보를 불러오지 못했습니다.</div>':(rows.length?rows.map(mfRowHtml).join(''):'<div class="mf-empty">이 날짜·시간대에는 경기가 없어요.</div>')}</div>
+    ${rows.length?`<div class="mf-asof">${mfAsOfText()}</div>`:''}`;
 }
 function mfRenderAll(){
   const dt = document.getElementById('mfDateTx'), st = document.getElementById('mfSlotTx');
