@@ -90,7 +90,7 @@ function renderAttendRecent(){
       <div class="rc-card">
         <div class="rc-date"><span>${o.getMonth()+1}월</span><b>${o.getDate()}일 (${weekdayKR[o.getDay()]})</b></div>
         <div class="rc-info">
-          <div class="rc-venue"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.2 7-11.5a7 7 0 0 0-14 0C5 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>${escapeHtml(v ? v.name : '경기장 미등록')}</div>
+          <div class="rc-venue"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.2 7-11.5a7 7 0 0 0-14 0C5 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg><span class="rc-vn">${escapeHtml(v ? String(v.name).replace(/^플랩\s*스타디움\s+/,'') : '경기장 미등록')}</span></div>
           ${v && v.time ? `<div class="rc-time"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>${escapeHtml(v.time)}</div>` : ''}
         </div>
         <span class="rc-chev">›</span>

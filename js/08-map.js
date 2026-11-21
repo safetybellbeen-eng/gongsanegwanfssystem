@@ -286,6 +286,10 @@ const MF_SLOTS = [['all','🕒 전체','00~24시'],['am','🌅 오전','~12시']
 function mfSlotOf(t){ const h = parseInt(String(t||'').split(':')[0],10); if(isNaN(h)) return 'all'; return h<12 ? 'am' : (h<18 ? 'pm' : 'eve'); }
 function mfKey(n){ return normalizeVenueName(baseVenueName(n)).toLowerCase(); }
 function mfSlotLabel(){ const s = MF_SLOTS.find(x=>x[0]===MF.slot); return s ? s[1].replace(/^\S+\s/,'') : '전체'; }
+function mfDateShort(d){
+  const o = parseYMD(d);
+  return d===todayStr() ? '오늘' : `${o.getMonth()+1}/${o.getDate()}(${weekdayKR[o.getDay()]})`;
+}
 function mfDateLabel(d){
   const o = parseYMD(d), t = todayStr();
   return `${d===t?'오늘 ':''}${o.getMonth()+1}/${o.getDate()}(${weekdayKR[o.getDay()]})`;
@@ -351,7 +355,7 @@ function mfOpenUnmatched(){
   MF.sel = null; sh.hidden = false;
   const admin = (typeof isAdminUser==='function') && isAdminUser();
   const total = u.reduce((n,k)=>n+(MF.byKey[k]||[]).length, 0);
-  sh.innerHTML = `<div class="mf-grip"></div><div class="mf-hd"><b>위치를 못 찾은 경기장</b><span>${escapeHtml(mfDateLabel(MF.date))} ${escapeHtml(mfSlotLabel())} · ${total}경기</span><button type="button" class="mf-x" aria-label="닫기">✕</button></div>
+  sh.innerHTML = `<div class="mf-grip"></div><div class="mf-hd"><b>위치를 못 찾은 경기장</b><span>${total}경기</span><button type="button" class="mf-x" aria-label="닫기">✕</button></div>
     <div class="mf-ntip">${admin ? '주소를 한 번 입력하면 모든 팀원 지도에 핀이 표시됩니다.' : '관리자가 주소를 등록하면 지도에 표시됩니다.'}</div>
     ${u.map(k=>{ const rows = MF.byKey[k]||[]; const nm = (rows[0] && rows[0].stadium_name) || k;
       return `<div class="mf-ub" data-k="${escapeHtml(k)}"><div class="mf-un"><b>${escapeHtml(baseVenueName(nm))}</b><small>${rows.length}경기</small></div>
@@ -366,12 +370,12 @@ function mfRenderSheet(){
   else { rows = MF.byKey[mfKey(MF.sel)] || []; title = MF.sel; }
   const [co, nm] = splitVenueName(title);
   sh.hidden = false;
-  sh.innerHTML = `<div class="mf-grip"></div><div class="mf-hd"><b>${escapeHtml(nm||title)}</b><span>${escapeHtml(mfDateLabel(MF.date))} ${escapeHtml(mfSlotLabel())} · ${rows.length}경기</span><button type="button" class="mf-x" aria-label="닫기">✕</button></div>
+  sh.innerHTML = `<div class="mf-grip"></div><div class="mf-hd"><b>${escapeHtml(nm||title)}</b><span>${rows.length}경기</span><button type="button" class="mf-x" aria-label="닫기">✕</button></div>
     <div class="mf-list">${MF.failed?'<div class="mf-empty">경기 정보를 불러오지 못했습니다.</div>':(rows.length?rows.map(mfRowHtml).join(''):'<div class="mf-empty">이 날짜·시간대에는 경기가 없어요.</div>')}</div>`;
 }
 function mfRenderAll(){
   const dt = document.getElementById('mfDateTx'), st = document.getElementById('mfSlotTx');
-  if(dt) dt.textContent = '📅 ' + mfDateLabel(MF.date || todayStr());
+  if(dt) dt.textContent = '📅 ' + mfDateShort(MF.date || todayStr());
   if(st) st.textContent = MF_SLOTS.find(x=>x[0]===MF.slot)[1];
   const un = document.getElementById('mfUnm');
   if(un){

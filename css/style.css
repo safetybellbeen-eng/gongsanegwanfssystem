@@ -2225,3 +2225,10 @@ button,.more-row,.tab-btn,.home-quick-btn{touch-action:manipulation;}
 .mf-addr-save{flex:0 0 auto;height:38px;border:0;border-radius:10px;background:#b6f23a;color:#111;font-weight:900;font-size:13px;padding:0 14px;cursor:pointer;font-family:inherit;}
 .mf-addr-save:disabled{opacity:.6;}
 .mf-ub .mf-list .mf-row .mf-i b{font-size:12px;color:#9db0b8;}
+
+/* v59 한 줄 정리 */
+.rc-venue{font-size:15.5px;}
+.rc-venue .rc-vn{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mf-hd b{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mf-hd span{flex:0 0 auto;white-space:nowrap;}
+.mf-pill{font-size:12px;padding:0 8px;}
