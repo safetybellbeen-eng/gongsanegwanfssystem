@@ -81,8 +81,12 @@ function renderHomeTab(){
   const voteCard = document.getElementById('homeVoteCard');
   if(voteCard){
     const thisWeekKey = getWeekStart(todayStr());
-    const weekKey = thisWeekKey;
-    const info = getWeekInfo(weekKey);
+    // 이번 주 확정 경기일이 모두 지났으면(주 1회 경기라 의미가 없어지므로) 다음 주 투표 기준으로 넘깁니다.
+    let weekKey = thisWeekKey;
+    const thisInfo = getWeekInfo(thisWeekKey);
+    const isNextWeek = !!(thisInfo.confirmedDates.length && [...thisInfo.confirmedDates].sort().pop() < todayStr());
+    if(isNextWeek){ const nb = parseYMD(thisWeekKey); nb.setDate(nb.getDate()+7); weekKey = fmtDate(nb); }
+    const info = isNextWeek ? getWeekInfo(weekKey) : thisInfo;
     const sorted = info.dates.map(d=>({d, c: info.counts[d]||0})).filter(x=>x.c>0).sort((a,b)=>b.c-a.c).slice(0,3);
     const label = getWeekLabel(weekKey);
     let rowsHtml;
@@ -115,7 +119,7 @@ function renderHomeTab(){
       <div class="hv-head">
         <div class="hv-title">
           <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="8" r="3.4"/><path d="M2.5 20c0-3.6 2.9-6 6.500-6s6.500 2.4 6.500 6z"/><circle cx="17" cy="9" r="2.6"/><path d="M16.300 14.100c3-.3 5.200 1.600 5.200 5.900h-4.400c0-2.200-.3-4.200-.8-5.900z"/></svg>
-          <div><b>이번 주 참석 투표</b><small>${escapeHtml(subText)}</small></div>
+          <div><b>${isNextWeek?'다음':'이번'} 주 참석 투표</b><small>${escapeHtml(subText)}</small></div>
         </div>
         <div class="hv-rate"><div class="hv-rate-top"><small>참여율</small><b>${ratePct}%</b></div><div class="hv-progress"><div class="hv-progress-bar" style="width:${ratePct}%;"></div></div><div class="hv-people">${votedCount} / ${eligible.length}명</div></div>
       </div>
