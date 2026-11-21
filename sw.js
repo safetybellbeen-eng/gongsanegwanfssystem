@@ -3,7 +3,7 @@
    - 우리 도메인의 정적 파일만 캐시하고, 외부 API(JSONBin·카카오맵·날씨·폰트 등)는 그대로 네트워크로 보냄
    - 알림을 눌렀을 때 앱 창을 포커스하거나 새로 여는 역할
 */
-const CACHE_NAME = 'gongsaengwan-v69';
+const CACHE_NAME = 'gongsaengwan-v70';
 const CORE_ASSETS = [
   './',
   './index.html',
@@ -27,6 +27,7 @@ const CORE_ASSETS = [
   './js/17-members-hub.js',
   './js/18-match-hub.js',
   './js/19-stats-hub.js',
+  './js/20-system-hub.js',
   './manifest.json',
   './assets/club-emblem.png',
   './assets/splash.jpg',

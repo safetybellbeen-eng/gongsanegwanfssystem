@@ -5,7 +5,7 @@ const ADMIN_CATS = [
   { id:'match',   ic:'🏟️', name:'경기',     titles:['경기장·시간·링크·용병 등록','날씨 확인 시간 설정'] },
   { id:'notice',  ic:'📣', name:'공지·알림', titles:['공지사항 관리'] },
   { id:'stats',   ic:'📊', name:'통계',     titles:['미투표 통계 제외 주간','순위 횟수 수동 조정'] },
-  { id:'system',  ic:'⚙️', name:'시스템',   titles:['실시간 데이터 새로고침','기상청 API 키 설정'] },
+  { id:'system',  ic:'⚙️', name:'시스템',   titles:['시스템'] },
   { id:'danger',  ic:'⚠️', name:'초기화',   titles:['투표 초기화'], danger:true }
 ];
 let adminHubCat = null;
@@ -38,12 +38,13 @@ function renderAdminHub(){
     hub = document.createElement('div'); hub.id = 'adminHub'; hub.className = 'ah-hub';
     const panel = document.getElementById('adminPanel'); panel.parentNode.insertBefore(hub, document.getElementById('adminSectionEyebrow') || panel);
     hub.addEventListener('click', (e)=>{
+      if(e.target.closest('#ahRfBtn')){ if(typeof sysRefreshNow==='function') sysRefreshNow(); return; }
       const it = e.target.closest('.ah-it'); if(it){ const f = hub.__todo && hub.__todo[Number(it.dataset.i)]; if(f) f.go(); return; }
       const t = e.target.closest('.ah-tile'); if(t) openAdminCat(t.dataset.cat);
     });
   }
   const todo = adminTodoItems(); hub.__todo = todo;
-  hub.innerHTML = `<div class="ah-todo ${todo.length?'':'ok'}"><h5>${todo.length?'🔔 지금 처리할 일':'✅ 지금 처리할 일이 없어요'}</h5>${todo.map((x,i)=>`<button type="button" class="ah-it" data-i="${i}"><span>${x.ic} ${escapeHtml(x.text)}</span><b>${escapeHtml(x.right)}</b></button>`).join('')}</div>
+  hub.innerHTML = `<div class="ah-rf"><span class="ah-rfi">🔄</span><span class="ah-rft">마지막 갱신 <b id="ahRfTime">${typeof sysLastRefreshText==='function'?sysLastRefreshText():'-'}</b></span><button type="button" class="ah-rfb" id="ahRfBtn">새로고침</button></div><div class="ah-todo ${todo.length?'':'ok'}"><h5>${todo.length?'🔔 지금 처리할 일':'✅ 지금 처리할 일이 없어요'}</h5>${todo.map((x,i)=>`<button type="button" class="ah-it" data-i="${i}"><span>${x.ic} ${escapeHtml(x.text)}</span><b>${escapeHtml(x.right)}</b></button>`).join('')}</div>
     <div class="ah-sec">관리 메뉴</div>
     <div class="ah-grid">${ADMIN_CATS.map(c=>`<button type="button" class="ah-tile${c.danger?' dg':''}" data-cat="${c.id}"><i>${c.ic}</i><b>${c.name}</b></button>`).join('')}</div>`;
 }
