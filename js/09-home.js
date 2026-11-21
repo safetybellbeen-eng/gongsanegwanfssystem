@@ -100,7 +100,7 @@ function renderHomeTab(){
         return `<div class="home-vote-row"><span class="hv-date">${o.getMonth()+1}.${o.getDate()}(${weekdayKR[o.getDay()]})${isConf?' 🏆':''}</span><div class="hv-bar-wrap"><div class="hv-bar" style="width:${Math.round(x.c/maxC*100)}%;"></div></div><span class="hv-count">${x.c}표</span></div>`;
       }).join('');
     }
-    // 투표 참여율: 그 주에 날짜를 하나라도 고르거나 "불참"을 선언한 사람 / 승인된 선수(관리자·부상 기간 제외)
+    // 투표율: 그 주에 날짜를 하나라도 고르거나 "불참"을 선언한 사람 / 승인된 선수(관리자·부상 기간 제외)
     const weekAvail = (appData.weekAvailability && appData.weekAvailability[weekKey]) || {};
     const weekAbs = (appData.weekAbsence && appData.weekAbsence[weekKey]) || {};
     const eligible = getApprovedNonAdminNames().filter(n=>!isInjuredDuringWeek(n, weekKey));
@@ -121,7 +121,7 @@ function renderHomeTab(){
           <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="8" r="3.4"/><path d="M2.5 20c0-3.6 2.9-6 6.500-6s6.500 2.4 6.500 6z"/><circle cx="17" cy="9" r="2.6"/><path d="M16.300 14.100c3-.3 5.200 1.600 5.200 5.900h-4.400c0-2.200-.3-4.200-.8-5.900z"/></svg>
           <div><b>${isNextWeek?'다음':'이번'} 주 참석 투표</b><small>${escapeHtml(subText)}</small></div>
         </div>
-        <div class="hv-rate"><div class="hv-rate-top"><small>참여율</small><b>${ratePct}%</b></div><div class="hv-progress"><div class="hv-progress-bar" style="width:${ratePct}%;"></div></div><div class="hv-people">${votedCount} / ${eligible.length}명</div></div>
+        <div class="hv-rate"><div class="hv-rate-top"><small>투표율</small><b>${ratePct}%</b></div><div class="hv-progress"><div class="hv-progress-bar" style="width:${ratePct}%;"></div></div><div class="hv-people">${votedCount} / ${eligible.length}명</div></div>
       </div>
       <button class="home-goto-btn" id="homeGotoCalBtn"><span class="gt-chk"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.500 4.500 4.500L19 7.500"/></svg></span>지금 참석 투표하기<span class="gt-arrow">›</span></button>
     `;
