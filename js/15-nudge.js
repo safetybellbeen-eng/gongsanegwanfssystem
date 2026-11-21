@@ -1,28 +1,38 @@
 /* ================= 연속 불참 독려 =================
-   기준: 관리자가 참석을 확정한 경기(actualAttendance.finalized) 중, 최근부터 거꾸로 세어 연속으로 참석하지 않은 횟수.
+   기준: 경기(확정된 날 + 투표가 있었던 지난 날) 중, 최근부터 거꾸로 세어 연속으로 참석하지 않은 횟수. 불참 투표·미투표 모두 불참으로 봅니다.
    - 가입 전 경기, 부상 기간 중 경기는 세지 않고(건너뜀) 연속 기록도 끊지 않습니다.
    - 5경기 이상 연속 불참이면 로그인 때 팝업 / 5·10·15…경기째가 되면 자동 푸시 / 관리자는 더보기에서 수동 발송. */
 const NUDGE_MIN = 5;
 const NUDGE_HIDE_KEY = 'gsw_nudge_hide_date';
 
-function getFinalizedMatchDatesDesc(){
+/* 경기일: 관리자가 확정한 날 + 아직 확정 전이지만 지난 날 중 투표가 있었던 날(오늘 경기는 확정된 경우만).
+   참석 판정: 확정된 날은 실제 참석자 명단, 미확정 날은 '참석' 투표자. 그 외(불참 투표·미투표)는 모두 불참으로 셉니다. */
+function getMatchDatesDesc(){
   const t = todayStr();
   const ex = new Set((appData && appData.excludedWeeks) || []);
   const act = (appData && appData.actualAttendance) || {};
-  return Object.keys(act).filter(d=> /^\d{4}-\d{2}-\d{2}$/.test(d) && d<=t && act[d] && act[d].finalized && !ex.has(getWeekStart(d))).sort().reverse();
+  const votes = (appData && appData.votes) || {};
+  const ok = /^\d{4}-\d{2}-\d{2}$/;
+  const set = new Set();
+  Object.keys(act).forEach(d=>{ if(ok.test(d) && d<=t && act[d] && act[d].finalized) set.add(d); });
+  Object.keys(votes).forEach(d=>{ if(ok.test(d) && d<t && (votes[d]||[]).length>0) set.add(d); });
+  return [...set].filter(d=>!ex.has(getWeekStart(d))).sort().reverse();
+}
+function attendedOn(name, d){
+  const a = appData.actualAttendance && appData.actualAttendance[d];
+  if(a && a.finalized) return (a.attendees||[]).includes(name);
+  return ((appData.votes && appData.votes[d])||[]).some(v=>v.name===name && v.choice==='yes');
 }
 function computeSkipStreaks(){
   const out = {};
   if(!appData) return out;
-  const dates = getFinalizedMatchDatesDesc();
-  const act = appData.actualAttendance || {};
+  const dates = getMatchDatesDesc();
   getApprovedNonAdminNames().forEach(n=>{
     let streak = 0, last = '', ended = false;
     for(const d of dates){
       if(isBeforeJoin(n, d)) continue;
       if(isInjuredOnDate(n, d)) continue;
-      const att = new Set(act[d].attendees || []);
-      if(att.has(n)){ last = d; ended = true; break; }
+      if(attendedOn(n, d)){ last = d; ended = true; break; }
       streak++;
     }
     out[n] = { streak, last, everAttended: ended };
