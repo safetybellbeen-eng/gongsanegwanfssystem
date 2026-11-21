@@ -330,6 +330,29 @@ function mfRegroup(){
   });
   Object.keys(venuePinObjects||{}).forEach(n=>{ try{ renderVenuePinContent(n); }catch(e){} });
   mfRenderAll();
+  if(MF.wantFit && MF.loaded){ MF.wantFit = false; mfFitToMatches(); }
+}
+/* 필터(날짜·시간대)를 바꾸면, 경기가 있는 구장들이 한 화면에 모이도록 지도를 맞춥니다. 서울 밖으로 넓게 퍼지지 않게 서울 범위로 제한합니다. */
+function mfFitToMatches(){
+  try{
+    if(!map || typeof kakao==='undefined') return;
+    const sm = document.getElementById('sectionMap'); if(!sm || !sm.classList.contains('mobile-active')) { MF.wantFit = true; return; }
+    const pts = [];
+    Object.keys(MF.keyCount||{}).forEach(k=>{ const n = mfPinNameForKey(k); if(n && venuePinObjects[n]) pts.push(venuePinObjects[n].pos); });
+    map.relayout();
+    if(pts.length<2){ if(pts.length===1){ map.setLevel(5); map.setCenter(pts[0]); } else if(typeof fitSeoul==='function' && !currentVenueName) fitSeoul(); return; }
+    const b = new kakao.maps.LatLngBounds(); pts.forEach(p=>b.extend(p));
+    map.setBounds(b, 90, 40, 150, 40);
+    if(map.getLevel()>8) map.setLevel(8);   // 너무 넓게 잡히지 않도록 상한
+  }catch(e){ console.warn('[지도 맞춤]', e); }
+}
+/* 멀리서 볼 때는 구장 이름표를 숨기고 점·경기 수만 보여서 겹침을 줄입니다. */
+function mfBindFarClass(){
+  try{
+    if(!map || map.__mfFar) return; map.__mfFar = true;
+    const upd = ()=>{ const el = document.getElementById('map'); if(el) el.classList.toggle('map-far', map.getLevel()>=7); };
+    kakao.maps.event.addListener(map, 'zoom_changed', upd); upd();
+  }catch(e){}
 }
 /* 지도에 핀이 없는 경기장(좌표를 못 찾음 등)은 조용히 사라지지 않도록 따로 모아 보여줍니다. */
 function mfUnmatched(){
@@ -393,6 +416,8 @@ window.mfSync = function(){
   bar.hidden = !visible;
   if(!visible) return;
   if(!MF.date) MF.date = todayStr();
+  mfBindFarClass();
+  if(!MF.fitOnce){ MF.fitOnce = true; if(!currentVenueName) MF.wantFit = true; }
   mfLoad(false);
   setTimeout(()=>{ MF.settled = true; try{ mfRenderAll(); }catch(e){} }, 30000);
 };
@@ -425,8 +450,8 @@ function mfOpenPop(kind){
   });
   p.addEventListener('click', (e)=>{
     const db = e.target.closest('[data-d]'), sb = e.target.closest('[data-s]');
-    if(db){ MF.date = db.dataset.d; MF.sel = MF.sel; mfClosePop(); mfLoad(false); mfRenderAll(); }
-    if(sb){ MF.slot = sb.dataset.s; mfClosePop(); mfRegroup(); }
+    if(db){ MF.date = db.dataset.d; MF.sel = MF.sel; MF.wantFit = true; mfClosePop(); mfLoad(false); mfRenderAll(); }
+    if(sb){ MF.slot = sb.dataset.s; MF.wantFit = true; mfClosePop(); mfRegroup(); }
   });
   sh.addEventListener('click', (e)=>{
     if(e.target.closest('.mf-x')){ MF.sel = null; mfRenderSheet(); return; }

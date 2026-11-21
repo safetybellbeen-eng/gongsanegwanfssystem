@@ -2248,3 +2248,9 @@ button,.more-row,.tab-btn,.home-quick-btn{touch-action:manipulation;}
 /* v62 출석 달력 월 표시 중앙 정렬 */
 #sectionCalendar .cal-nav{justify-content:center;padding-left:0;padding-right:0;gap:14px;}
 #sectionCalendar .cal-nav .month{margin-left:0;min-width:130px;text-align:center;}
+
+/* v63 멀리서 볼 때 이름표 숨김 */
+#map.map-far .vpn-reg,#map.map-far .vpn-fav{display:none;}
+#map.map-far .vpn-rtail,#map.map-far .vpn-ftail{display:none;}
+#map.map-far .vpn-dot{transform:scale(1.25);}
+#map.map-far .vpin:not(.vpin-off) .vpn-dot{background:#b6f23a;border-color:#fff;}
