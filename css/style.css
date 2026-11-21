@@ -2371,3 +2371,9 @@ button,.more-row,.tab-btn,.home-quick-btn{touch-action:manipulation;}
 .nr-zone h5{color:#ff8a8e;font-size:13px;margin:0 0 5px;}.nr-neutral h5{color:#fff;}.nr-zone p{font-size:11.5px;color:#b69a9c;line-height:1.5;margin:0 0 8px;}.nr-neutral p{color:#8fa2ab;}
 .nr-dbtn{width:100%;height:42px;border-radius:11px;border:1.5px dashed rgba(255,90,95,.55);background:none;color:#ff8a8e;font:inherit;font-size:13px;font-weight:800;cursor:pointer;}.nr-dbtn:disabled{opacity:.4;cursor:not-allowed;}
 .nr-go{flex:2;height:46px;border:0;border-radius:13px;background:#ff5a5f;color:#fff;font:inherit;font-weight:900;font-size:14px;cursor:pointer;}.nr-go:disabled{background:#3a2326;color:#8b6a6d;cursor:not-allowed;}
+/* v73 홈 공지 카드: 아이콘·라벨·제목·화살표 세로 중앙 정렬 */
+#noticeCard .nc-top{display:flex;align-items:center;gap:8px;min-height:24px;}
+#noticeCard .nc-tag{display:inline-flex;align-items:center;gap:6px;font-size:14px;line-height:1;flex:none;}
+#noticeCard .nc-tag svg{width:18px;height:18px;flex:none;display:block;}
+#noticeCard .nc-title{font-size:14px;line-height:1.2;flex:1;}
+#noticeCard .nc-chevron{line-height:1;display:flex;align-items:center;flex:none;}
