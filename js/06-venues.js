@@ -426,7 +426,28 @@ async function placeVenuePin(v){
   let coords = venueGeocodeCache[v.name] || geoStoreGet(gkey);
   if(!coords){
     if(v.address){ coords = await kakaoGeocode(v.address, true); }
-    else { coords = await kakaoGeocode(v.name.replace(/^플랩\s*스타디움\s*/,'플랩스타디움 '), false) || await kakaoGeocode(v.name, false); }   // 주소 없는 자동 등록 구장: 이름으로 검색
+    else {
+      /* 주소가 없는 자동 등록 구장: 이름으로 검색하되, 한 가지 표기로 못 찾으면 여러 변형으로 순서대로 다시 시도합니다.
+         서울·수도권 범위 밖의 결과(같은 이름의 다른 지역 장소)는 버립니다. */
+      const inArea = (c)=> c && c.lat>37.40 && c.lat<37.72 && c.lng>126.70 && c.lng<127.25;
+      const words = v.name.replace(/^서울\s*/,'').split(/\s+/);
+      const district = words.length>2 ? words[0] : '';
+      const rest = district ? words.slice(1).join(' ') : words.join(' ');
+      const tries = [
+        v.name.replace(/^플랩\s*스타디움\s*/,'플랩스타디움 '),
+        v.name,
+        words.join(' '),
+        rest + (district ? ' ' + district : ''),
+        (district ? district + ' ' : '') + rest + (/풋살|축구|풋볼/.test(rest) ? '' : ' 풋살장'),
+        rest
+      ];
+      const seen = new Set();
+      for(const q of tries){
+        if(!q || seen.has(q)) continue; seen.add(q);
+        let c = null; try{ c = await kakaoGeocode(q, false); }catch(e){}
+        if(inArea(c)){ coords = c; break; }
+      }
+    }   // 주소 없는 자동 등록 구장: 이름으로 검색
     if(coords){ geoStoreSet(gkey, coords); }
   }
   if(coords && !v.address && coords.addr) v.address = coords.addr;
