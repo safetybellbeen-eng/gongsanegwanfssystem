@@ -2399,3 +2399,8 @@ button,.more-row,.tab-btn,.home-quick-btn{touch-action:manipulation;}
 .mf-sec{font-size:10.5px;color:#7d909a;font-weight:800;margin:4px 2px 2px;display:flex;align-items:center;gap:6px;}.mf-sec:after{content:'';flex:1;height:1px;background:#25323a;}
 #sectionMap .mf-sheet.has-conf .mf-go{background:#1d2b33;color:#cfd9de;}
 #sectionMap .mf-sheet.has-conf .mf-row .mf-t{color:#8fa2ab;}
+
+/* v79 홈 투표 카드 제목 정렬: 아이콘과 제목을 세로 가운데로 */
+#homeVoteCard .hv-title{align-items:center;gap:10px;}
+#homeVoteCard .hv-title svg{width:30px;height:30px;}
+#homeVoteCard .hv-title b{line-height:1.2;margin:0;}

@@ -339,6 +339,7 @@ function mfRegroup(){
 function mfFitToMatches(){
   try{
     if(!map || typeof kakao==='undefined') return;
+    if(MF.focusConfirmed) return;   // 확정 경기 핀에 맞춰 둔 상태면 전체 맞춤으로 덮어쓰지 않음
     const sm = document.getElementById('sectionMap'); if(!sm || !sm.classList.contains('mobile-active')) { MF.wantFit = true; return; }
     const pts = [];
     Object.keys(MF.keyCount||{}).forEach(k=>{ const n = mfPinNameForKey(k); if(n && venuePinObjects[n]) pts.push(venuePinObjects[n].pos); });
@@ -493,8 +494,8 @@ function mfOpenPop(kind){
   });
   p.addEventListener('click', (e)=>{
     const db = e.target.closest('[data-d]'), sb = e.target.closest('[data-s]');
-    if(db){ MF.date = db.dataset.d; MF.sel = MF.sel; MF.wantFit = true; mfClosePop(); mfLoad(false); mfRenderAll(); }
-    if(sb){ MF.slot = sb.dataset.s; MF.wantFit = true; mfClosePop(); mfRegroup(); }
+    if(db){ MF.date = db.dataset.d; MF.sel = MF.sel; MF.focusConfirmed = false; MF.wantFit = true; mfClosePop(); mfLoad(false); mfRenderAll(); }
+    if(sb){ MF.slot = sb.dataset.s; MF.focusConfirmed = false; MF.wantFit = true; mfClosePop(); mfRegroup(); }
   });
   sh.addEventListener('click', (e)=>{
     if(e.target.closest('.mf-x')){ MF.sel = null; mfRenderSheet(); return; }

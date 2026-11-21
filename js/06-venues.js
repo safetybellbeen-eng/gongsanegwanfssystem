@@ -274,11 +274,29 @@ function onMapTabShown(){
       if(!sm || !sm.classList.contains('mobile-active')) return;
       map.relayout();
       try{ if(window.mfSync) window.mfSync(); }catch(e){}
-      if(!mapUserMoved){ if(currentVenueName) recenterOnCurrentVenue(); else if(mapOverviewShown) fitSeoul(); }
+      if(!mapUserMoved){ if(focusConfirmedMatchPin()) return; if(currentVenueName) recenterOnCurrentVenue(); else if(mapOverviewShown) fitSeoul(); }
     }catch(e){}
   };
   requestAnimationFrame(go);
   [80, 250, 600, 1300].forEach(ms=>setTimeout(go, ms));
+}
+/* 확정된 예정 경기가 있으면 그 경기장 핀을 지도 정중앙에 크게 보여줍니다. (핀을 찾으면 true) */
+function focusConfirmedMatchPin(){
+  try{
+    if(!map || typeof appData==='undefined' || !appData) return false;
+    const todayS = todayStr();
+    const d = Object.keys(appData.votes||{}).filter(x=>/^\d{4}-\d{2}-\d{2}$/.test(x) && x>=todayS && (appData.votes[x]||[]).length>0).sort()[0];
+    if(!d) return false;
+    const v = getVenueInfo(d); if(!v || !v.name) return false;
+    const pr = findVenuePreset(v.name) || findVenuePreset(baseVenueName(v.name));
+    const o = venuePinObjects[(pr && pr.name) || v.name];
+    if(!o || !o.pos) return false;
+    map.relayout();
+    if(map.getLevel()>4) map.setLevel(3);
+    map.setCenter(o.pos);
+    if(typeof MF!=='undefined') MF.focusConfirmed = true;
+    return true;
+  }catch(e){ return false; }
 }
 function recenterOnCurrentVenue(){
   try{

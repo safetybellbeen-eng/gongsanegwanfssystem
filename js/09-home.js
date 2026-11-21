@@ -119,7 +119,7 @@ function renderHomeTab(){
       <div class="hv-head">
         <div class="hv-title">
           <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="8" r="3.4"/><path d="M2.5 20c0-3.6 2.9-6 6.500-6s6.500 2.4 6.500 6z"/><circle cx="17" cy="9" r="2.6"/><path d="M16.300 14.100c3-.3 5.200 1.600 5.200 5.900h-4.400c0-2.200-.3-4.200-.8-5.900z"/></svg>
-          <div><b>${isNextWeek?'다음':'이번'} 주 참석 투표</b><small>${escapeHtml(subText)}</small></div>
+          <b>${isNextWeek?'다음':'이번'} 주 참석 투표</b>
         </div>
         <div class="hv-rate"><div class="hv-rate-top"><small>투표율</small><b>${ratePct}%</b></div><div class="hv-progress"><div class="hv-progress-bar" style="width:${ratePct}%;"></div></div><div class="hv-people">${votedCount} / ${eligible.length}명</div></div>
       </div>
