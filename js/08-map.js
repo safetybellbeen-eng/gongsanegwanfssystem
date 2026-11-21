@@ -361,7 +361,7 @@ function mfRenderAll(){
   if(st) st.textContent = MF_SLOTS.find(x=>x[0]===MF.slot)[1];
   const un = document.getElementById('mfUnm');
   if(un){
-    const u = (MF.loaded && MF.settled) ? mfUnmatched() : [];
+    const u = (MF.loaded && (window.venuePinsDone || MF.settled)) ? mfUnmatched() : [];
     if(u.length){ un.hidden = false; un.innerHTML = `위치를 못 찾은 경기장 ${u.length}곳 · 목록 보기 ›`; }
     else un.hidden = true;
   }
@@ -376,7 +376,7 @@ window.mfSync = function(){
   if(!visible) return;
   if(!MF.date) MF.date = todayStr();
   mfLoad(false);
-  setTimeout(()=>{ MF.settled = true; try{ mfRenderAll(); }catch(e){} }, 6000);
+  setTimeout(()=>{ MF.settled = true; try{ mfRenderAll(); }catch(e){} }, 30000);
 };
 function mfClosePop(){ const p = document.getElementById('mfPop'); if(p){ p.hidden = true; p.innerHTML = ''; p.dataset.kind = ''; } }
 function mfOpenPop(kind){

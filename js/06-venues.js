@@ -104,6 +104,7 @@ async function loadAutoVenuesCore(){
           venuePinReady[v.name] = Promise.resolve();
           try{ await placeVenuePin(v); }catch(e){ console.error(e); }
         }
+        try{ if(window.mfSync) window.mfSync(); }catch(e){}
       }
     }
   }catch(e){ console.warn('[구장 자동등록] 조회 실패(무시)', e); }
@@ -425,7 +426,16 @@ async function placeVenuePin(v){
   const gkey = v.address || ('name:' + v.name);
   let coords = venueGeocodeCache[v.name] || geoStoreGet(gkey);
   if(!coords){
-    if(v.address){ coords = await kakaoGeocode(v.address, true); }
+    if(v.address){
+      /* 주소 검색이 안 되는 경우(층·옥상 표기, 건물명 등)를 위해 단계적으로 다시 시도합니다. */
+      const a0 = v.address;
+      const a1 = a0.replace(/,.*$/,'').trim();                      // ", 4층" 이후 제거
+      const a2 = a1.replace(/\s*(지하\s*)?\d+층.*$/,'').trim();
+      for(const q of [a0, a1, a2]){ if(!q) continue; coords = await kakaoGeocode(q, true); if(coords) break; }
+      if(!coords){
+        for(const q of [v.address, a1, v.name]){ const c = await kakaoGeocode(q, false); if(c && c.lat>37.40 && c.lat<37.72 && c.lng>126.70 && c.lng<127.25){ coords = c; break; } }
+      }
+    }
     else {
       /* 주소가 없는 자동 등록 구장: 이름으로 검색하되, 한 가지 표기로 못 찾으면 여러 변형으로 순서대로 다시 시도합니다.
          서울·수도권 범위 밖의 결과(같은 이름의 다른 지역 장소)는 버립니다. */
@@ -486,6 +496,8 @@ function renderAllVenuePins(priorityName){
         await new Promise(r=>setTimeout(r,0));
       }
       try{ applyConfirmedVenueMarker(); }catch(e){}
+      window.venuePinsDone = true;
+      try{ if(window.mfSync) window.mfSync(); }catch(e){}
     })();
   }
   return venuePinReady[priorityName] || Promise.resolve();
