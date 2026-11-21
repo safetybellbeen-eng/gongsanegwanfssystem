@@ -13,12 +13,12 @@ async function remoteLoad(){
     if(!supabaseClient) throw new Error('Supabase 클라이언트가 초기화되지 않았습니다.');
     const { data, error } = await supabaseClient
       .from('app_state')
-      .select('data')
+      .select('data, version')
       .eq('id', SUPABASE_ROW_ID)
       .single();
     if(error) throw error;
     const record = (data && data.data) || {};
-    return {
+    const out = {
       venues: record.venues||{},
       votedDates: record.votedDates||[],
       votes: record.votes||{},
@@ -37,33 +37,54 @@ async function remoteLoad(){
       knownAutoVenues: Array.isArray(record.knownAutoVenues) ? record.knownAutoVenues : [],
       venueAddrs: (record.venueAddrs && typeof record.venueAddrs==='object') ? record.venueAddrs : {}
     };
+    Object.defineProperty(out, '__ver', { value: (data && data.version!=null) ? Number(data.version) : undefined, writable:true, enumerable:false });
+    return out;
   }catch(e){
     console.error('remoteLoad 실패', e);
     toast('공유 데이터를 불러오지 못했습니다. 잠시 후 다시 시도해 주시기 바랍니다.');
     return emptyAppData();
   }
 }
-async function remoteSave(data){
+/* 저장 규칙(낙관적 잠금): 내가 읽은 version 그대로일 때만 저장합니다.
+   그 사이 다른 사람이 저장했다면 'conflict'를 돌려주고, 호출한 쪽(mutateAppData)이 최신본을 다시 받아 재시도합니다.
+   불러오기에 실패해서 만든 빈 데이터(version 없음)는 서버를 덮어쓰지 않도록 저장을 거부합니다. */
+async function remoteSaveRaw(data){
   try{
     if(!supabaseClient) throw new Error('Supabase 클라이언트가 초기화되지 않았습니다.');
-    const { error } = await supabaseClient
+    const ver = data && data.__ver;
+    if(typeof ver !== 'number' || isNaN(ver)){ console.error('remoteSave 거부: 불러온 버전 정보가 없습니다.'); return { ok:false, reason:'noversion' }; }
+    const { data: rows, error } = await supabaseClient
       .from('app_state')
       .update({ data: data, updated_at: new Date().toISOString() })
-      .eq('id', SUPABASE_ROW_ID);
+      .eq('id', SUPABASE_ROW_ID)
+      .eq('version', ver)
+      .select('version');
     if(error) throw error;
-    return true;
+    if(!rows || rows.length===0) return { ok:false, reason:'conflict' };
+    data.__ver = Number(rows[0].version);
+    return { ok:true };
   }catch(e){
     console.error('remoteSave 실패', e);
-    toast('저장에 실패했습니다. 네트워크 상태를 확인해 주시기 바랍니다.');
-    return false;
+    return { ok:false, reason:'error' };
   }
+}
+async function remoteSave(data){
+  const r = await remoteSaveRaw(data);
+  if(!r.ok) toast(r.reason==='conflict' ? '다른 사람이 동시에 저장했습니다. 다시 시도해 주세요.' : '저장에 실패했습니다. 네트워크 상태를 확인해 주시기 바랍니다.');
+  return r.ok;
 }
 /* 저장 직전에 항상 최신 데이터를 다시 받아서 병합 → 다른 팀원의 변경을 덮어쓰지 않도록 함 */
 async function mutateAppData(mutator){
-  const fresh = await remoteLoad();
-  mutator(fresh);
-  const ok = await remoteSave(fresh);
-  if(ok) appData = fresh;
+  let fresh = null;
+  for(let i=0;i<5;i++){
+    fresh = await remoteLoad();
+    mutator(fresh);
+    const r = await remoteSaveRaw(fresh);
+    if(r.ok){ appData = fresh; return fresh; }
+    if(r.reason!=='conflict'){ toast(r.reason==='noversion' ? '데이터를 불러오지 못해 저장하지 않았습니다. 새로고침 후 다시 시도해 주세요.' : '저장에 실패했습니다. 네트워크 상태를 확인해 주시기 바랍니다.'); return fresh; }
+    await new Promise(res=>setTimeout(res, 120 + Math.random()*250));   // 동시에 저장한 경우: 잠깐 쉬고 최신본으로 다시
+  }
+  toast('저장이 계속 겹쳐서 완료하지 못했습니다. 잠시 후 다시 시도해 주세요.');
   return fresh;
 }
 async function loadAppData(){ appData = await remoteLoad(); }
