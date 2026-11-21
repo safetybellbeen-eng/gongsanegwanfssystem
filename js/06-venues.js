@@ -43,13 +43,26 @@ function baseVenueName(n){
   s = s.replace(/\s+(실내\s*단일구장|단일구장|실내구장[A-Z]?|야외구장[A-Z]?|[A-Z0-9]+구장(\([^)]*\))?|\d+구장(\([^)]*\))?|(레드|블루|블랙|화이트)구장|8vs8\s*축구장)$/,'').trim();
   return s;
 }
+/* 이름만으로 지도 검색이 안 되는 구장의 주소. 직접 확인한 주소만 넣습니다. (키: 구장 기본 이름)
+   그 밖의 구장은 지도 탭의 "위치를 못 찾은 경기장"에서 관리자가 주소를 입력하면 팀 데이터(appData.venueAddrs)에 저장됩니다. */
+const SEED_VENUE_ADDRS = {
+  '플랩 스타디움 가산 대륭테크노타운 17차': '서울특별시 금천구 가산디지털1로 25'
+};
+function savedVenueAddr(name){
+  const k = normalizeVenueName(baseVenueName(name)).toLowerCase();
+  const pick = (obj)=>{ for(const key of Object.keys(obj||{})){ if(normalizeVenueName(baseVenueName(key)).toLowerCase()===k && obj[key]) return obj[key]; } return ''; };
+  return pick((typeof appData!=='undefined' && appData && appData.venueAddrs) || {}) || pick(SEED_VENUE_ADDRS);
+}
+function applyVenueAddrs(){
+  FUTSAL_VENUES.forEach(v=>{ if(!v.address){ const a = savedVenueAddr(v.name); if(a) v.address = a; } });
+}
 function mergeAutoVenues(rawNames){
   const added = [];
   (rawNames||[]).forEach(raw=>{
     const base = baseVenueName(raw);
     if(!base || base.length < 4) return;
     if(findVenuePreset(base) || findVenuePreset(raw)) return;
-    FUTSAL_VENUES.push({ name: base, address: '', auto: true });
+    FUTSAL_VENUES.push({ name: base, address: savedVenueAddr(base) || '', auto: true });
     added.push(base);
   });
   return added;
@@ -479,6 +492,7 @@ async function placeVenuePin(v){
 /* 요청한 경기장의 핀을 가장 먼저 올려 곧바로 보여주고, 나머지 경기장은 뒤에서 여러 개씩 동시에 올립니다. */
 function renderAllVenuePins(priorityName){
   if(!map) return Promise.resolve();
+  try{ applyVenueAddrs(); }catch(e){}
   if(!venuePinsStarted){
     venuePinsStarted = true;
     allVenuePinsPlaced = true;

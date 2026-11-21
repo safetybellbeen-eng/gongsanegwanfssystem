@@ -344,6 +344,20 @@ function mfRowHtml(r){
     <div class="mf-i"><b>${escapeHtml(main)}</b><span class="mt-st ${lb.cls}">${escapeHtml(lb.text.replace(/^[^\s]+\s/,''))}</span><br><small>${escapeHtml(sub||'-')}</small></div>
     <button type="button" class="mf-go" data-url="${escapeHtml(r.match_url||'')}"${r.match_url?'':' disabled'}>신청 ›</button></div>`;
 }
+function mfOpenUnmatched(){
+  const sh = document.getElementById('mfSheet'); if(!sh) return;
+  const u = mfUnmatched();
+  if(!u.length){ MF.sel = null; sh.hidden = true; return; }
+  MF.sel = null; sh.hidden = false;
+  const admin = (typeof isAdminUser==='function') && isAdminUser();
+  const total = u.reduce((n,k)=>n+(MF.byKey[k]||[]).length, 0);
+  sh.innerHTML = `<div class="mf-grip"></div><div class="mf-hd"><b>위치를 못 찾은 경기장</b><span>${escapeHtml(mfDateLabel(MF.date))} ${escapeHtml(mfSlotLabel())} · ${total}경기</span><button type="button" class="mf-x" aria-label="닫기">✕</button></div>
+    <div class="mf-ntip">${admin ? '주소를 한 번 입력하면 모든 팀원 지도에 핀이 표시됩니다.' : '관리자가 주소를 등록하면 지도에 표시됩니다.'}</div>
+    ${u.map(k=>{ const rows = MF.byKey[k]||[]; const nm = (rows[0] && rows[0].stadium_name) || k;
+      return `<div class="mf-ub" data-k="${escapeHtml(k)}"><div class="mf-un"><b>${escapeHtml(baseVenueName(nm))}</b><small>${rows.length}경기</small></div>
+        ${admin?`<div class="mf-ai"><input class="mf-addr-in" type="text" placeholder="도로명 주소 (예: 서울 노원구 ○○로 12)" autocomplete="off"><button type="button" class="mf-addr-save">저장</button></div>`:''}
+        <div class="mf-list">${rows.map(r=>mfRowHtml(Object.assign({}, r, {stadium_short:''}))).join('')}</div></div>`; }).join('')}`;
+}
 function mfRenderSheet(){
   const sh = document.getElementById('mfSheet'); if(!sh) return;
   if(!MF.sel){ sh.hidden = true; return; }
@@ -415,13 +429,29 @@ function mfOpenPop(kind){
     const go = e.target.closest('.mf-go');
     if(go && go.dataset.url){ window.open(go.dataset.url, '_blank', 'noopener'); }
   });
-  un.addEventListener('click', ()=>{
-    const u = mfUnmatched();
-    if(!u.length) return;
-    const rows = []; u.forEach(k=>{ (MF.byKey[k]||[]).forEach(r=>rows.push(Object.assign({}, r, {stadium_short:(splitVenueName(r.stadium_name)[1]||r.stadium_name)}))); });
-    rows.sort((a,b)=>String(a.match_time).localeCompare(String(b.match_time)));
-    sh.hidden = false; MF.sel = null;
-    sh.innerHTML = `<div class="mf-grip"></div><div class="mf-hd"><b>위치를 못 찾은 경기장</b><span>${escapeHtml(mfDateLabel(MF.date))} ${escapeHtml(mfSlotLabel())} · ${rows.length}경기</span><button type="button" class="mf-x" aria-label="닫기">✕</button></div><div class="mf-list">${rows.map(mfRowHtml).join('')}</div>`;
+  un.addEventListener('click', mfOpenUnmatched);
+  sh.addEventListener('click', async (e)=>{
+    const sv = e.target.closest('.mf-addr-save'); if(!sv) return;
+    const box = sv.closest('.mf-ub'); const k = box.dataset.k;
+    const inp = box.querySelector('.mf-addr-in'); const addr = (inp.value||'').trim();
+    if(!addr){ toast('주소를 입력해 주세요.'); return; }
+    sv.disabled = true; sv.textContent = '확인 중…';
+    try{
+      let c = await kakaoGeocode(addr, true);
+      if(!c){ const c2 = await kakaoGeocode(addr, false); if(c2 && c2.lat>37.40 && c2.lat<37.72 && c2.lng>126.70 && c2.lng<127.25) c = c2; }
+      if(!c){ toast('주소를 찾지 못했습니다. 도로명 주소로 다시 입력해 주세요.'); return; }
+      const rows = MF.byKey[k] || [];
+      const base = baseVenueName((rows[0]||{}).stadium_name || '');
+      await mutateAppData(d=>{ d.venueAddrs = d.venueAddrs || {}; d.venueAddrs[base] = addr; });
+      let v = FUTSAL_VENUES.find(x=>mfKey(x.name)===k);
+      if(!v){ v = { name: base, address: addr, auto: true }; FUTSAL_VENUES.push(v); }
+      v.address = addr;
+      try{ delete venueGeocodeCache[v.name]; }catch(_){}
+      await placeVenuePin(v);
+      toast('위치를 등록했습니다.');
+      mfRegroup(); mfOpenUnmatched();
+    }catch(err){ console.error(err); toast('저장에 실패했습니다.'); }
+    finally{ sv.disabled = false; sv.textContent = '저장'; }
   });
   const favList = g('favSheetList');
   if(favList) favList.addEventListener('click', (e)=>{

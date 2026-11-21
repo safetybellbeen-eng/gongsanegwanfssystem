@@ -5,7 +5,7 @@ const SUPABASE_KEY = 'sb_publishable_GY9qgB0wVnh2YmYWO9qrTA_OK-chx5W';
 const supabaseClient = (typeof supabase !== 'undefined') ? supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
 const SUPABASE_ROW_ID = 1; // app_state 테이블의 고정 행(row) id — 팀 전체가 공유하는 데이터 한 덩어리
 
-function emptyAppData(){ return { venues:{}, votedDates:[], votes:{}, members:{}, weekAvailability:{}, weekAbsence:{}, weekOverride:{}, actualAttendance:{}, matchGuests:{}, excludedWeeks:[], statAdjustments:{}, matchTimeWindow:{startHour:19,endHour:21}, kakaoJsKey:'', notice:{title:'',body:'',updatedAt:null}, kmaApiKey:'', knownAutoVenues:[] }; }
+function emptyAppData(){ return { venues:{}, votedDates:[], votes:{}, members:{}, weekAvailability:{}, weekAbsence:{}, weekOverride:{}, actualAttendance:{}, matchGuests:{}, excludedWeeks:[], statAdjustments:{}, matchTimeWindow:{startHour:19,endHour:21}, kakaoJsKey:'', notice:{title:'',body:'',updatedAt:null}, kmaApiKey:'', knownAutoVenues:[], venueAddrs:{} }; }
 let appData = emptyAppData();
 
 async function remoteLoad(){
@@ -34,7 +34,8 @@ async function remoteLoad(){
       statAdjustments: record.statAdjustments || {},
       matchTimeWindow: record.matchTimeWindow||{startHour:19,endHour:21},
       kakaoJsKey: record.kakaoJsKey || '',
-      knownAutoVenues: Array.isArray(record.knownAutoVenues) ? record.knownAutoVenues : []
+      knownAutoVenues: Array.isArray(record.knownAutoVenues) ? record.knownAutoVenues : [],
+      venueAddrs: (record.venueAddrs && typeof record.venueAddrs==='object') ? record.venueAddrs : {}
     };
   }catch(e){
     console.error('remoteLoad 실패', e);
