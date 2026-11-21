@@ -2320,7 +2320,7 @@ button,.more-row,.tab-btn,.home-quick-btn{touch-action:manipulation;}
 .mv-timeRow{margin-top:7px;}
 .mv-seg{display:flex;gap:7px;}.mv-seg button{flex:1;padding:10px 0;border-radius:12px;background:#10171c;border:1.5px solid #25323a;font:inherit;font-size:13px;font-weight:800;color:#9db0b8;cursor:pointer;}
 .mv-seg button.on{border-color:#b6f23a;color:#b6f23a;background:rgba(182,242,58,.08);}
-.mv-save{position:sticky;bottom:calc(66px + env(safe-area-inset-bottom));z-index:5;display:flex;flex-direction:column;gap:6px;margin:16px -4px 0;padding:14px 4px 4px;background:linear-gradient(transparent,var(--bg,#0b1115) 35%);}
+.mv-save{display:flex;flex-direction:column;gap:8px;margin:18px 0 4px;}
 .mv-save .admin-feed-status{margin:0;text-align:center;}
 .mv-save #saveMatchVenueTimeBtn{height:48px;border:0;border-radius:14px;background:#b6f23a;color:#111;font:inherit;font-weight:900;font-size:15px;cursor:pointer;}
 .mv-dateRow input[type=date]{background:#10171c;border:1px solid #2a3a43;border-radius:12px;padding:10px 12px;color:#e8eef1;color-scheme:dark;font-size:13px;}
