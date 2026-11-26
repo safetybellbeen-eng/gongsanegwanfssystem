@@ -18,11 +18,11 @@ function renderNoticeHub(){
   const has = !!(n.title || n.body);
   let nd = 0, uv = 0, uvLabel = '';
   try{ nd = getNudgeTargets().length; }catch(_){}
-  try{ uv = getUnvotedNames(0).length; }catch(_){}
+  try{ uv = getUnvotedNames(defaultWsWeek()).length; }catch(_){}
   root.innerHTML = `
     <button type="button" class="nr-lc" data-a="notice"><i>📢</i><div><b>공지사항</b><small>${has?escapeHtml(n.title||n.body):'등록된 공지가 없습니다'}</small></div><span>›</span></button>
     <button type="button" class="nr-lc" data-a="nudge"><i>🔔</i><div><b>참여 독려 알림</b><small>연속 ${typeof NUDGE_MIN!=='undefined'?NUDGE_MIN:5}경기 이상 불참 · 대상 ${nd}명</small></div><em>보내기</em></button>
-    <button type="button" class="nr-lc" data-a="vote"><i>🗳️</i><div><b>투표 독려 알림</b><small>이번 주 미투표 ${uv}명</small></div><em>보내기</em></button>`;
+    <button type="button" class="nr-lc" data-a="vote"><i>🗳️</i><div><b>투표 독려 알림</b><small>${(typeof defaultWsWeek==='function' && defaultWsWeek()===1)?'다음':'이번'} 주 미투표 ${uv}명</small></div><em>보내기</em></button>`;
 }
 function openNoticeSheet(){
   const n = appData.notice || {};
