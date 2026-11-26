@@ -188,9 +188,18 @@ document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closeVoteSheet(
   });
 })();
 
+/* 투표 현황이 기본으로 보여줄 주: 이번 주 확정 경기가 모두 끝났으면 다음 주(1), 아니면 이번 주(0).
+   사용자가 이번 주/다음 주 버튼으로 직접 고르면(window.__wsWeek) 그 선택을 따릅니다. */
+function defaultWsWeek(){
+  if(window.__wsWeek===0 || window.__wsWeek===1) return window.__wsWeek;
+  try{
+    const info = getWeekInfo(getWeekStart(todayStr()));
+    return (info.confirmedDates.length && [...info.confirmedDates].sort().pop() < todayStr()) ? 1 : 0;
+  }catch(e){ return 0; }
+}
 /* ---------- 투표 알림: 이번 주(현황에서 선택한 주) 미투표 회원에게만 푸시 ---------- */
 function getWsWeekInfo(off){
-  const offset = (off===0||off===1) ? off : (window.__wsWeek === 1 ? 1 : 0);
+  const offset = (off===0||off===1) ? off : defaultWsWeek();
   const base = parseYMD(getWeekStart(todayStr()));
   base.setDate(base.getDate() + offset*7);
   const end = new Date(base); end.setDate(end.getDate()+6);
@@ -251,7 +260,7 @@ function openVoteAlertSheet(){
 function renderWeekStatus(){
   const body = document.getElementById('wsBody');
   if(!body || body.hidden || !appData) return;
-  const offset = window.__wsWeek === 1 ? 1 : 0;
+  const offset = defaultWsWeek();
   const base = parseYMD(getWeekStart(todayStr()));
   base.setDate(base.getDate() + offset*7);
   const weekKey = fmtDate(base);
